@@ -117,10 +117,14 @@ async function handleChat(req: Request, env: Env): Promise<Response> {
     model?: string
     baseUrl?: string
     apiKey?: string
+    temperature?: number
+    maxTokens?: number
   }
   const messages = (body.messages || []).filter((m) => m.content && m.content.trim())
   while (messages.length && messages[0].role !== 'user') messages.shift()
   if (!messages.length) return json({ reply: '' })
+
+  const tuning = { temperature: body.temperature, maxTokens: body.maxTokens }
 
   // 选渠道：请求覆盖 > 默认配置 > 哪个 key 在就用哪个
   const provider = (
@@ -131,9 +135,9 @@ async function handleChat(req: Request, env: Env): Promise<Response> {
 
   try {
     if (provider === 'anthropic') {
-      return await callAnthropic(env, body.system || '', messages, body.model, body.baseUrl, body.apiKey)
+      return await callAnthropic(env, body.system || '', messages, body.model, body.baseUrl, body.apiKey, tuning)
     }
-    return await callOpenAI(env, body.system || '', messages, body.model, body.baseUrl, body.apiKey)
+    return await callOpenAI(env, body.system || '', messages, body.model, body.baseUrl, body.apiKey, tuning)
   } catch (e) {
     return json({ error: `AI 调用失败：${(e as Error).message}` }, { status: 502 })
   }
@@ -146,7 +150,8 @@ async function callAnthropic(
   messages: ChatMessage[],
   modelOverride?: string,
   baseOverride?: string,
-  keyOverride?: string
+  keyOverride?: string,
+  tuning?: { temperature?: number; maxTokens?: number }
 ): Promise<Response> {
   const key = keyOverride || env.ANTHROPIC_API_KEY
   if (!key) {
@@ -163,7 +168,8 @@ async function callAnthropic(
     },
     body: JSON.stringify({
       model,
-      max_tokens: 1024,
+      max_tokens: tuning?.maxTokens ?? 1024,
+      ...(tuning?.temperature != null ? { temperature: tuning.temperature } : {}),
       system,
       messages: messages.map((m) => ({ role: m.role, content: m.content })),
     }),
@@ -181,7 +187,8 @@ async function callOpenAI(
   messages: ChatMessage[],
   modelOverride?: string,
   baseOverride?: string,
-  keyOverride?: string
+  keyOverride?: string,
+  tuning?: { temperature?: number; maxTokens?: number }
 ): Promise<Response> {
   const key = keyOverride || env.OPENAI_API_KEY
   if (!key) {
@@ -198,7 +205,12 @@ async function callOpenAI(
       'content-type': 'application/json',
       authorization: `Bearer ${key}`,
     },
-    body: JSON.stringify({ model, messages: full, max_tokens: 1024 }),
+    body: JSON.stringify({
+      model,
+      messages: full,
+      max_tokens: tuning?.maxTokens ?? 1024,
+      ...(tuning?.temperature != null ? { temperature: tuning.temperature } : {}),
+    }),
   })
   if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`)
   const data = (await res.json()) as {

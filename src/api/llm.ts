@@ -35,26 +35,36 @@ export async function listModels(ch: ApiChannel): Promise<string[]> {
   return (data.data || []).map((m) => m.id).filter(Boolean)
 }
 
+export interface ChatOptions {
+  workerUrl?: string
+  syncKey?: string
+  temperature?: number
+  maxTokens?: number
+}
+
 /** 发起一次对话，返回回复文本 */
 export async function chatComplete(
   ch: ApiChannel,
   messages: ChatApiMessage[],
   system: string,
-  workerUrl?: string,
-  syncKey?: string
+  opts: ChatOptions = {}
 ): Promise<string> {
+  const maxTokens = opts.maxTokens ?? 1024
   // 经 Worker 中转：把渠道配置交给自己的 Worker 调用
   if (ch.viaWorker) {
-    if (!workerUrl) throw new Error('勾选了「经 Worker 中转」但未配置 Worker 地址')
+    if (!opts.workerUrl)
+      throw new Error('勾选了「经 Worker 中转」但未配置 Worker 地址')
     return sendChat({
-      workerUrl,
-      syncKey,
+      workerUrl: opts.workerUrl,
+      syncKey: opts.syncKey,
       messages,
       system,
       provider: ch.provider,
       model: ch.model,
       baseUrl: ch.baseUrl,
       apiKey: ch.apiKey,
+      temperature: opts.temperature,
+      maxTokens,
     })
   }
 
@@ -70,7 +80,8 @@ export async function chatComplete(
       },
       body: JSON.stringify({
         model: ch.model,
-        max_tokens: 1024,
+        max_tokens: maxTokens,
+        ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
         system,
         messages,
       }),
@@ -95,7 +106,12 @@ export async function chatComplete(
       'content-type': 'application/json',
       authorization: `Bearer ${ch.apiKey}`,
     },
-    body: JSON.stringify({ model: ch.model, messages: full, max_tokens: 1024 }),
+    body: JSON.stringify({
+      model: ch.model,
+      messages: full,
+      max_tokens: maxTokens,
+      ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
+    }),
   })
   const data = (await res.json().catch(() => ({}))) as {
     choices?: { message?: { content?: string } }[]

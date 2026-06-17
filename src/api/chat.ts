@@ -20,6 +20,8 @@ export async function sendChat(opts: {
   baseUrl?: string
   /** key 覆盖（前端管理渠道时透传；仅发往你自己的 Worker） */
   apiKey?: string
+  temperature?: number
+  maxTokens?: number
 }): Promise<string> {
   const base = opts.workerUrl.replace(/\/+$/, '')
   const res = await fetch(`${base}/chat`, {
@@ -35,6 +37,8 @@ export async function sendChat(opts: {
       ...(opts.model ? { model: opts.model } : {}),
       ...(opts.baseUrl ? { baseUrl: opts.baseUrl } : {}),
       ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
+      ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
+      ...(opts.maxTokens != null ? { maxTokens: opts.maxTokens } : {}),
     }),
   })
   const data = (await res.json().catch(() => ({}))) as {
