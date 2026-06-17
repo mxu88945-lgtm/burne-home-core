@@ -1,97 +1,117 @@
 import { Link } from 'react-router-dom'
-import { useMemoryStore } from '@/store/memoryStore'
+import { useProfileStore, daysTogether } from '@/store/profileStore'
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function Avatar({ emoji }: { emoji: string }) {
   return (
-    <div className="glass rounded-2xl px-4 py-4">
-      <div className="label">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-accent">{value}</div>
+    <div
+      className="flex h-20 w-20 items-center justify-center rounded-full text-3xl"
+      style={{
+        background: 'var(--card-strong)',
+        border: '2px solid var(--card-border)',
+        boxShadow: '0 8px 22px var(--shadow)',
+      }}
+    >
+      {emoji}
     </div>
   )
 }
 
-function EntryCard({
+function QuickEntry({
   to,
   icon,
   title,
-  desc,
+  sub,
 }: {
   to: string
   icon: string
   title: string
-  desc: string
+  sub: string
 }) {
   return (
     <Link
       to={to}
-      className="glass flex items-center gap-3 rounded-2xl px-4 py-3.5 transition active:scale-[0.99]"
+      className="glass flex flex-col gap-1 rounded-2xl px-4 py-4 transition active:scale-[0.98]"
     >
       <span className="text-xl">{icon}</span>
-      <span className="flex-1">
-        <span className="block text-sm font-medium text-ink">{title}</span>
-        <span className="block text-xs text-muted">{desc}</span>
-      </span>
-      <span className="text-accent">›</span>
+      <span className="text-sm font-medium text-ink">{title}</span>
+      <span className="text-[11px] text-muted">{sub}</span>
     </Link>
   )
 }
 
 export default function Home() {
-  const summary = useMemoryStore((s) => s.getSummary())
+  const { profile, setProfile } = useProfileStore()
+  const days = daysTogether(profile.anniversary)
+
+  function editProfile() {
+    const nameA = window.prompt('你的名字', profile.nameA)
+    if (nameA === null) return
+    const nameB = window.prompt('TA 的名字', profile.nameB)
+    if (nameB === null) return
+    const anniversary = window.prompt(
+      '纪念日（格式 yyyy-mm-dd）',
+      profile.anniversary
+    )
+    if (anniversary === null) return
+    const signature = window.prompt('心情签名', profile.signature)
+    if (signature === null) return
+    setProfile({
+      nameA: nameA.trim() || profile.nameA,
+      nameB: nameB.trim() || profile.nameB,
+      anniversary: anniversary.trim() || profile.anniversary,
+      signature: signature.trim() || profile.signature,
+    })
+  }
 
   return (
     <div className="space-y-5">
-      {/* 浪漫主视觉 */}
-      <section className="glass-strong overflow-hidden rounded-3xl px-6 py-7 text-center">
-        <div className="text-accent">♡</div>
-        <h2 className="headline mt-2 text-[26px] leading-tight text-ink">
-          Welcome Home
+      {/* 情侣主视觉 */}
+      <section className="glass-strong rounded-3xl px-6 py-7 text-center">
+        <div className="flex items-center justify-center gap-5">
+          <Avatar emoji={profile.avatarA} />
+          <span className="headline text-2xl text-accent-2">&</span>
+          <Avatar emoji={profile.avatarB} />
+        </div>
+        <h2 className="headline mt-5 text-2xl text-ink">
+          {profile.nameA} <span className="text-accent">♡</span> {profile.nameB}
         </h2>
-        <p className="mt-2 text-xs leading-relaxed text-muted">
-          窗外没有月亮也没关系，我们的记忆都在这里。
+        <p className="mx-auto mt-2 max-w-[18rem] text-xs leading-relaxed text-muted">
+          “{profile.signature}”
         </p>
+      </section>
 
-        <div className="mt-5">
-          <div className="text-5xl font-semibold text-accent">
-            {summary.total}
-          </div>
-          <div className="label mt-1">珍藏的记忆</div>
+      {/* 在一起的天数 */}
+      <section className="glass rounded-3xl px-6 py-6 text-center">
+        <div className="text-5xl font-semibold text-accent">{days}</div>
+        <div className="label mt-1">一起的 {days} 天</div>
+        <div className="mt-1 text-[11px] text-muted">
+          Since {profile.anniversary}
         </div>
       </section>
 
-      {/* 摘要区 */}
-      <section className="grid grid-cols-3 gap-3">
-        <StatCard label="Core" value={summary.coreCount} />
-        <StatCard label="Normal" value={summary.normalCount} />
-        <StatCard label="Auto" value={summary.autoCount} />
-      </section>
-
-      {/* 模块入口 */}
-      <section className="space-y-3">
-        <div className="label px-1">Modules</div>
-        <EntryCard
+      {/* 快捷入口 */}
+      <section className="grid grid-cols-2 gap-3">
+        <QuickEntry
           to="/memories"
           icon="📔"
-          title="记忆库"
-          desc="浏览 · 新增 · 编辑 · 核心标星"
+          title="我们的记忆"
+          sub="摘要 · 核心 · 全部"
         />
-        <EntryCard
-          to="/search"
-          icon="🔍"
-          title="搜索回忆"
-          desc="全文搜索 · 跨窗口召回"
-        />
-        <EntryCard
-          to="/settings"
-          icon="⚙️"
-          title="同步与隐私"
-          desc="Notion 同步 · 本地备份 · 隐私锁"
+        <QuickEntry
+          to="/chat"
+          icon="💬"
+          title="今天聊聊"
+          sub="说点什么吧"
         />
       </section>
 
-      <p className="pt-1 text-center text-[11px] text-muted">
-        最小可运行骨架 · 功能分轮实现 ♡
-      </p>
+      <button
+        type="button"
+        onClick={editProfile}
+        className="mx-auto block text-[12px] text-muted underline-offset-4 hover:underline"
+      >
+        ✎ 编辑主页信息
+      </button>
     </div>
   )
 }
