@@ -124,9 +124,7 @@ export default function Chat() {
             {connected ? persona.status : '未连接 API'}
           </div>
         </div>
-        <Link to="/persona" className="glass rounded-full px-3 py-1.5 text-[11px] text-ink">
-          人设
-        </Link>
+        <span className="w-14" />
       </div>
 
       {/* 消息列表 */}
@@ -180,7 +178,7 @@ export default function Chat() {
         </div>
         <div className="mt-1.5 text-center">
           <Link to="/settings" className="text-[10px] text-muted hover:text-accent">
-            模型：{modelLabel} ▾
+            {modelLabel} ▾
           </Link>
         </div>
       </div>

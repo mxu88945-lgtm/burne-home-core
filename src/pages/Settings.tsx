@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import type { ReactNode, InputHTMLAttributes } from 'react'
+import { Link } from 'react-router-dom'
 import { useSettingsStore } from '@/store/settingsStore'
 import { usePrivacyStore } from '@/store/privacyStore'
 import { useMemoryStore } from '@/store/memoryStore'
@@ -26,7 +27,7 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <section className="glass rounded-3xl p-5">
+    <section className="glass rounded-2xl p-4">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -166,11 +167,29 @@ export default function Settings() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <div className="px-1">
         <h2 className="headline text-2xl text-ink">设置 ⚙️</h2>
-        <p className="mt-1 text-sm text-muted">同步 · 备份 · 隐私</p>
+        <p className="mt-1 text-sm text-muted">个性 · 同步 · 备份 · 隐私</p>
       </div>
+
+      {/* 主题 / 人设 入口 */}
+      <Link
+        to="/theme"
+        className="glass flex items-center gap-3 rounded-2xl px-4 py-3.5"
+      >
+        <span>🎨</span>
+        <span className="flex-1 text-sm text-ink">主题</span>
+        <span className="text-accent">›</span>
+      </Link>
+      <Link
+        to="/persona"
+        className="glass flex items-center gap-3 rounded-2xl px-4 py-3.5"
+      >
+        <span>🎭</span>
+        <span className="flex-1 text-sm text-ink">角色人设</span>
+        <span className="text-accent">›</span>
+      </Link>
 
       {msg && (
         <div className="glass-strong rounded-2xl px-4 py-2.5 text-xs text-ink">
