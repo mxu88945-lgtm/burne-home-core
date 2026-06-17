@@ -17,16 +17,37 @@ function Section({
   title,
   desc,
   children,
+  defaultOpen = true,
 }: {
   title: string
   desc?: string
   children: ReactNode
+  defaultOpen?: boolean
 }) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
     <section className="glass rounded-3xl p-5">
-      <h3 className="text-sm font-semibold text-ink">{title}</h3>
-      {desc && <p className="mt-1 text-[11px] leading-relaxed text-muted">{desc}</p>}
-      <div className="mt-4 space-y-3">{children}</div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between"
+      >
+        <h3 className="text-sm font-semibold text-ink">{title}</h3>
+        <span
+          className="text-muted transition-transform"
+          style={{ transform: open ? 'rotate(90deg)' : 'none' }}
+        >
+          ›
+        </span>
+      </button>
+      {open && (
+        <>
+          {desc && (
+            <p className="mt-1 text-[11px] leading-relaxed text-muted">{desc}</p>
+          )}
+          <div className="mt-4 space-y-3">{children}</div>
+        </>
+      )}
     </section>
   )
 }

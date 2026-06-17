@@ -105,7 +105,9 @@ export default function Chat() {
         <h2 className="headline text-2xl text-ink">和 {profile.nameB} 聊聊 💬</h2>
         <p className="mt-1 text-[11px] text-muted">
           {connected ? (
-            `已连接 · ${activeChannel ? activeChannel.name : '默认渠道'}`
+            activeChannel
+              ? `已连接 · ${activeChannel.name} · ${activeChannel.model || '未设模型'}`
+              : `已连接 · ${config.chatModel || '默认渠道'}`
           ) : (
             <>
               未配置 API ·{' '}
