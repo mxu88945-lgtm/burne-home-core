@@ -115,6 +115,8 @@ async function handleChat(req: Request, env: Env): Promise<Response> {
     system?: string
     provider?: string
     model?: string
+    baseUrl?: string
+    apiKey?: string
   }
   const messages = (body.messages || []).filter((m) => m.content && m.content.trim())
   while (messages.length && messages[0].role !== 'user') messages.shift()
@@ -129,9 +131,9 @@ async function handleChat(req: Request, env: Env): Promise<Response> {
 
   try {
     if (provider === 'anthropic') {
-      return await callAnthropic(env, body.system || '', messages, body.model)
+      return await callAnthropic(env, body.system || '', messages, body.model, body.baseUrl, body.apiKey)
     }
-    return await callOpenAI(env, body.system || '', messages, body.model)
+    return await callOpenAI(env, body.system || '', messages, body.model, body.baseUrl, body.apiKey)
   } catch (e) {
     return json({ error: `AI 调用失败：${(e as Error).message}` }, { status: 502 })
   }
@@ -142,18 +144,21 @@ async function callAnthropic(
   env: Env,
   system: string,
   messages: ChatMessage[],
-  modelOverride?: string
+  modelOverride?: string,
+  baseOverride?: string,
+  keyOverride?: string
 ): Promise<Response> {
-  if (!env.ANTHROPIC_API_KEY) {
-    return json({ error: '未配置 ANTHROPIC_API_KEY' }, { status: 400 })
+  const key = keyOverride || env.ANTHROPIC_API_KEY
+  if (!key) {
+    return json({ error: '未配置 Anthropic key' }, { status: 400 })
   }
-  const base = (env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/+$/, '')
+  const base = (baseOverride || env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/+$/, '')
   const model = modelOverride || env.ANTHROPIC_MODEL || env.MODEL || 'claude-sonnet-4-6'
   const res = await fetch(`${base}/v1/messages`, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      'x-api-key': env.ANTHROPIC_API_KEY,
+      'x-api-key': key,
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
@@ -174,12 +179,15 @@ async function callOpenAI(
   env: Env,
   system: string,
   messages: ChatMessage[],
-  modelOverride?: string
+  modelOverride?: string,
+  baseOverride?: string,
+  keyOverride?: string
 ): Promise<Response> {
-  if (!env.OPENAI_API_KEY) {
-    return json({ error: '未配置 OPENAI_API_KEY' }, { status: 400 })
+  const key = keyOverride || env.OPENAI_API_KEY
+  if (!key) {
+    return json({ error: '未配置 OpenAI key' }, { status: 400 })
   }
-  const base = (env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '')
+  const base = (baseOverride || env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '')
   const model = modelOverride || env.OPENAI_MODEL || env.MODEL || 'gpt-4o-mini'
   const full = system
     ? [{ role: 'system', content: system }, ...messages]
@@ -188,7 +196,7 @@ async function callOpenAI(
     method: 'POST',
     headers: {
       'content-type': 'application/json',
-      authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({ model, messages: full, max_tokens: 1024 }),
   })

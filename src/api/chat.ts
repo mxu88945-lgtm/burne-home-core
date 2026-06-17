@@ -16,6 +16,10 @@ export async function sendChat(opts: {
   provider?: string
   /** 模型覆盖（留空用 Worker 默认） */
   model?: string
+  /** base URL 覆盖（前端管理渠道时透传） */
+  baseUrl?: string
+  /** key 覆盖（前端管理渠道时透传；仅发往你自己的 Worker） */
+  apiKey?: string
 }): Promise<string> {
   const base = opts.workerUrl.replace(/\/+$/, '')
   const res = await fetch(`${base}/chat`, {
@@ -29,6 +33,8 @@ export async function sendChat(opts: {
       system: opts.system,
       ...(opts.provider ? { provider: opts.provider } : {}),
       ...(opts.model ? { model: opts.model } : {}),
+      ...(opts.baseUrl ? { baseUrl: opts.baseUrl } : {}),
+      ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
     }),
   })
   const data = (await res.json().catch(() => ({}))) as {

@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useProfileStore } from '@/store/profileStore'
 import { useSyncStore } from '@/store/syncStore'
+import { useApiStore } from '@/store/apiStore'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
+import { chatComplete } from '@/api/llm'
 
 interface Msg {
   id: string
@@ -17,7 +19,10 @@ function newId() {
 export default function Chat() {
   const { profile } = useProfileStore()
   const { config } = useSyncStore()
+  const activeChannel = useApiStore((s) => s.getActive())
   const workerUrl = config.workerUrl?.trim()
+  // 有激活渠道（前端管理）或配了 Worker 默认渠道，都算「已连接」
+  const connected = Boolean(activeChannel || workerUrl)
 
   const [messages, setMessages] = useState<Msg[]>([
     {
@@ -42,14 +47,14 @@ export default function Chat() {
     setMessages(history)
     setDraft('')
 
-    // 没配后端：温柔提示，先把话存着
-    if (!workerUrl) {
+    // 没配任何渠道：温柔提示，先把话存着
+    if (!connected) {
       setMessages((prev) => [
         ...prev,
         {
           id: newId(),
           role: 'companion',
-          text: '（还没连上后端哦～去「设置 → 多端同步」填上 Worker 地址，我就能真的回你啦 ♡）',
+          text: '（还没配 API 哦～去「设置 → API / 模型」加一条渠道，我就能真的回你啦 ♡）',
         },
       ])
       return
@@ -66,14 +71,16 @@ export default function Chat() {
 
     setSending(true)
     try {
-      const reply = await sendChat({
-        workerUrl,
-        syncKey: config.syncKey,
-        messages: apiMsgs,
-        system,
-        provider: config.chatProvider || undefined,
-        model: config.chatModel || undefined,
-      })
+      const reply = activeChannel
+        ? await chatComplete(activeChannel, apiMsgs, system, workerUrl, config.syncKey)
+        : await sendChat({
+            workerUrl: workerUrl!,
+            syncKey: config.syncKey,
+            messages: apiMsgs,
+            system,
+            provider: config.chatProvider || undefined,
+            model: config.chatModel || undefined,
+          })
       setMessages((prev) => [
         ...prev,
         { id: newId(), role: 'companion', text: reply || '……' },
@@ -97,11 +104,11 @@ export default function Chat() {
       <div className="px-1">
         <h2 className="headline text-2xl text-ink">和 {profile.nameB} 聊聊 💬</h2>
         <p className="mt-1 text-[11px] text-muted">
-          {workerUrl ? (
-            '已连接后端'
+          {connected ? (
+            `已连接 · ${activeChannel ? activeChannel.name : '默认渠道'}`
           ) : (
             <>
-              未连接后端 ·{' '}
+              未配置 API ·{' '}
               <Link to="/settings" className="text-accent underline-offset-2 hover:underline">
                 去设置
               </Link>
