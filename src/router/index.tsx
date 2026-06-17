@@ -1,4 +1,4 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createHashRouter } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Home from '@/pages/Home'
 import MemoryLibrary from '@/pages/MemoryLibrary'
@@ -6,7 +6,7 @@ import Search from '@/pages/Search'
 import Settings from '@/pages/Settings'
 import NotFound from '@/pages/NotFound'
 
-export const router = createBrowserRouter([
+export const router = createHashRouter([
   {
     path: '/',
     element: <AppLayout />,
