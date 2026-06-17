@@ -19,6 +19,7 @@ export default function ApiManager() {
   const [viaWorker, setViaWorker] = useState(false)
   const [msg, setMsg] = useState('')
   const [models, setModels] = useState<Record<string, string[]>>({})
+  const [pending, setPending] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState<string>('')
 
   function preset() {
@@ -57,7 +58,8 @@ export default function ApiManager() {
     try {
       const list = await listModels(ch)
       setModels((m) => ({ ...m, [id]: list }))
-      setMsg(`拉到 ${list.length} 个模型`)
+      setPending((p) => ({ ...p, [id]: ch.model || list[0] || '' }))
+      setMsg(`拉到 ${list.length} 个模型，选一个点「确认模型」`)
     } catch (e) {
       setMsg(`拉取模型失败：${(e as Error).message}`)
     } finally {
@@ -105,28 +107,50 @@ export default function ApiManager() {
                 </button>
               </div>
 
-              <div className="mt-2 flex items-center gap-2">
-                <select
-                  value={c.model}
-                  onChange={(e) => updateChannel(c.id, { model: e.target.value })}
-                  className={inputCls + ' flex-1'}
-                >
-                  <option value={c.model}>{c.model || '（未设模型）'}</option>
-                  {(models[c.id] || [])
-                    .filter((m) => m !== c.model)
-                    .map((m) => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                </select>
-                <button
-                  onClick={() => fetchModels(c.id)}
-                  disabled={busy === c.id}
-                  className="glass shrink-0 rounded-xl px-3 py-2 text-xs text-ink disabled:opacity-60"
-                >
-                  {busy === c.id ? '…' : '拉取模型'}
-                </button>
+              <div className="mt-2 space-y-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-muted">
+                    当前模型：
+                    <span className="text-ink">{c.model || '未设置'}</span>
+                  </span>
+                  <button
+                    onClick={() => fetchModels(c.id)}
+                    disabled={busy === c.id}
+                    className="glass rounded-lg px-3 py-1.5 text-ink disabled:opacity-60"
+                  >
+                    {busy === c.id ? '拉取中…' : '获取模型'}
+                  </button>
+                </div>
+
+                {/* 拉到模型后：选择 + 确认 两步 */}
+                {models[c.id] && models[c.id].length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={pending[c.id] ?? c.model}
+                      onChange={(e) =>
+                        setPending((p) => ({ ...p, [c.id]: e.target.value }))
+                      }
+                      className={inputCls + ' flex-1'}
+                    >
+                      {models[c.id].map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={() => {
+                        const sel = pending[c.id] ?? c.model
+                        updateChannel(c.id, { model: sel })
+                        setMsg(`已确认模型：${sel}`)
+                      }}
+                      disabled={(pending[c.id] ?? c.model) === c.model}
+                      className="btn-primary shrink-0 rounded-xl px-4 py-2 text-xs disabled:opacity-50"
+                    >
+                      确认模型
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )
