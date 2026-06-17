@@ -21,6 +21,8 @@ export default function ApiManager() {
   const [models, setModels] = useState<Record<string, string[]>>({})
   const [pending, setPending] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState<string>('')
+  const [addModels, setAddModels] = useState<string[]>([])
+  const [addBusy, setAddBusy] = useState(false)
 
   function preset() {
     setName('OpenRouter')
@@ -47,7 +49,34 @@ export default function ApiManager() {
     setApiKey('')
     setModel('')
     setViaWorker(false)
+    setAddModels([])
     setMsg('已添加渠道（key 只存本地）')
+  }
+
+  async function fetchAddModels() {
+    if (!baseUrl.trim() || !apiKey.trim()) {
+      setMsg('先填 base URL 和 key 再获取模型')
+      return
+    }
+    setAddBusy(true)
+    setMsg('')
+    try {
+      const list = await listModels({
+        id: '_new',
+        name: name || provider,
+        provider,
+        baseUrl: baseUrl.trim(),
+        apiKey: apiKey.trim(),
+        model: model.trim(),
+      })
+      setAddModels(list)
+      if (!model && list[0]) setModel(list[0])
+      setMsg(`拉到 ${list.length} 个模型，选一个`)
+    } catch (e) {
+      setMsg(`拉取模型失败：${(e as Error).message}`)
+    } finally {
+      setAddBusy(false)
+    }
   }
 
   async function fetchModels(id: string) {
@@ -200,12 +229,34 @@ export default function ApiManager() {
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
           />
-          <input
-            className={inputCls}
-            placeholder="模型，如 openai/gpt-4o-mini（可先留空，加完拉取）"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-          />
+          <div className="flex items-center gap-2">
+            <input
+              className={inputCls + ' flex-1'}
+              placeholder="模型，如 openai/gpt-4o-mini"
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+            />
+            <button
+              onClick={fetchAddModels}
+              disabled={addBusy}
+              className="glass shrink-0 rounded-xl px-3 py-2 text-xs text-ink disabled:opacity-60"
+            >
+              {addBusy ? '获取中…' : '获取模型'}
+            </button>
+          </div>
+          {addModels.length > 0 && (
+            <select
+              value={model}
+              onChange={(e) => setModel(e.target.value)}
+              className={inputCls}
+            >
+              {addModels.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          )}
           <label className="flex items-center gap-2 text-[11px] text-muted">
             <input
               type="checkbox"
