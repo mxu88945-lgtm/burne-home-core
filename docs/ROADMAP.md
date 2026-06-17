@@ -41,9 +41,52 @@
 
 ---
 
-## 第三轮 🔮 同步 · 备份 · 隐私 · 聊天后端
+## 第三轮 🔮 多端共享 · 同步 · 备份 · 隐私 · 聊天后端
 
-### A. Notion 云端同步
+> 🎯 **首要目标：多设备共享**。手机 / 电脑 / 平板打开都能看到同一份记忆。
+> 这要求有一个**云端唯一数据源**，每个端连它读写。本地 localStorage 退化为离线缓存。
+
+### 0. 多端共享架构（双后端）
+
+```
+ 手机 ─┐
+ 电脑 ─┤──HTTPS──►  Cloudflare Worker (主库, KV/D1)  ──镜像──►  Notion (可读可改副本)
+ 平板 ─┘             ▲ 唯一数据源 · 快 · 近实时              ▲ 你能在 Notion 直接看/改
+```
+
+- **主库 = Worker + KV/D1**：负责多端读写与合并，是「谁说了算」的那一份。
+- **镜像 = Notion**：Worker 把主库内容同步到 Notion，方便人工查看/编辑；Notion 的改动也可回流主库。
+
+**同步模型**：
+- 每台设备生成一次性 `deviceId`（本地持久化）。
+- 每条记忆带 `updatedAt`；删除用墓碑 `deletedAt`（软删除，便于在各端传播删除）。
+- 同步流程：`拉取远端 → 与本地按 id 合并（updatedAt 后写为准、墓碑生效）→ 推送合并结果 → 覆盖本地缓存`。
+- 合并策略：**逐条 last-write-wins**（同一条取 `updatedAt` 最新者）。
+- 触发：手动「立即同步」+ 可选自动同步（启动时 / 间隔轮询）；进阶可上 WebSocket（Durable Objects）做实时。
+
+**主库代理契约**（前端按此调用，见 `src/api/sync.ts`）：
+
+| 方法 & 路径 | 作用 | 请求 | 响应 |
+|---|---|---|---|
+| `GET  {workerUrl}/spaces/{spaceId}/memories` | 拉取快照 | — | `{ memories, serverTime }` |
+| `POST {workerUrl}/spaces/{spaceId}/sync` | 增量合并 | `{ deviceId, since, changes }` | `{ memories, serverTime }` |
+
+请求头：`X-Sync-Key`（可选共享密钥，仅存本地）。`spaceId` 标识「哪一份库」（多人/多库可区分）。
+
+**接入步骤**：
+1. 写主库 Worker：用 KV 或 D1 存 `spaces/{spaceId}` 的记忆集合。
+2. 实现上面两个端点 + 服务端合并（与前端 `mergeMemories` 同策略）。
+3. 前端「设置 → 多端同步」填 `workerUrl` / `spaceId` / `syncKey`（存本地），点立即同步。
+4. memoryStore 的删除改为写墓碑 `deletedAt`（展示层过滤）。
+5. Worker 再做 Notion 镜像（复用 A 节的 Notion 代理）。
+
+**环境变量**（`.env.local`，均非密钥）：
+```
+VITE_SYNC_WORKER_URL=https://your-store.example.workers.dev
+VITE_SYNC_SPACE_ID=home
+```
+
+### A. Notion 云端同步（作为镜像 / 可选直连）
 
 **架构**：前端不直接调 Notion API，统一**走自建 Worker 代理**，密钥留在 Worker 后端。
 

@@ -38,6 +38,12 @@ export interface MemoryItem {
   windowId?: string
   createdAt: string // ISO 字符串
   updatedAt: string // ISO 字符串
+  /**
+   * 软删除墓碑（多端同步用）：设了 deletedAt 表示已删除，
+   * 仍保留条目以便把「删除」这件事传播到其它设备。展示层需过滤掉。
+   * 第三轮把 memoryStore 的删除改为写此字段。
+   */
+  deletedAt?: string
   /** Notion 页面 ID（同步后回填，用于双向更新） */
   notionPageId?: string
 }

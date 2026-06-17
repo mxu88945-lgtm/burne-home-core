@@ -11,5 +11,9 @@ export const env = {
   notionProxyUrl: import.meta.env.VITE_NOTION_PROXY_URL ?? '',
   /** Notion 数据库 ID（非敏感） */
   notionDatabaseId: import.meta.env.VITE_NOTION_DATABASE_ID ?? '',
+  /** 多端同步主库 Worker 地址（非密钥） */
+  syncWorkerUrl: import.meta.env.VITE_SYNC_WORKER_URL ?? '',
+  /** 同步 spaceId（标识哪一份库） */
+  syncSpaceId: import.meta.env.VITE_SYNC_SPACE_ID ?? '',
   isDev: import.meta.env.DEV,
 }

@@ -13,7 +13,23 @@ export const STORAGE_KEYS = {
   privacy: `${NS}:privacy`,
   theme: `${NS}:theme`,
   profile: `${NS}:profile`,
+  sync: `${NS}:sync`,
 } as const
+
+/** 本设备 ID（多端同步用）—— 生成一次后持久化在本地 */
+export function getDeviceId(): string {
+  try {
+    const k = `${NS}:device-id`
+    let id = localStorage.getItem(k)
+    if (!id) {
+      id = 'randomUUID' in crypto ? crypto.randomUUID() : `dev-${Date.now()}`
+      localStorage.setItem(k, id)
+    }
+    return id
+  } catch {
+    return `dev-${Date.now()}`
+  }
+}
 
 /** 当前窗口 ID（用于「跨窗口回忆」）—— 每个标签页一个，会话级 */
 export const CURRENT_WINDOW_ID =
