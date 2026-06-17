@@ -12,7 +12,12 @@ import {
   pushToNotion,
   testNotionConnection,
 } from '@/api/notion'
-import { downloadBackup, parseBackup, readFileText } from '@/api/backup'
+import {
+  downloadFullBackup,
+  parseFullBackup,
+  applyFullBackup,
+  readFileText,
+} from '@/api/backup'
 
 function Section({
   title,
@@ -84,6 +89,7 @@ export default function Settings() {
   const [databaseId, setDatabaseId] = useState(notion.databaseId ?? '')
   const [token, setToken] = useState(notion.token ?? '')
   const [msg, setMsg] = useState<string>('')
+  const [includeKeys, setIncludeKeys] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   function saveNotion() {
@@ -113,17 +119,29 @@ export default function Settings() {
 
   async function onRestore(file: File) {
     try {
-      const backup = parseBackup(await readFileText(file))
-      if (
-        window.confirm(
-          `将用备份覆盖当前 ${memories.length} 条记忆（备份含 ${backup.memories.length} 条）。确定？`
-        )
-      ) {
-        replaceAll(backup.memories)
-        setMsg(`已恢复 ${backup.memories.length} 条记忆`)
+      const backup = parseFullBackup(await readFileText(file))
+      if (window.confirm('将用备份覆盖当前全部数据并刷新页面。确定？')) {
+        applyFullBackup(backup)
+        location.reload()
       }
     } catch (e) {
       setMsg(`恢复失败：${(e as Error).message}`)
+    }
+  }
+
+  async function forceRefresh() {
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys()
+        await Promise.all(keys.map((k) => caches.delete(k)))
+      }
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(regs.map((r) => r.unregister()))
+      }
+    } finally {
+      // 加时间戳绕过缓存
+      location.replace(location.pathname + '?t=' + Date.now() + location.hash)
     }
   }
 
@@ -324,16 +342,25 @@ export default function Settings() {
         <ApiManager />
       </Section>
 
-      {/* 本地备份 */}
+      {/* 数据：整包备份 */}
       <Section
-        title="💾 本地备份 / 恢复"
-        desc="导出 / 恢复都在本地完成，不经过任何服务器。"
+        title="💾 数据（本地备份 / 恢复）"
+        desc="把记忆、对话设置、人设、渠道导出成一个文件，换设备时再导入恢复。导出的 .json 存在你自己设备上。"
       >
+        <label className="flex items-center gap-2 text-[12px] text-ink">
+          <input
+            type="checkbox"
+            checked={includeKeys}
+            onChange={(e) => setIncludeKeys(e.target.checked)}
+            className="h-4 w-4 accent-accent"
+          />
+          包含 API Key（默认不含，更安全）
+        </label>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => {
-              downloadBackup(memories)
-              setMsg(`已导出 ${memories.length} 条记忆`)
+              downloadFullBackup(includeKeys)
+              setMsg(includeKeys ? '已导出（含 API Key）' : '已导出（不含 API Key）')
             }}
             className="btn-primary rounded-xl px-4 py-2 text-sm"
           >
@@ -357,6 +384,19 @@ export default function Settings() {
             }}
           />
         </div>
+      </Section>
+
+      {/* 检查更新 */}
+      <Section
+        title="🔄 检查更新"
+        desc="没更新到最新功能时点这个：清缓存、拉最新代码（不动你的聊天和设置）。"
+      >
+        <button
+          onClick={forceRefresh}
+          className="btn-primary rounded-xl px-4 py-2 text-sm"
+        >
+          强制刷新到最新版
+        </button>
       </Section>
 
       {/* 隐私锁 */}

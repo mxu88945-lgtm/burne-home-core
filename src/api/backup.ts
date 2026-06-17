@@ -65,3 +65,93 @@ export function readFileText(file: File): Promise<string> {
     reader.readAsText(file)
   })
 }
+
+/* ============================================================
+   整包备份：导出全部本地数据（记忆 + 设置 + 人设 + 渠道…）
+   默认剔除敏感密钥，更安全。
+   ============================================================ */
+
+const NS_PREFIX = 'burne-home-core:'
+
+export interface FullBackup {
+  app: 'burne-home-core'
+  kind: 'full'
+  version: number
+  exportedAt: string
+  store: Record<string, unknown>
+}
+
+/** 去掉敏感密钥（API key / 同步密钥 / Notion token） */
+function sanitize(store: Record<string, unknown>) {
+  const api = store[`${NS_PREFIX}api`] as { channels?: { apiKey?: string }[] } | undefined
+  if (api?.channels) api.channels = api.channels.map((c) => ({ ...c, apiKey: '' }))
+  const sync = store[`${NS_PREFIX}sync`] as { syncKey?: string } | undefined
+  if (sync) delete sync.syncKey
+  const notion = store[`${NS_PREFIX}notion-config`] as { token?: string } | undefined
+  if (notion) delete notion.token
+}
+
+export function buildFullBackup(includeKeys: boolean): FullBackup {
+  const store: Record<string, unknown> = {}
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
+    if (!k || !k.startsWith(NS_PREFIX)) continue
+    const raw = localStorage.getItem(k)
+    if (raw == null) continue
+    try {
+      store[k] = JSON.parse(raw)
+    } catch {
+      store[k] = raw
+    }
+  }
+  if (!includeKeys) sanitize(store)
+  return {
+    app: 'burne-home-core',
+    kind: 'full',
+    version: BACKUP_VERSION,
+    exportedAt: new Date().toISOString(),
+    store,
+  }
+}
+
+export function downloadFullBackup(includeKeys: boolean): void {
+  const data = buildFullBackup(includeKeys)
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const stamp = new Date().toISOString().slice(0, 10)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `burne-home-${stamp}.backup.json`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+export function parseFullBackup(raw: string): FullBackup {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new Error('文件不是合法的 JSON')
+  }
+  const obj = parsed as Partial<FullBackup>
+  if (obj?.app !== 'burne-home-core' || obj.kind !== 'full' || !obj.store) {
+    throw new Error('不是本应用的整包备份文件')
+  }
+  return {
+    app: 'burne-home-core',
+    kind: 'full',
+    version: typeof obj.version === 'number' ? obj.version : BACKUP_VERSION,
+    exportedAt: obj.exportedAt ?? new Date().toISOString(),
+    store: obj.store as Record<string, unknown>,
+  }
+}
+
+/** 写回本地（覆盖）。调用方应在之后刷新页面以重载状态。 */
+export function applyFullBackup(b: FullBackup): void {
+  for (const [k, v] of Object.entries(b.store)) {
+    if (!k.startsWith(NS_PREFIX)) continue
+    localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v))
+  }
+}
