@@ -3,14 +3,17 @@ main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
 # 非密钥配置。聊天默认渠道与模型可改。
+# 默认已配成 OpenRouter（OpenAI 兼容），只需 put 一个 OPENAI_API_KEY 即可用。
 [vars]
-DEFAULT_PROVIDER = "openai"   # 'openai' | 'anthropic'
-MODEL = "gpt-4o-mini"         # 通用兜底模型
-# 各渠道可单独指定 base URL / 模型（也都不是密钥）：
+DEFAULT_PROVIDER = "openai"                       # 'openai' | 'anthropic'
+OPENAI_BASE_URL = "https://openrouter.ai/api/v1"  # OpenRouter；换别的网关改这里
+OPENAI_MODEL = "openai/gpt-4o-mini"               # OpenRouter 模型用「厂商/模型」格式
+MODEL = "openai/gpt-4o-mini"                       # 通用兜底
+# 想同时用官方 Claude 渠道，再取消注释：
 # ANTHROPIC_BASE_URL = "https://api.anthropic.com"
 # ANTHROPIC_MODEL = "claude-sonnet-4-6"
-# OPENAI_BASE_URL = "https://api.openai.com/v1"   # 改成你自己的网关地址
-# OPENAI_MODEL = "gpt-4o-mini"
+# OpenRouter 常用模型示例（填到 App「聊天渠道→模型覆盖」即可临时切换）：
+#   openai/gpt-4o-mini · anthropic/claude-3.5-sonnet · google/gemini-flash-1.5
 
 # 多端同步用的 KV。部署前先创建并把 id 填进来：
 #   wrangler kv namespace create MEMORY_KV
