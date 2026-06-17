@@ -50,3 +50,8 @@ coverage
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+
+# --- Cloudflare Worker ---
+worker/node_modules
+.wrangler
+.dev.vars

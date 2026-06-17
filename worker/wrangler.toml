@@ -1,0 +1,18 @@
+name = "burne-home-core"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# 聊天模型（可改成更强的模型）。这不是密钥。
+[vars]
+MODEL = "claude-sonnet-4-6"
+
+# 多端同步用的 KV。部署前先创建并把 id 填进来：
+#   wrangler kv namespace create MEMORY_KV
+# 然后把输出的 id 粘到下面。
+[[kv_namespaces]]
+binding = "MEMORY_KV"
+id = "REPLACE_WITH_YOUR_KV_ID"
+
+# 密钥不写这里！用命令设置（不会进仓库）：
+#   wrangler secret put SYNC_KEY            # 可选：多端同步共享密钥
+#   wrangler secret put ANTHROPIC_API_KEY   # 可选：启用聊天

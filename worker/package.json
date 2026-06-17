@@ -1,0 +1,14 @@
+{
+  "name": "burne-home-core-worker",
+  "private": true,
+  "version": "0.1.0",
+  "description": "伯恩主屋 · 后端 Worker（多端同步主库 + 聊天中转）",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "wrangler": "^3.90.0"
+  }
+}
