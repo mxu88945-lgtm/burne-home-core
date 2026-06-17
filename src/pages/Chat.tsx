@@ -71,6 +71,8 @@ export default function Chat() {
         syncKey: config.syncKey,
         messages: apiMsgs,
         system,
+        provider: config.chatProvider || undefined,
+        model: config.chatModel || undefined,
       })
       setMessages((prev) => [
         ...prev,

@@ -15,6 +15,10 @@ interface SyncConfig extends SyncRemoteConfig {
   /** 自动同步（启动时 / 间隔） */
   autoSync: boolean
   lastSyncedAt?: string
+  /** 聊天渠道：'' 用 Worker 默认 | 'anthropic' | 'openai' */
+  chatProvider?: string
+  /** 聊天模型覆盖（留空用 Worker 默认） */
+  chatModel?: string
 }
 
 const defaults: SyncConfig = {

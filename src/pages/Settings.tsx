@@ -275,6 +275,31 @@ export default function Settings() {
         </div>
       </Section>
 
+      {/* 聊天渠道 */}
+      <Section
+        title="💬 聊天渠道"
+        desc="选用哪条 AI 线路（key 在 Worker，不在前端）。留「默认」则用 Worker 配的渠道。"
+      >
+        <label className="block">
+          <span className="label">渠道</span>
+          <select
+            value={sync.config.chatProvider ?? ''}
+            onChange={(e) => sync.setConfig({ chatProvider: e.target.value })}
+            className="mt-1.5 w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+          >
+            <option value="">默认（Worker 配置）</option>
+            <option value="anthropic">Anthropic 官方</option>
+            <option value="openai">OpenAI 兼容 / 自有网关</option>
+          </select>
+        </label>
+        <Field
+          label="模型覆盖（可选）"
+          placeholder="留空用 Worker 默认"
+          value={sync.config.chatModel ?? ''}
+          onChange={(e) => sync.setConfig({ chatModel: e.target.value })}
+        />
+      </Section>
+
       {/* 本地备份 */}
       <Section
         title="💾 本地备份 / 恢复"

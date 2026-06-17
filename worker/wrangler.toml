@@ -2,17 +2,23 @@ name = "burne-home-core"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
 
-# 聊天模型（可改成更强的模型）。这不是密钥。
+# 非密钥配置。聊天默认渠道与模型可改。
 [vars]
-MODEL = "claude-sonnet-4-6"
+DEFAULT_PROVIDER = "openai"   # 'openai' | 'anthropic'
+MODEL = "gpt-4o-mini"         # 通用兜底模型
+# 各渠道可单独指定 base URL / 模型（也都不是密钥）：
+# ANTHROPIC_BASE_URL = "https://api.anthropic.com"
+# ANTHROPIC_MODEL = "claude-sonnet-4-6"
+# OPENAI_BASE_URL = "https://api.openai.com/v1"   # 改成你自己的网关地址
+# OPENAI_MODEL = "gpt-4o-mini"
 
 # 多端同步用的 KV。部署前先创建并把 id 填进来：
 #   wrangler kv namespace create MEMORY_KV
-# 然后把输出的 id 粘到下面。
 [[kv_namespaces]]
 binding = "MEMORY_KV"
 id = "REPLACE_WITH_YOUR_KV_ID"
 
 # 密钥不写这里！用命令设置（不会进仓库）：
 #   wrangler secret put SYNC_KEY            # 可选：多端同步共享密钥
-#   wrangler secret put ANTHROPIC_API_KEY   # 可选：启用聊天
+#   wrangler secret put ANTHROPIC_API_KEY   # 启用 Anthropic 官方渠道
+#   wrangler secret put OPENAI_API_KEY      # 启用 OpenAI 兼容渠道（或你的网关 key）

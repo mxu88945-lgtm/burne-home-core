@@ -12,6 +12,10 @@ export async function sendChat(opts: {
   syncKey?: string
   messages: ChatApiMessage[]
   system?: string
+  /** 渠道：留空用 Worker 默认；'anthropic' | 'openai' */
+  provider?: string
+  /** 模型覆盖（留空用 Worker 默认） */
+  model?: string
 }): Promise<string> {
   const base = opts.workerUrl.replace(/\/+$/, '')
   const res = await fetch(`${base}/chat`, {
@@ -20,7 +24,12 @@ export async function sendChat(opts: {
       'Content-Type': 'application/json',
       ...(opts.syncKey ? { 'X-Sync-Key': opts.syncKey } : {}),
     },
-    body: JSON.stringify({ messages: opts.messages, system: opts.system }),
+    body: JSON.stringify({
+      messages: opts.messages,
+      system: opts.system,
+      ...(opts.provider ? { provider: opts.provider } : {}),
+      ...(opts.model ? { model: opts.model } : {}),
+    }),
   })
   const data = (await res.json().catch(() => ({}))) as {
     reply?: string
