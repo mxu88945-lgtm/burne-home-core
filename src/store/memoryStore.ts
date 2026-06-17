@@ -20,6 +20,8 @@ interface MemoryState {
   updateMemory: (id: string, patch: Partial<MemoryItem>) => void
   removeMemory: (id: string) => void
   toggleStar: (id: string) => void
+  /** 整体替换（恢复备份用） */
+  replaceAll: (memories: MemoryItem[]) => void
   getSummary: () => MemorySummary
 }
 
@@ -74,6 +76,11 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
     )
     persist(next)
     set({ memories: next })
+  },
+
+  replaceAll: (memories) => {
+    persist(memories)
+    set({ memories })
   },
 
   getSummary: () => {
