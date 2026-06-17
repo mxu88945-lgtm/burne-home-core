@@ -1,20 +1,38 @@
 import { Link } from 'react-router-dom'
 import { useMemoryStore } from '@/store/memoryStore'
 
-function StatCard({
-  label,
-  value,
-  accent,
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="glass rounded-2xl px-4 py-4">
+      <div className="label">{label}</div>
+      <div className="mt-1 text-2xl font-semibold text-accent">{value}</div>
+    </div>
+  )
+}
+
+function EntryCard({
+  to,
+  icon,
+  title,
+  desc,
 }: {
-  label: string
-  value: number | string
-  accent: string
+  to: string
+  icon: string
+  title: string
+  desc: string
 }) {
   return (
-    <div className="rounded-2xl border border-home-border bg-home-card p-5 shadow-soft">
-      <div className={`text-3xl font-semibold ${accent}`}>{value}</div>
-      <div className="mt-1 text-sm text-home-muted">{label}</div>
-    </div>
+    <Link
+      to={to}
+      className="glass flex items-center gap-3 rounded-2xl px-4 py-3.5 transition active:scale-[0.99]"
+    >
+      <span className="text-xl">{icon}</span>
+      <span className="flex-1">
+        <span className="block text-sm font-medium text-ink">{title}</span>
+        <span className="block text-xs text-muted">{desc}</span>
+      </span>
+      <span className="text-accent">›</span>
+    </Link>
   )
 }
 
@@ -22,49 +40,57 @@ export default function Home() {
   const summary = useMemoryStore((s) => s.getSummary())
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <section className="rounded-3xl border border-home-border bg-gradient-to-br from-home-panel to-home-card p-8 shadow-soft">
-        <h1 className="text-2xl font-semibold text-home-text">
-          欢迎回到主屋 🏠
-        </h1>
-        <p className="mt-2 max-w-xl text-sm leading-relaxed text-home-muted">
-          这里是你们的长期记忆。核心记忆永久保留、普通记忆日常沉淀、自动记忆悄悄收集；
-          支持跨窗口回忆、搜索、Notion 云端同步、本地备份与隐私锁。
+    <div className="space-y-5">
+      {/* 浪漫主视觉 */}
+      <section className="glass-strong overflow-hidden rounded-3xl px-6 py-7 text-center">
+        <div className="text-accent">♡</div>
+        <h2 className="headline mt-2 text-[26px] leading-tight text-ink">
+          Welcome Home
+        </h2>
+        <p className="mt-2 text-xs leading-relaxed text-muted">
+          窗外没有月亮也没关系，我们的记忆都在这里。
         </p>
+
+        <div className="mt-5">
+          <div className="text-5xl font-semibold text-accent">
+            {summary.total}
+          </div>
+          <div className="label mt-1">珍藏的记忆</div>
+        </div>
       </section>
 
       {/* 摘要区 */}
-      <section className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="记忆总数" value={summary.total} accent="text-home-text" />
-        <StatCard label="核心记忆" value={summary.coreCount} accent="text-home-rose" />
-        <StatCard label="普通记忆" value={summary.normalCount} accent="text-home-plum" />
-        <StatCard label="自动记忆" value={summary.autoCount} accent="text-home-gold" />
+      <section className="grid grid-cols-3 gap-3">
+        <StatCard label="Core" value={summary.coreCount} />
+        <StatCard label="Normal" value={summary.normalCount} />
+        <StatCard label="Auto" value={summary.autoCount} />
       </section>
 
       {/* 模块入口 */}
-      <section className="mt-6 grid gap-4 sm:grid-cols-2">
-        <Link
+      <section className="space-y-3">
+        <div className="label px-1">Modules</div>
+        <EntryCard
           to="/memories"
-          className="rounded-2xl border border-home-border bg-home-panel p-5 transition hover:border-home-rose/50"
-        >
-          <div className="text-base font-medium text-home-text">📔 记忆库</div>
-          <div className="mt-1 text-sm text-home-muted">
-            浏览、新增、编辑、核心标星（第二轮实现）
-          </div>
-        </Link>
-        <Link
+          icon="📔"
+          title="记忆库"
+          desc="浏览 · 新增 · 编辑 · 核心标星"
+        />
+        <EntryCard
+          to="/search"
+          icon="🔍"
+          title="搜索回忆"
+          desc="全文搜索 · 跨窗口召回"
+        />
+        <EntryCard
           to="/settings"
-          className="rounded-2xl border border-home-border bg-home-panel p-5 transition hover:border-home-plum/50"
-        >
-          <div className="text-base font-medium text-home-text">⚙️ 同步与隐私</div>
-          <div className="mt-1 text-sm text-home-muted">
-            Notion 同步、本地备份/恢复、隐私锁（第三轮实现）
-          </div>
-        </Link>
+          icon="⚙️"
+          title="同步与隐私"
+          desc="Notion 同步 · 本地备份 · 隐私锁"
+        />
       </section>
 
-      <p className="mt-8 text-center text-xs text-home-muted">
-        当前为最小可运行骨架 · 功能将分轮逐步实现 🤍
+      <p className="pt-1 text-center text-[11px] text-muted">
+        最小可运行骨架 · 功能分轮实现 ♡
       </p>
     </div>
   )

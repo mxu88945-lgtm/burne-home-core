@@ -14,22 +14,24 @@ export default function Placeholder({
   round,
 }: PlaceholderProps) {
   return (
-    <div className="mx-auto max-w-3xl">
-      <h1 className="text-2xl font-semibold text-home-text">{title}</h1>
-      {subtitle && <p className="mt-2 text-sm text-home-muted">{subtitle}</p>}
+    <div className="space-y-4">
+      <div className="px-1">
+        <h2 className="headline text-2xl text-ink">{title}</h2>
+        {subtitle && <p className="mt-1.5 text-sm text-muted">{subtitle}</p>}
+      </div>
 
-      <div className="mt-6 rounded-2xl border border-dashed border-home-border bg-home-panel/50 p-6">
-        <div className="flex items-center gap-2 text-home-gold">
+      <div className="glass rounded-3xl p-5">
+        <div className="flex items-center gap-2 text-accent">
           <span>🚧</span>
           <span className="text-sm font-medium">
             本页为骨架占位{round ? ` · ${round}实现` : ''}
           </span>
         </div>
         {todos && todos.length > 0 && (
-          <ul className="mt-4 space-y-2 text-sm text-home-muted">
+          <ul className="mt-4 space-y-2.5 text-sm text-muted">
             {todos.map((t) => (
               <li key={t} className="flex gap-2">
-                <span className="text-home-plum">◦</span>
+                <span className="text-accent-2">♡</span>
                 <span>{t}</span>
               </li>
             ))}

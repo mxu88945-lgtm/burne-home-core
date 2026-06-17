@@ -2,7 +2,66 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   主题配色 —— 通过 <html data-theme="..."> 切换
+   ============================================================ */
+
+/* 🌸 暖粉 Rosé（默认） */
+:root,
+[data-theme='rose'] {
+  --bg-from: #fdf3f5;
+  --bg-via: #f8e6ec;
+  --bg-to: #f1dbe6;
+  --text: #5d4750;
+  --text-soft: #ab8d99;
+  --label: #c0a3af;
+  --accent: #c47e90;
+  --accent-2: #dca7b6;
+  --card: rgba(255, 255, 255, 0.62);
+  --card-strong: rgba(255, 255, 255, 0.82);
+  --card-border: rgba(255, 255, 255, 0.75);
+  --shadow: rgba(180, 130, 150, 0.18);
+  --on-accent: #fff;
+}
+
+/* 💜 月光 Lavender */
+[data-theme='lavender'] {
+  --bg-from: #f4f0fb;
+  --bg-via: #ece4f6;
+  --bg-to: #e2d9f1;
+  --text: #4f4660;
+  --text-soft: #9a8fad;
+  --label: #b1a4c4;
+  --accent: #9b7bc4;
+  --accent-2: #c0a8e0;
+  --card: rgba(255, 255, 255, 0.6);
+  --card-strong: rgba(255, 255, 255, 0.82);
+  --card-border: rgba(255, 255, 255, 0.72);
+  --shadow: rgba(120, 100, 170, 0.18);
+  --on-accent: #fff;
+}
+
+/* 🌙 暖夜 Midnight */
+[data-theme='night'] {
+  --bg-from: #211a26;
+  --bg-via: #2a2030;
+  --bg-to: #1d1722;
+  --text: #f1e7ef;
+  --text-soft: #b6a6b4;
+  --label: #8f7d8d;
+  --accent: #e6a6c0;
+  --accent-2: #c98aa9;
+  --card: rgba(255, 255, 255, 0.06);
+  --card-strong: rgba(255, 255, 255, 0.1);
+  --card-border: rgba(255, 255, 255, 0.12);
+  --shadow: rgba(0, 0, 0, 0.35);
+  --on-accent: #2a1f28;
+}
+
 :root {
+  color-scheme: light;
+}
+[data-theme='night'] {
   color-scheme: dark;
 }
 
@@ -15,4 +74,64 @@ body,
 body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
+  color: var(--text);
+  font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+/* ============================================================
+   语义化组件类
+   ============================================================ */
+@layer components {
+  /* 页面背景渐变 */
+  .app-bg {
+    background:
+      radial-gradient(
+        120% 80% at 50% 0%,
+        var(--bg-from) 0%,
+        var(--bg-via) 45%,
+        var(--bg-to) 100%
+      );
+    background-attachment: fixed;
+  }
+
+  /* 毛玻璃卡片 */
+  .glass {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 12px 34px var(--shadow);
+  }
+  .glass-strong {
+    background: var(--card-strong);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 0 12px 34px var(--shadow);
+  }
+
+  /* 衬线斜体浪漫标题 */
+  .headline {
+    font-family: 'Playfair Display', 'Songti SC', 'Noto Serif SC', Georgia, serif;
+    font-style: italic;
+    letter-spacing: 0.01em;
+  }
+
+  /* 小号大写间距标签（TODAY / BY SESSION 那种） */
+  .label {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.66rem;
+    color: var(--label);
+  }
+
+  /* 玫瑰色主按钮 */
+  .btn-primary {
+    background: var(--accent);
+    color: var(--on-accent);
+    box-shadow: 0 8px 20px var(--shadow);
+  }
+  .btn-primary:active {
+    filter: brightness(0.96);
+  }
 }

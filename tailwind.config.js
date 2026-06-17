@@ -4,24 +4,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        // 「主屋」温柔配色
-        home: {
-          bg: '#1c1a1f',
-          panel: '#26222b',
-          card: '#2f2a35',
-          border: '#3a3340',
-          rose: '#e8a0bf',
-          plum: '#b58bd6',
-          gold: '#e8c07d',
-          text: '#efe9f2',
-          muted: '#a99fb2',
-        },
+        // 语义色，全部指向 index.css 里的 CSS 变量（随主题切换）
+        ink: 'var(--text)',
+        muted: 'var(--text-soft)',
+        accent: 'var(--accent)',
+        'accent-2': 'var(--accent-2)',
+        line: 'var(--card-border)',
+        label: 'var(--label)',
       },
       fontFamily: {
         sans: ['"PingFang SC"', '"Microsoft YaHei"', 'system-ui', 'sans-serif'],
+        serif: [
+          '"Playfair Display"',
+          '"Songti SC"',
+          '"Noto Serif SC"',
+          'Georgia',
+          'serif',
+        ],
       },
-      boxShadow: {
-        soft: '0 8px 30px rgba(0, 0, 0, 0.25)',
+      borderRadius: {
+        '2xl': '1.25rem',
+        '3xl': '1.75rem',
       },
     },
   },

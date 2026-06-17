@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
   settings: `${NS}:settings`,
   notionConfig: `${NS}:notion-config`,
   privacy: `${NS}:privacy`,
+  theme: `${NS}:theme`,
 } as const
 
 /** 当前窗口 ID（用于「跨窗口回忆」）—— 每个标签页一个，会话级 */
