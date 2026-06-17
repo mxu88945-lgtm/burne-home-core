@@ -5,8 +5,8 @@ import { useSettingsStore } from '@/store/settingsStore'
 import { usePrivacyStore } from '@/store/privacyStore'
 import { useMemoryStore } from '@/store/memoryStore'
 import { useSyncStore } from '@/store/syncStore'
-import { syncNow } from '@/api/sync'
 import ApiManager from '@/components/settings/ApiManager'
+import SupabaseSync from '@/components/settings/SupabaseSync'
 import {
   pullFromNotion,
   pushToNotion,
@@ -82,7 +82,6 @@ export default function Settings() {
   const sync = useSyncStore()
 
   const [workerUrl, setWorkerUrl] = useState(sync.config.workerUrl ?? '')
-  const [spaceId, setSpaceId] = useState(sync.config.spaceId ?? '')
   const [syncKey, setSyncKey] = useState(sync.config.syncKey ?? '')
 
   const [proxyUrl, setProxyUrl] = useState(notion.proxyUrl ?? '')
@@ -155,33 +154,9 @@ export default function Settings() {
   function saveSync() {
     sync.setConfig({
       workerUrl: workerUrl.trim() || undefined,
-      spaceId: spaceId.trim() || undefined,
       syncKey: syncKey.trim() || undefined,
     })
-    setMsg('多端同步配置已保存到本地（密钥不提交仓库）')
-  }
-
-  async function runSync() {
-    sync.setStatus('syncing')
-    setMsg('同步中…')
-    try {
-      const merged = await syncNow(
-        {
-          workerUrl: workerUrl.trim() || undefined,
-          spaceId: spaceId.trim() || undefined,
-          syncKey: syncKey.trim() || undefined,
-        },
-        sync.deviceId,
-        memories
-      )
-      replaceAll(merged)
-      sync.setStatus('success')
-      sync.markSynced()
-      setMsg(`同步完成，共 ${merged.length} 条`)
-    } catch (e) {
-      sync.setStatus('error')
-      setMsg(`同步失败：${(e as Error).message}`)
-    }
+    setMsg('Worker 中转配置已保存到本地')
   }
 
   return (
@@ -215,53 +190,33 @@ export default function Settings() {
         </div>
       )}
 
-      {/* 多端同步（首要） */}
+      {/* 账号 · 多设备同步（Supabase） */}
+      <Section title="☁️ 账号 · 多设备同步">
+        <SupabaseSync />
+      </Section>
+
+      {/* 高级：Worker 中转（聊天跨域时用） */}
       <Section
-        title="🔁 多端同步（多设备共享）"
-        desc="主库 = 你的 Worker + KV/D1，多设备连同一个 spaceId 即可共享。密钥只存本地。主库 Worker 上线后即可联通；合并逻辑已就绪。"
+        title="🔌 Worker 中转（可选）"
+        desc="仅当某些聊天渠道不支持浏览器直连、需经自己的 Worker 转发时才填。"
+        defaultOpen={false}
       >
         <Field
-          label="主库 Worker 地址"
-          placeholder="https://your-store.workers.dev"
+          label="Worker 地址"
+          placeholder="https://your-worker.workers.dev"
           value={workerUrl}
           onChange={(e) => setWorkerUrl(e.target.value)}
         />
         <Field
-          label="空间 ID（哪一份库）"
-          placeholder="home"
-          value={spaceId}
-          onChange={(e) => setSpaceId(e.target.value)}
-        />
-        <Field
-          label="共享密钥（可选 · 仅存本地）"
+          label="共享密钥（可选）"
           type="password"
-          placeholder="多端用同一个密钥"
+          placeholder="X-Sync-Key"
           value={syncKey}
           onChange={(e) => setSyncKey(e.target.value)}
         />
-        <div className="flex flex-wrap gap-2 pt-1">
-          <button onClick={saveSync} className="btn-primary rounded-xl px-4 py-2 text-sm">
-            保存配置
-          </button>
-          <button onClick={runSync} className="glass rounded-xl px-4 py-2 text-sm text-ink">
-            立即同步
-          </button>
-        </div>
-        <label className="flex items-center justify-between pt-1">
-          <span className="text-sm text-ink">自动同步</span>
-          <input
-            type="checkbox"
-            checked={sync.config.autoSync}
-            onChange={(e) => sync.setConfig({ autoSync: e.target.checked })}
-            className="h-5 w-5 accent-accent"
-          />
-        </label>
-        <div className="text-[11px] text-muted">
-          本设备 ID：{sync.deviceId.slice(0, 8)}… · 状态：{sync.status}
-          {sync.config.lastSyncedAt
-            ? ` · 上次 ${sync.config.lastSyncedAt.slice(0, 16).replace('T', ' ')}`
-            : ''}
-        </div>
+        <button onClick={saveSync} className="btn-primary rounded-xl px-4 py-2 text-sm">
+          保存
+        </button>
       </Section>
 
       {/* Notion 同步（镜像） */}
