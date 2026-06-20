@@ -104,7 +104,8 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
    - ⚠️ **直连大概率跨域**（minimax 不一定开 CORS）→ 报错就在设置里勾「经 Worker 中转」，
      部署 worker 并 `wrangler secret put MINIMAX_API_KEY` / `MINIMAX_GROUP_ID`（或前端配置透传）。
    - 进阶 TODO：聊天新消息自动朗读、克隆音色、流式播放。
-2. 聊天记录**持久化到本地 + 可选同步**（目前刷新会清空）。
+2. 聊天记录持久化 ✅ 本地已做（`store/chatStore.ts`，退出/刷新都保留；头部「清空」可重置）。
+   ⏭ 可选：云同步聊天记录（注意 dataURL/体积，目前 Supabase 只同步 memories）。
 3. 自动记忆沉淀（聊天里自动存核心记忆到记忆库）。
 4. 隐私锁口令（WebCrypto 哈希，只存本地）。
 5. 聊天顶部「全部消息 ▼ / N 条」筛选条 + 时间分组（参考用户截图）。

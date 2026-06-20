@@ -10,14 +10,8 @@ import { chatComplete } from '@/api/llm'
 import { useTtsStore } from '@/store/ttsStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import { useAppearanceStore } from '@/store/appearanceStore'
+import { useChatStore, type ChatMsg as Msg } from '@/store/chatStore'
 import Avatar from '@/components/ui/Avatar'
-
-interface Msg {
-  id: string
-  role: 'me' | 'companion'
-  text: string
-  at: string
-}
 
 function newId() {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `msg-${Date.now()}`
@@ -43,9 +37,7 @@ export default function Chat() {
 
   const name = persona.name || profile.nameB || 'TA'
 
-  const [messages, setMessages] = useState<Msg[]>([
-    { id: newId(), role: 'companion', text: '欢迎回家呀～有什么想跟我说的吗？♡', at: now() },
-  ])
+  const { messages, setMessages, clear } = useChatStore()
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
@@ -152,9 +144,20 @@ export default function Chat() {
       )}
       {/* 角色头部（钉在顶部，不滚） */}
       <div className="flex flex-none items-center justify-between gap-2 pb-2">
-        <Link to="/" className="text-[12px] text-muted hover:text-accent">
-          ← Back
-        </Link>
+        <div className="flex flex-none items-center gap-3">
+          <Link to="/" className="text-[12px] text-muted hover:text-accent">
+            ← Back
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('清空当前对话？（不可恢复）')) clear()
+            }}
+            className="text-[12px] text-muted hover:text-accent"
+          >
+            清空
+          </button>
+        </div>
         <div className="min-w-0 text-center">
           <div className="headline text-lg leading-none text-ink">{name}</div>
           <div className="mt-0.5 text-[10px] text-muted">
