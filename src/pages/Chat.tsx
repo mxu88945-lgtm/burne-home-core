@@ -78,9 +78,17 @@ export default function Chat() {
       setImgErr(`文件太大（${humanSize(file.size)}），上限 1.5MB`)
       return
     }
+    const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
     try {
       const url = await readAsDataUrl(file)
-      const text = isTextFile(file) ? await readAsText(file) : undefined
+      let text: string | undefined
+      if (isTextFile(file)) {
+        text = await readAsText(file)
+      } else if (isPdf) {
+        const { extractPdfText } = await import('@/lib/pdf')
+        const extracted = await extractPdfText(file)
+        text = extracted || undefined // 扫描版 PDF 提取不到文字
+      }
       setPendingImage('')
       setPendingFile({ name: file.name, size: file.size, url, text })
     } catch (e) {

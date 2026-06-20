@@ -25,7 +25,23 @@ const DEFAULT_PERSONA: Persona = {
   status: 'thinking quietly',
   systemPrompt: '',
   temperature: 0.8,
-  maxTokens: 1024,
+  maxTokens: 4096,
+}
+
+/** 读取人设，并对旧的过小 maxTokens 做一次性迁移（默认 1024 太小、回复会被截断） */
+function loadPersona(): Persona {
+  const p = readJSON<Persona>(STORAGE_KEYS.persona, DEFAULT_PERSONA)
+  try {
+    const MIG = `${STORAGE_KEYS.persona}-mtmig`
+    if (!localStorage.getItem(MIG)) {
+      if (!p.maxTokens || p.maxTokens <= 1024) p.maxTokens = DEFAULT_PERSONA.maxTokens
+      localStorage.setItem(MIG, '1')
+      writeJSON(STORAGE_KEYS.persona, p)
+    }
+  } catch {
+    // ignore
+  }
+  return p
 }
 
 interface PersonaState {
@@ -34,7 +50,7 @@ interface PersonaState {
 }
 
 export const usePersonaStore = create<PersonaState>((set, get) => ({
-  persona: readJSON<Persona>(STORAGE_KEYS.persona, DEFAULT_PERSONA),
+  persona: loadPersona(),
   setPersona: (patch) => {
     const next = { ...get().persona, ...patch }
     writeJSON(STORAGE_KEYS.persona, next)
