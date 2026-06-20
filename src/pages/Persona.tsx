@@ -11,8 +11,8 @@ export default function Persona() {
     <div className="space-y-5">
       {/* 顶部 */}
       <div className="flex items-center justify-between">
-        <Link to="/chat" className="glass rounded-full px-3 py-1.5 text-xs text-ink">
-          ← 聊天
+        <Link to="/settings" className="glass rounded-full px-3 py-1.5 text-xs text-ink">
+          ← 设置
         </Link>
         <div className="text-center">
           <div className="headline text-xl text-ink">

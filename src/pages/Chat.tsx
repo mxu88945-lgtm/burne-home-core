@@ -129,19 +129,24 @@ export default function Chat() {
   const modelLabel = activeChannel?.model || config.chatModel || (connected ? '默认' : '未连接')
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       {/* 角色头部（钉在顶部，不滚） */}
-      <div className="flex flex-none items-center justify-between pb-2">
-        <Link to="/" className="glass rounded-full px-3 py-1.5 text-[11px] text-ink">
-          ← 主屋
+      <div className="flex flex-none items-center justify-between gap-2 pb-2">
+        <Link to="/" className="text-[12px] text-muted hover:text-accent">
+          ← Back
         </Link>
-        <div className="text-center">
-          <div className="headline text-xl leading-none text-ink">{name}</div>
-          <div className="mt-0.5 text-[11px] text-muted">
+        <div className="min-w-0 text-center">
+          <div className="headline text-lg leading-none text-ink">{name}</div>
+          <div className="mt-0.5 text-[10px] text-muted">
             {connected ? persona.status : '未连接 API'}
           </div>
         </div>
-        <span className="w-14" />
+        <Link
+          to="/settings/api"
+          className="max-w-[96px] truncate rounded-full bg-white/40 px-2.5 py-1 text-[10px] text-muted"
+        >
+          {modelLabel} ▾
+        </Link>
       </div>
 
       {/* 消息列表（仅此区域滚动） */}
@@ -201,11 +206,6 @@ export default function Chat() {
           >
             ↑
           </button>
-        </div>
-        <div className="mt-1.5 text-center">
-          <Link to="/settings" className="text-[10px] text-muted hover:text-accent">
-            {modelLabel} ▾
-          </Link>
         </div>
       </div>
     </div>
