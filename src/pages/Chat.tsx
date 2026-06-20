@@ -128,7 +128,11 @@ export default function Chat() {
         setPendingFile((prev) => (prev && prev.name === file.name ? { ...prev, text } : prev))
       }
     } catch (e) {
-      setImgErr(`文件内容解析失败：${(e as Error).message}；仍可作为附件发送`)
+      setImgErr(
+        isPdf
+          ? 'PDF 已作为附件发送（这台设备无法在浏览器里解析 PDF 正文，AI 读不到内容）'
+          : `文件内容解析失败：${(e as Error).message}；仍可作为附件发送`
+      )
     }
   }
 
