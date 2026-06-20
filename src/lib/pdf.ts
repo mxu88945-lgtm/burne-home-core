@@ -4,9 +4,10 @@
  */
 
 import * as pdfjsLib from 'pdfjs-dist'
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+// 用 Vite 打包 worker（?worker），避免 GitHub Pages 对 .mjs 的 MIME 导致 worker 加载失败
+import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker'
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
+pdfjsLib.GlobalWorkerOptions.workerPort = new PdfWorker()
 
 /** 提取 PDF 全文（最多 50 页，防止超大文件卡死） */
 export async function extractPdfText(file: File): Promise<string> {

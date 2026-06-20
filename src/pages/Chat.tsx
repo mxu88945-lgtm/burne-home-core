@@ -79,21 +79,28 @@ export default function Chat() {
       return
     }
     const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
+    let url: string
     try {
-      const url = await readAsDataUrl(file)
-      let text: string | undefined
+      url = await readAsDataUrl(file)
+    } catch {
+      setImgErr('读不到这个文件（若来自 iCloud，请先在「文件」App 里下载到本机再选）')
+      return
+    }
+    let text: string | undefined
+    try {
       if (isTextFile(file)) {
         text = await readAsText(file)
       } else if (isPdf) {
         const { extractPdfText } = await import('@/lib/pdf')
-        const extracted = await extractPdfText(file)
-        text = extracted || undefined // 扫描版 PDF 提取不到文字
+        text = (await extractPdfText(file)) || undefined // 扫描版 PDF 提取不到文字
+        if (!text) setImgErr('这个 PDF 没提取到文字（可能是扫描件/图片型），仍可作为附件发送')
       }
-      setPendingImage('')
-      setPendingFile({ name: file.name, size: file.size, url, text })
     } catch (e) {
-      setImgErr((e as Error).message)
+      // 解析失败不阻断：仍把文件作为附件挂上
+      setImgErr(`文件内容解析失败：${(e as Error).message}；仍可作为附件发送`)
     }
+    setPendingImage('')
+    setPendingFile({ name: file.name, size: file.size, url, text })
   }
 
   async function send() {
@@ -375,9 +382,7 @@ export default function Chat() {
           </div>
         )}
         {imgErr && (
-          <div className="mb-1 px-2 text-center text-[11px] text-red-500">
-            发送图片失败：{imgErr}
-          </div>
+          <div className="mb-1 px-2 text-center text-[11px] text-red-500">{imgErr}</div>
         )}
         <input
           ref={fileRef}
