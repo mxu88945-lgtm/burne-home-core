@@ -65,7 +65,17 @@ export default function Chat() {
 
   const name = persona.name || profile.nameB || 'TA'
 
-  const { messages, setMessages, clear } = useChatStore()
+  const sessions = useChatStore((s) => s.sessions)
+  const activeId = useChatStore((s) => s.activeId)
+  const setMessages = useChatStore((s) => s.setMessages)
+  const createSession = useChatStore((s) => s.createSession)
+  const switchSession = useChatStore((s) => s.switchSession)
+  const removeSession = useChatStore((s) => s.removeSession)
+  const renameSession = useChatStore((s) => s.renameSession)
+  const autoTitle = useChatStore((s) => s.autoTitle)
+  const active = sessions.find((s) => s.id === activeId) ?? sessions[0]
+  const messages = active.messages
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [plusOpen, setPlusOpen] = useState(false)
@@ -191,6 +201,7 @@ export default function Chat() {
     }
     const history = [...messages, mine]
     setMessages(history)
+    if (text) autoTitle(text)
     setDraft('')
     setPendingImage('')
     setPendingFile(null)
@@ -331,26 +342,16 @@ export default function Chat() {
             </Link>
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm('清空当前对话？（不可恢复）')) clear()
-              }}
-              className="text-[12px] text-muted hover:text-accent"
+              onClick={() => setDrawerOpen(true)}
+              aria-label="对话列表"
+              className="text-base text-muted hover:text-accent"
             >
-              清空
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectMode(true)}
-              className="text-[12px] text-muted hover:text-accent"
-            >
-              截图
+              ☰
             </button>
           </div>
           <div className="min-w-0 text-center">
-            <div className="headline text-lg leading-none text-ink">{name}</div>
-            <div className="mt-0.5 text-[10px] text-muted">
-              {connected ? persona.status : '未连接 API'}
-            </div>
+            <div className="headline truncate text-lg leading-none text-ink">{name}</div>
+            <div className="mt-0.5 truncate text-[10px] text-muted">{active.title}</div>
           </div>
           <Link
             to="/settings/api"
@@ -554,6 +555,16 @@ export default function Chat() {
                 >
                   文件
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlusOpen(false)
+                    setSelectMode(true)
+                  }}
+                  className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                >
+                  截图
+                </button>
               </div>
             </>
           )}
@@ -597,6 +608,73 @@ export default function Chat() {
         >
           <img src={lightbox} alt="大图" className="max-h-[85%] max-w-full rounded-xl" />
           <span className="text-[12px] text-white/80">长按图片可保存到相册 · 点击空白关闭</span>
+        </div>
+      )}
+
+      {/* 会话侧栏（多对话窗口） */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50 flex" onClick={() => setDrawerOpen(false)}>
+          <div
+            className="glass-strong flex h-full w-72 max-w-[80%] flex-col gap-2 p-3 pt-[max(1rem,env(safe-area-inset-top))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-1">
+              <span className="headline text-base text-ink">对话</span>
+              <button
+                type="button"
+                onClick={() => {
+                  createSession()
+                  setDrawerOpen(false)
+                }}
+                className="btn-primary rounded-full px-3 py-1 text-[12px]"
+              >
+                ＋ 新对话
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+              {sessions.map((s) => {
+                const on = s.id === activeId
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => {
+                      switchSession(s.id)
+                      setDrawerOpen(false)
+                    }}
+                    className={[
+                      'flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm',
+                      on ? 'bg-white/50 text-ink' : 'text-ink hover:bg-white/30',
+                    ].join(' ')}
+                  >
+                    <span className="flex-1 truncate">{s.title}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const t = window.prompt('重命名对话', s.title)
+                        if (t) renameSession(s.id, t)
+                      }}
+                      aria-label="重命名"
+                      className="text-[12px] text-muted hover:text-accent"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (window.confirm(`删除对话「${s.title}」？`)) removeSession(s.id)
+                      }}
+                      aria-label="删除"
+                      className="text-[12px] text-muted hover:text-accent"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </div>
       )}
 
