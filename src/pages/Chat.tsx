@@ -42,6 +42,7 @@ export default function Chat() {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [plusOpen, setPlusOpen] = useState(false)
+  const [pendingImage, setPendingImage] = useState('')
   const [lightbox, setLightbox] = useState('')
   const [imgErr, setImgErr] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -51,16 +52,12 @@ export default function Chat() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
 
-  async function sendImage(file: File) {
+  /** 选图：不立即发送，挂到输入框上方作待发预览 */
+  async function pickImage(file: File) {
     setPlusOpen(false)
     setImgErr('')
-    if (sending) return
     try {
-      const image = await fileToDataUrl(file, 1280, 0.8)
-      const mine: Msg = { id: newId(), role: 'me', text: '', at: now(), image }
-      const history = [...messages, mine]
-      setMessages(history)
-      if (connected) await respond(history)
+      setPendingImage(await fileToDataUrl(file, 1280, 0.8))
     } catch (e) {
       setImgErr((e as Error).message)
     }
@@ -68,11 +65,18 @@ export default function Chat() {
 
   async function send() {
     const text = draft.trim()
-    if (!text || sending) return
-    const mine: Msg = { id: newId(), role: 'me', text, at: now() }
+    if ((!text && !pendingImage) || sending) return
+    const mine: Msg = {
+      id: newId(),
+      role: 'me',
+      text,
+      at: now(),
+      ...(pendingImage ? { image: pendingImage } : {}),
+    }
     const history = [...messages, mine]
     setMessages(history)
     setDraft('')
+    setPendingImage('')
 
     if (!connected) {
       setMessages((prev) => [
@@ -276,6 +280,26 @@ export default function Chat() {
             朗读失败：{ttsError}
           </div>
         )}
+        {pendingImage && (
+          <div className="mb-2 flex items-center gap-2 px-2">
+            <div className="relative">
+              <img
+                src={pendingImage}
+                alt="待发送"
+                className="h-16 w-16 rounded-xl object-cover"
+              />
+              <button
+                type="button"
+                onClick={() => setPendingImage('')}
+                aria-label="移除图片"
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[11px] text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <span className="text-[11px] text-muted">图片已就绪，可一起发送文字</span>
+          </div>
+        )}
         {imgErr && (
           <div className="mb-1 px-2 text-center text-[11px] text-red-500">
             发送图片失败：{imgErr}
@@ -289,7 +313,7 @@ export default function Chat() {
           onChange={(e) => {
             const f = e.target.files?.[0]
             e.target.value = ''
-            if (f) sendImage(f)
+            if (f) pickImage(f)
           }}
         />
         <div className="relative flex items-center gap-2">

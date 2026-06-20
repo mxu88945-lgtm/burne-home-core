@@ -114,7 +114,8 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
 2. 聊天记录持久化 ✅ 本地已做（`store/chatStore.ts`，退出/刷新都保留；头部「清空」可重置）。
    ⏭ 可选：云同步聊天记录（注意 dataURL/体积，目前 Supabase 只同步 memories）。
 3. 聊天增强批 ← 🚧 进行中：
-   - 发图片 ✅：输入栏 ＋ 菜单 → 选图压缩(1280px)成 dataURL 存进 chatStore，气泡显缩略图、点开大图。
+   - 发图片 ✅：输入栏 ＋ 菜单 → 选图压缩(1280px)。选图后挂到输入框上方做**待发预览**（可 ✕ 移除），
+     可**连同文字一起作为一条消息发送**（不再选图即发）。气泡显缩略图、点开大图。
    - 多模态识图 ✅：`ChatApiMessage.content` 支持数组（OpenAI vision 格式 `image_url`），
      `Chat.respond()` 把图片消息按 vision 发给模型，发图后自动触发回复；
      Anthropic 渠道在 `llm.toAnthropic()` 转成 image base64 block。模型需支持识图（如 Gemini 2.5 / GPT-4o）。
