@@ -73,9 +73,51 @@ export default function Chat() {
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null)
   const [lightbox, setLightbox] = useState('')
   const [imgErr, setImgErr] = useState('')
+  const [selectMode, setSelectMode] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [exporting, setExporting] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const docRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
+  const exportRef = useRef<HTMLDivElement>(null)
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function exitSelect() {
+    setSelectMode(false)
+    setSelected(new Set())
+  }
+
+  /** 把选中的消息渲染成一张长图，弹出预览（iOS 长按可存相册） */
+  async function exportSelected() {
+    if (!selected.size || exporting) return
+    setExporting(true)
+    setImgErr('')
+    try {
+      const { default: html2canvas } = await import('html2canvas')
+      const node = exportRef.current
+      if (!node) throw new Error('导出容器不存在')
+      const bg =
+        getComputedStyle(document.documentElement).getPropertyValue('--bg-to').trim() || '#ffffff'
+      const canvas = await html2canvas(node, { backgroundColor: bg, scale: 2, useCORS: true })
+      setLightbox(canvas.toDataURL('image/png'))
+      exitSelect()
+    } catch (e) {
+      setImgErr(`生成图片失败：${(e as Error).message}`)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  // 选中的消息（保持时间顺序）
+  const selectedMsgs = messages.filter((m) => selected.has(m.id))
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -262,41 +304,79 @@ export default function Chat() {
         </>
       )}
       {/* 角色头部（钉在顶部，不滚） */}
-      <div className="flex flex-none items-center justify-between gap-2 pb-2">
-        <div className="flex flex-none items-center gap-3">
-          <Link to="/" className="text-[12px] text-muted hover:text-accent">
-            ← Back
-          </Link>
+      {selectMode ? (
+        <div className="flex flex-none items-center justify-between gap-2 pb-2">
           <button
             type="button"
-            onClick={() => {
-              if (window.confirm('清空当前对话？（不可恢复）')) clear()
-            }}
+            onClick={exitSelect}
             className="text-[12px] text-muted hover:text-accent"
           >
-            清空
+            取消
+          </button>
+          <div className="text-[12px] text-ink">已选 {selected.size} 条</div>
+          <button
+            type="button"
+            onClick={exportSelected}
+            disabled={!selected.size || exporting}
+            className="btn-primary rounded-full px-3 py-1 text-[12px] disabled:opacity-50"
+          >
+            {exporting ? '生成中…' : '生成长图'}
           </button>
         </div>
-        <div className="min-w-0 text-center">
-          <div className="headline text-lg leading-none text-ink">{name}</div>
-          <div className="mt-0.5 text-[10px] text-muted">
-            {connected ? persona.status : '未连接 API'}
+      ) : (
+        <div className="flex flex-none items-center justify-between gap-2 pb-2">
+          <div className="flex flex-none items-center gap-3">
+            <Link to="/" className="text-[12px] text-muted hover:text-accent">
+              ← Back
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('清空当前对话？（不可恢复）')) clear()
+              }}
+              className="text-[12px] text-muted hover:text-accent"
+            >
+              清空
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectMode(true)}
+              className="text-[12px] text-muted hover:text-accent"
+            >
+              截图
+            </button>
           </div>
+          <div className="min-w-0 text-center">
+            <div className="headline text-lg leading-none text-ink">{name}</div>
+            <div className="mt-0.5 text-[10px] text-muted">
+              {connected ? persona.status : '未连接 API'}
+            </div>
+          </div>
+          <Link
+            to="/settings/api"
+            className="max-w-[96px] truncate rounded-full bg-white/40 px-2.5 py-1 text-[10px] text-muted"
+          >
+            {modelLabel} ▾
+          </Link>
         </div>
-        <Link
-          to="/settings/api"
-          className="max-w-[96px] truncate rounded-full bg-white/40 px-2.5 py-1 text-[10px] text-muted"
-        >
-          {modelLabel} ▾
-        </Link>
-      </div>
+      )}
 
       {/* 消息列表（仅此区域滚动） */}
       <div className="mt-2 min-h-0 flex-1 space-y-4 overflow-y-auto pb-2">
         {messages.map((m) => {
           const me = m.role === 'me'
+          const picked = selectMode && selected.has(m.id)
           return (
-            <div key={m.id} className={`flex items-start gap-2 ${me ? 'flex-row-reverse' : ''}`}>
+            <div
+              key={m.id}
+              onClick={selectMode ? () => toggleSelect(m.id) : undefined}
+              className={[
+                'flex items-start gap-2',
+                me ? 'flex-row-reverse' : '',
+                selectMode ? 'cursor-pointer rounded-2xl p-1' : '',
+                picked ? 'bg-white/25 ring-2 ring-accent' : '',
+              ].join(' ')}
+            >
               <Avatar
                 img={me ? profile.avatarAImg : profile.avatarBImg}
                 emoji={me ? profile.avatarA : profile.avatarB}
@@ -308,7 +388,9 @@ export default function Chat() {
                   <img
                     src={m.image}
                     alt="图片"
-                    onClick={() => setLightbox(m.image!)}
+                    onClick={() => {
+                      if (!selectMode) setLightbox(m.image!)
+                    }}
                     className="max-h-60 max-w-full cursor-pointer rounded-2xl object-cover"
                   />
                 )}
@@ -316,6 +398,9 @@ export default function Chat() {
                   <a
                     href={m.file.url}
                     download={m.file.name}
+                    onClick={(e) => {
+                      if (selectMode) e.preventDefault()
+                    }}
                     className={`glass flex items-center gap-2 rounded-2xl px-3 py-2 ${m.image ? 'mt-1' : ''}`}
                   >
                     <span className="text-base">📄</span>
@@ -367,7 +452,15 @@ export default function Chat() {
         <div ref={endRef} />
       </div>
 
+      {/* 选择模式底部提示 */}
+      {selectMode && (
+        <div className="flex-none pt-2 pb-1 text-center text-[11px] text-muted">
+          点选要导出的消息，再点右上「生成长图」
+        </div>
+      )}
+
       {/* 输入栏 + 模型条（钉在底部，不滚） */}
+      {!selectMode && (
       <div className="flex-none pt-2">
         {ttsError && (
           <div className="mb-1 px-2 text-center text-[11px] text-red-500">
@@ -494,16 +587,83 @@ export default function Chat() {
           </div>
         </div>
       </div>
+      )}
 
-      {/* 图片大图预览 */}
+      {/* 图片大图预览（长图导出后也走这里，iOS 长按可存相册） */}
       {lightbox && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/80 p-4"
           onClick={() => setLightbox('')}
         >
-          <img src={lightbox} alt="大图" className="max-h-full max-w-full rounded-xl" />
+          <img src={lightbox} alt="大图" className="max-h-[85%] max-w-full rounded-xl" />
+          <span className="text-[12px] text-white/80">长按图片可保存到相册 · 点击空白关闭</span>
         </div>
       )}
+
+      {/* 离屏导出容器：把选中消息渲染成长图（html2canvas 截这里） */}
+      <div className="pointer-events-none fixed left-[-99999px] top-0" aria-hidden>
+        <div
+          ref={exportRef}
+          style={{
+            width: 380,
+            padding: 20,
+            background: 'var(--bg-to)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+          }}
+        >
+          <div className="headline text-center text-base text-accent">BW ♡ {name}</div>
+          {selectedMsgs.map((m) => {
+            const me = m.role === 'me'
+            return (
+              <div
+                key={m.id}
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  flexDirection: me ? 'row-reverse' : 'row',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <Avatar
+                  img={me ? profile.avatarAImg : profile.avatarBImg}
+                  emoji={me ? profile.avatarA : profile.avatarB}
+                  className="h-7 w-7 shrink-0 rounded-full text-sm"
+                  textCls="text-sm"
+                  style={{ background: 'rgba(255,255,255,0.6)' }}
+                />
+                <div style={{ maxWidth: 280, display: 'flex', flexDirection: 'column', alignItems: me ? 'flex-end' : 'flex-start' }}>
+                  {m.image && (
+                    <img src={m.image} alt="" style={{ maxWidth: 240, borderRadius: 14 }} />
+                  )}
+                  {m.file && (
+                    <div className="glass" style={{ borderRadius: 14, padding: '6px 10px', fontSize: 12, marginTop: m.image ? 4 : 0 }}>
+                      📄 {m.file.name}
+                    </div>
+                  )}
+                  {m.text && (
+                    <div
+                      className={me ? 'btn-primary' : 'glass text-ink'}
+                      style={{
+                        borderRadius: 16,
+                        padding: '8px 14px',
+                        fontSize: 14,
+                        lineHeight: 1.6,
+                        marginTop: m.image || m.file ? 4 : 0,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                      }}
+                    >
+                      {m.text}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
