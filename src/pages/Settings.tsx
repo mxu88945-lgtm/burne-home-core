@@ -7,6 +7,7 @@ import { useMemoryStore } from '@/store/memoryStore'
 import { useSyncStore } from '@/store/syncStore'
 import ApiManager from '@/components/settings/ApiManager'
 import SupabaseSync from '@/components/settings/SupabaseSync'
+import UsagePanel from '@/components/settings/UsagePanel'
 import {
   pullFromNotion,
   pushToNotion,
@@ -295,6 +296,11 @@ export default function Settings() {
         desc="在前端直接加渠道、填 key、拉取模型、切换。key 只存浏览器本地，不进仓库。OpenRouter 等支持浏览器直连，无需 Worker 即可聊天。"
       >
         <ApiManager />
+      </Section>
+
+      {/* 用量 · 账单 */}
+      <Section title="📊 用量 · 账单" defaultOpen={false}>
+        <UsagePanel />
       </Section>
 
       {/* 数据：整包备份 */}

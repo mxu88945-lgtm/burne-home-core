@@ -10,7 +10,7 @@ const NAV = [
 
 export default function BottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-[440px] px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <div className="glass-strong flex items-center justify-around rounded-3xl px-2 py-2">
         {NAV.map((item) => (
           <NavLink

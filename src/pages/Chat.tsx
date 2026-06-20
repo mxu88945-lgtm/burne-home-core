@@ -4,6 +4,7 @@ import { useProfileStore } from '@/store/profileStore'
 import { usePersonaStore } from '@/store/personaStore'
 import { useSyncStore } from '@/store/syncStore'
 import { useApiStore } from '@/store/apiStore'
+import { useUsageStore } from '@/store/usageStore'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { chatComplete } from '@/api/llm'
 
@@ -29,6 +30,7 @@ export default function Chat() {
   const { persona } = usePersonaStore()
   const { config } = useSyncStore()
   const activeChannel = useApiStore((s) => s.getActive())
+  const addUsage = useUsageStore((s) => s.add)
   const workerUrl = config.workerUrl?.trim()
   const connected = Boolean(activeChannel || workerUrl)
 
@@ -78,23 +80,38 @@ export default function Chat() {
 
     setSending(true)
     try {
-      const reply = activeChannel
-        ? await chatComplete(activeChannel, apiMsgs, system, {
-            workerUrl,
-            syncKey: config.syncKey,
-            temperature: persona.temperature,
-            maxTokens: persona.maxTokens,
+      let reply = ''
+      if (activeChannel) {
+        const r = await chatComplete(activeChannel, apiMsgs, system, {
+          workerUrl,
+          syncKey: config.syncKey,
+          temperature: persona.temperature,
+          maxTokens: persona.maxTokens,
+        })
+        reply = r.text
+        if (r.usage) {
+          addUsage({
+            at: new Date().toISOString(),
+            provider: activeChannel.provider,
+            model: r.usage.model,
+            promptTokens: r.usage.promptTokens,
+            completionTokens: r.usage.completionTokens,
+            totalTokens: r.usage.totalTokens,
+            cost: r.usage.cost,
           })
-        : await sendChat({
-            workerUrl: workerUrl!,
-            syncKey: config.syncKey,
-            messages: apiMsgs,
-            system,
-            provider: config.chatProvider || undefined,
-            model: config.chatModel || undefined,
-            temperature: persona.temperature,
-            maxTokens: persona.maxTokens,
-          })
+        }
+      } else {
+        reply = await sendChat({
+          workerUrl: workerUrl!,
+          syncKey: config.syncKey,
+          messages: apiMsgs,
+          system,
+          provider: config.chatProvider || undefined,
+          model: config.chatModel || undefined,
+          temperature: persona.temperature,
+          maxTokens: persona.maxTokens,
+        })
+      }
       setMessages((prev) => [
         ...prev,
         { id: newId(), role: 'companion', text: reply || '……', at: now() },
@@ -156,7 +173,7 @@ export default function Chat() {
       </div>
 
       {/* 输入栏 + 模型条 */}
-      <div className="fixed inset-x-0 bottom-[5.25rem] z-20 mx-auto max-w-md px-5">
+      <div className="fixed inset-x-0 bottom-[5.25rem] z-20 mx-auto max-w-[440px] px-5">
         <div className="glass-strong flex items-center gap-2 rounded-full p-1.5 pl-4">
           <input
             value={draft}

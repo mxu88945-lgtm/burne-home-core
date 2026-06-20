@@ -42,19 +42,32 @@ export interface ChatOptions {
   maxTokens?: number
 }
 
-/** 发起一次对话，返回回复文本 */
+export interface UsageInfo {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+  cost?: number
+  model: string
+}
+
+export interface ChatResult {
+  text: string
+  usage?: UsageInfo
+}
+
+/** 发起一次对话，返回回复文本与用量 */
 export async function chatComplete(
   ch: ApiChannel,
   messages: ChatApiMessage[],
   system: string,
   opts: ChatOptions = {}
-): Promise<string> {
+): Promise<ChatResult> {
   const maxTokens = opts.maxTokens ?? 1024
   // 经 Worker 中转：把渠道配置交给自己的 Worker 调用
   if (ch.viaWorker) {
     if (!opts.workerUrl)
       throw new Error('勾选了「经 Worker 中转」但未配置 Worker 地址')
-    return sendChat({
+    const text = await sendChat({
       workerUrl: opts.workerUrl,
       syncKey: opts.syncKey,
       messages,
@@ -66,6 +79,7 @@ export async function chatComplete(
       temperature: opts.temperature,
       maxTokens,
     })
+    return { text }
   }
 
   // 浏览器直连
@@ -88,15 +102,27 @@ export async function chatComplete(
     })
     const data = (await res.json().catch(() => ({}))) as {
       content?: { text?: string }[]
+      usage?: { input_tokens?: number; output_tokens?: number }
       error?: { message?: string }
     }
     if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`)
-    return Array.isArray(data.content)
+    const text = Array.isArray(data.content)
       ? data.content.map((c) => c.text || '').join('')
       : ''
+    const u = data.usage
+    const usage: UsageInfo | undefined = u
+      ? {
+          promptTokens: u.input_tokens ?? 0,
+          completionTokens: u.output_tokens ?? 0,
+          totalTokens: (u.input_tokens ?? 0) + (u.output_tokens ?? 0),
+          model: ch.model,
+        }
+      : undefined
+    return { text, usage }
   }
 
   // openai 兼容
+  const isOpenRouter = /openrouter\.ai/i.test(ch.baseUrl)
   const full = system
     ? [{ role: 'system' as const, content: system }, ...messages]
     : messages
@@ -111,12 +137,30 @@ export async function chatComplete(
       messages: full,
       max_tokens: maxTokens,
       ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
+      // OpenRouter：让响应带上真实花费
+      ...(isOpenRouter ? { usage: { include: true } } : {}),
     }),
   })
   const data = (await res.json().catch(() => ({}))) as {
     choices?: { message?: { content?: string } }[]
+    usage?: {
+      prompt_tokens?: number
+      completion_tokens?: number
+      total_tokens?: number
+      cost?: number
+    }
     error?: { message?: string }
   }
   if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`)
-  return data.choices?.[0]?.message?.content || ''
+  const u = data.usage
+  const usage: UsageInfo | undefined = u
+    ? {
+        promptTokens: u.prompt_tokens ?? 0,
+        completionTokens: u.completion_tokens ?? 0,
+        totalTokens: u.total_tokens ?? (u.prompt_tokens ?? 0) + (u.completion_tokens ?? 0),
+        cost: typeof u.cost === 'number' ? u.cost : undefined,
+        model: ch.model,
+      }
+    : undefined
+  return { text: data.choices?.[0]?.message?.content || '', usage }
 }
