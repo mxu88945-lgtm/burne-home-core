@@ -79,7 +79,7 @@ export default function AppearanceManager() {
               emoji={row.emoji}
               className="h-14 w-14 rounded-full text-2xl"
               textCls="text-2xl"
-              style={{ background: 'var(--card-strong)', border: '2px solid var(--card-border)' }}
+              style={{ backgroundColor: 'var(--card-strong)', border: '2px solid var(--card-border)' }}
             />
             <div className="flex flex-wrap items-center gap-2">
               <UploadButton

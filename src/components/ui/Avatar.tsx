@@ -15,7 +15,17 @@ export default function Avatar({
   return (
     <div
       className={`flex items-center justify-center overflow-hidden bg-cover bg-center ${className}`}
-      style={{ ...style, ...(img ? { backgroundImage: `url(${img})` } : null) }}
+      style={{
+        ...style,
+        ...(img
+          ? {
+              backgroundImage: `url(${img})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+            }
+          : null),
+      }}
     >
       {!img && <span className={textCls}>{emoji}</span>}
     </div>

@@ -3,7 +3,7 @@ import { useProfileStore, daysTogether } from '@/store/profileStore'
 import Avatar from '@/components/ui/Avatar'
 
 const avatarStyle = {
-  background: 'var(--card-strong)',
+  backgroundColor: 'var(--card-strong)',
   border: '2px solid var(--card-border)',
   boxShadow: '0 8px 22px var(--shadow)',
 }
