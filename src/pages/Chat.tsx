@@ -26,6 +26,21 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   ])
 }
 
+/** 老 Safari 不支持 Promise.withResolvers（pdfjs 6 需要），加载 pdfjs 前补上 */
+function ensureWithResolvers() {
+  const P = Promise as unknown as { withResolvers?: unknown }
+  if (typeof P.withResolvers === 'function') return
+  P.withResolvers = function <T>() {
+    let resolve!: (v: T) => void
+    let reject!: (e?: unknown) => void
+    const promise = new Promise<T>((res, rej) => {
+      resolve = res
+      reject = rej
+    })
+    return { promise, resolve, reject }
+  }
+}
+
 function newId() {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `msg-${Date.now()}`
 }
@@ -104,6 +119,7 @@ export default function Chat() {
       if (isTextFile(file)) {
         text = await readAsText(file)
       } else if (isPdf) {
+        ensureWithResolvers() // 老 Safari 兼容（pdfjs 6 需要 Promise.withResolvers）
         const { extractPdfText } = await import('@/lib/pdf')
         text = (await withTimeout(extractPdfText(file), 15000)) || undefined
         if (!text) setImgErr('这个 PDF 没提取到文字（可能是扫描件/图片型），仍可作为附件发送')

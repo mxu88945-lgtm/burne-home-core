@@ -1,11 +1,12 @@
 /**
- * PDF 文字提取（前端，pdfjs）。仅对「文本版」PDF 有效；扫描版（图片）提取不到文字。
- * 本文件按需动态加载（见 Chat 的 pickFile），避免拖累主包体积。
+ * PDF 文字提取（前端，pdfjs legacy 构建，兼容较旧 iOS Safari）。
+ * 仅对「文本版」PDF 有效；扫描版（图片）提取不到文字。
+ * 本文件按需动态加载（见 Chat 的 pickFile），加载前已在 pickFile 打好 Promise.withResolvers 补丁。
  */
 
-import * as pdfjsLib from 'pdfjs-dist'
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 // 用 Vite 打包 worker（?worker），避免 GitHub Pages 对 .mjs 的 MIME 导致 worker 加载失败
-import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker'
+import PdfWorker from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?worker'
 
 pdfjsLib.GlobalWorkerOptions.workerPort = new PdfWorker()
 
