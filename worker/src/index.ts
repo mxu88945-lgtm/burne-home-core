@@ -33,6 +33,10 @@ interface Env {
   MINIMAX_API_KEY?: string
   MINIMAX_GROUP_ID?: string
   MINIMAX_BASE_URL?: string // 默认 https://api.minimax.chat
+
+  /* —— 文生图中转（OpenAI 兼容 images/generations）—— */
+  IMAGE_API_KEY?: string
+  IMAGE_BASE_URL?: string // 默认 https://api.openai.com/v1
 }
 
 interface MemoryItem {
@@ -86,6 +90,7 @@ export default {
       if (path === '/test' && req.method === 'POST') return json({ ok: true })
       if (path === '/chat' && req.method === 'POST') return await handleChat(req, env)
       if (path === '/tts' && req.method === 'POST') return await handleTts(req, env)
+      if (path === '/image' && req.method === 'POST') return await handleImage(req, env)
 
       const mGet = path.match(/^\/spaces\/([^/]+)\/memories$/)
       if (mGet && req.method === 'GET') {
@@ -285,6 +290,44 @@ async function handleTts(req: Request, env: Env): Promise<Response> {
 
   return new Response(hexToBytes(hex), {
     headers: { 'Content-Type': 'audio/mpeg', ...CORS },
+  })
+}
+
+/**
+ * 文生图中转：前端 → Worker → OpenAI 兼容 images/generations，原样回传 JSON。
+ * Key 优先用 Worker secret（IMAGE_API_KEY），也接受前端覆盖。
+ */
+async function handleImage(req: Request, env: Env): Promise<Response> {
+  if (!authed(req, env)) return json({ error: 'unauthorized' }, { status: 401 })
+
+  const body = (await req.json()) as {
+    prompt?: string
+    apiKey?: string
+    baseUrl?: string
+    model?: string
+    n?: number
+    size?: string
+  }
+  if (!body.prompt || !body.prompt.trim()) return json({ error: '请输入图片描述' }, { status: 400 })
+
+  const key = body.apiKey || env.IMAGE_API_KEY
+  if (!key) return json({ error: '缺少文生图 API Key' }, { status: 400 })
+  const base = (body.baseUrl || env.IMAGE_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '')
+
+  const res = await fetch(`${base}/images/generations`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: body.model || 'dall-e-3',
+      prompt: body.prompt,
+      n: body.n || 1,
+      ...(body.size ? { size: body.size } : {}),
+    }),
+  })
+  const data = await res.text()
+  return new Response(data, {
+    status: res.status,
+    headers: { 'Content-Type': 'application/json', ...CORS },
   })
 }
 

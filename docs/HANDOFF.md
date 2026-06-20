@@ -128,7 +128,10 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
      发文件用「先挂载→后台解析→15s 超时」，解析失败/超时不阻断发送。
    - 截图选段导出 ✅：入口在 ＋ 菜单「截图」→ 选择模式点选消息 →「生成长图」。html2canvas（懒加载）
      截离屏 `exportRef`，出图走 lightbox（iOS 长按存相册）。颜色 hex/rgba 无 oklch，兼容 OK。
-   - ⏭ 生图（＋ 菜单加「生成图片」，下一轮，需先定文生图服务/模型）。
+   - 生图 ✅：单独配渠道（`imageGenStore`：baseURL/key/model/size/Worker 中转，**只存本地**），
+     `api/imagegen.ts`（OpenAI 兼容 images/generations，直连+Worker 两路），设置子页「🎨 生成图片」(`/settings/imagegen`，带测试)，
+     ＋ 菜单「生成图片」→ prompt 输入 → 出图作为消息（typing 显示「正在画…」）。worker `/image` 端点备用。
+     ⚠️ 多数文生图服务不开 CORS，直连可能失败→勾 Worker 中转（worker secret `IMAGE_API_KEY`）。
 4. 多对话窗口 ✅：`chatStore` 重构为多会话（`sessions[]`+`activeId`，旧单会话数据自动迁移）。
    聊天头部 ☰ 打开会话侧栏：新对话 / 切换 / 删除 / 重命名；首句话自动命名（autoTitle）。
    去掉了头部「清空」（改用删除会话）。⏭ 搜索聊天记录、会话云同步待做。

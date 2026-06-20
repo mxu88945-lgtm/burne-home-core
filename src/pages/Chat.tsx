@@ -13,6 +13,8 @@ import { useAppearanceStore } from '@/store/appearanceStore'
 import { useChatStore, type ChatMsg as Msg } from '@/store/chatStore'
 import { fileToDataUrl } from '@/lib/image'
 import { isTextFile, readAsDataUrl, readAsText, humanSize } from '@/lib/file'
+import { useImageGenStore } from '@/store/imageGenStore'
+import { generateImage } from '@/api/imagegen'
 import Avatar from '@/components/ui/Avatar'
 
 type PendingFile = NonNullable<Msg['file']>
@@ -58,6 +60,7 @@ export default function Chat() {
   const activeChannel = useApiStore((s) => s.getActive())
   const addUsage = useUsageStore((s) => s.add)
   const ttsEnabled = useTtsStore((s) => s.config.enabled)
+  const imageGenCfg = useImageGenStore((s) => s.config)
   const { chatBg, chatBgDim } = useAppearanceStore((s) => s.appearance)
   const { play, playingId, loadingId, error: ttsError } = useTtsPlayback()
   const workerUrl = config.workerUrl?.trim()
@@ -86,6 +89,7 @@ export default function Chat() {
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
+  const [generating, setGenerating] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const docRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -132,6 +136,41 @@ export default function Chat() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
+
+  /** AI 生成图片：输入描述 → 调文生图渠道 → 作为一条消息插入 */
+  async function genImage() {
+    setPlusOpen(false)
+    if (generating || sending) return
+    const prompt = window.prompt('描述你想生成的图片，例如：粉色夕阳下的海边小屋')
+    if (!prompt || !prompt.trim()) return
+    if (!imageGenCfg.apiKey.trim() && !imageGenCfg.viaWorker) {
+      setImgErr('请先在「设置 → 生成图片」配置文生图渠道')
+      return
+    }
+    const p = prompt.trim()
+    setImgErr('')
+    setMessages((prev) => [...prev, { id: newId(), role: 'me', text: `🎨 ${p}`, at: now() }])
+    autoTitle(p)
+    setGenerating(true)
+    try {
+      const cfg = {
+        ...imageGenCfg,
+        workerUrl: imageGenCfg.workerUrl.trim() || (config.workerUrl || '').trim(),
+      }
+      const img = await generateImage(cfg, p, { syncKey: config.syncKey })
+      setMessages((prev) => [
+        ...prev,
+        { id: newId(), role: 'companion', text: '', at: now(), image: img },
+      ])
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        { id: newId(), role: 'companion', text: `（画不出来：${(e as Error).message}）`, at: now() },
+      ])
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   /** 选图：不立即发送，挂到输入框上方作待发预览 */
   async function pickImage(file: File) {
@@ -437,7 +476,7 @@ export default function Chat() {
             </div>
           )
         })}
-        {sending && (
+        {(sending || generating) && (
           <div className="flex items-start gap-2">
             <Avatar
               img={profile.avatarBImg}
@@ -446,7 +485,7 @@ export default function Chat() {
               textCls="text-sm"
             />
             <div className="glass rounded-2xl rounded-bl-md px-4 py-2.5 text-sm text-muted">
-              {name} 正在输入…
+              {name} {generating ? '正在画…' : '正在输入…'}
             </div>
           </div>
         )}
@@ -554,6 +593,13 @@ export default function Chat() {
                   className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
                 >
                   文件
+                </button>
+                <button
+                  type="button"
+                  onClick={genImage}
+                  className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                >
+                  生成图片
                 </button>
                 <button
                   type="button"
