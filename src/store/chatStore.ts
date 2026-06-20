@@ -12,6 +12,8 @@ export interface ChatMsg {
   role: 'me' | 'companion'
   text: string
   at: string
+  /** 图片（压缩后的 dataURL，只存本地） */
+  image?: string
 }
 
 function newId() {

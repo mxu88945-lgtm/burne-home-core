@@ -113,6 +113,11 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
    - 进阶 TODO：聊天新消息自动朗读、克隆音色、流式播放。
 2. 聊天记录持久化 ✅ 本地已做（`store/chatStore.ts`，退出/刷新都保留；头部「清空」可重置）。
    ⏭ 可选：云同步聊天记录（注意 dataURL/体积，目前 Supabase 只同步 memories）。
+3. 聊天增强批 ← 🚧 进行中：
+   - 发图片 ✅：输入栏 ＋ 菜单 → 选图压缩(1280px)成 dataURL 存进 chatStore，气泡显缩略图、点开大图。
+     图片消息 text 为空、不进 AI 上下文（暂不识图；多模态识图可后续做）。
+   - ⏭ 发文件（＋ 菜单已留位）、截图选段导出（选区间生成长图，需 html2canvas）。
+   ⚠️ 注意：图片 dataURL 占 localStorage，多图可能超额，后续可迁 IndexedDB。
 3. 自动记忆沉淀（聊天里自动存核心记忆到记忆库）。
 4. 隐私锁口令（WebCrypto 哈希，只存本地）。
 5. 聊天顶部「全部消息 ▼ / N 条」筛选条 + 时间分组（参考用户截图）。

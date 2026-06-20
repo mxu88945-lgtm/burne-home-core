@@ -11,6 +11,7 @@ import { useTtsStore } from '@/store/ttsStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import { useAppearanceStore } from '@/store/appearanceStore'
 import { useChatStore, type ChatMsg as Msg } from '@/store/chatStore'
+import { fileToDataUrl } from '@/lib/image'
 import Avatar from '@/components/ui/Avatar'
 
 function newId() {
@@ -40,7 +41,25 @@ export default function Chat() {
   const { messages, setMessages, clear } = useChatStore()
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [plusOpen, setPlusOpen] = useState(false)
+  const [lightbox, setLightbox] = useState('')
+  const [imgErr, setImgErr] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
+
+  async function sendImage(file: File) {
+    setPlusOpen(false)
+    setImgErr('')
+    try {
+      const image = await fileToDataUrl(file, 1280, 0.8)
+      setMessages((prev) => [
+        ...prev,
+        { id: newId(), role: 'me', text: '', at: now(), image },
+      ])
+    } catch (e) {
+      setImgErr((e as Error).message)
+    }
+  }
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -67,10 +86,12 @@ export default function Chat() {
       return
     }
 
-    const apiMsgs: ChatApiMessage[] = history.map((m) => ({
-      role: m.role === 'me' ? 'user' : 'assistant',
-      content: m.text,
-    }))
+    const apiMsgs: ChatApiMessage[] = history
+      .filter((m) => m.text.trim()) // 图片消息无文本，不进 AI 上下文（暂不识图）
+      .map((m) => ({
+        role: m.role === 'me' ? 'user' : 'assistant',
+        content: m.text,
+      }))
     while (apiMsgs.length && apiMsgs[0].role !== 'user') apiMsgs.shift()
 
     const system =
@@ -185,14 +206,25 @@ export default function Chat() {
                 textCls="text-sm"
               />
               <div className={`flex max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`}>
-                <div
-                  className={[
-                    'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
-                    me ? 'btn-primary rounded-br-md' : 'glass rounded-bl-md text-ink',
-                  ].join(' ')}
-                >
-                  {m.text}
-                </div>
+                {m.image && (
+                  <img
+                    src={m.image}
+                    alt="图片"
+                    onClick={() => setLightbox(m.image!)}
+                    className="max-h-60 max-w-full cursor-pointer rounded-2xl object-cover"
+                  />
+                )}
+                {m.text && (
+                  <div
+                    className={[
+                      'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
+                      m.image ? 'mt-1' : '',
+                      me ? 'btn-primary rounded-br-md' : 'glass rounded-bl-md text-ink',
+                    ].join(' ')}
+                  >
+                    {m.text}
+                  </div>
+                )}
                 <div className="mt-1 flex items-center gap-2 px-1">
                   <span className="text-[10px] text-muted">{m.at}</span>
                   {!me && ttsEnabled && m.text.trim() && (
@@ -233,7 +265,51 @@ export default function Chat() {
             朗读失败：{ttsError}
           </div>
         )}
-        <div className="glass-strong flex items-center gap-2 rounded-full p-1.5 pl-5">
+        {imgErr && (
+          <div className="mb-1 px-2 text-center text-[11px] text-red-500">
+            发送图片失败：{imgErr}
+          </div>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (f) sendImage(f)
+          }}
+        />
+        <div className="relative flex items-center gap-2">
+          {/* ＋ 菜单 */}
+          {plusOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setPlusOpen(false)}
+              />
+              <div className="glass-strong absolute bottom-12 left-0 z-20 w-36 overflow-hidden rounded-2xl p-1 text-sm text-ink">
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                >
+                  🖼 图片
+                </button>
+                <div className="px-3 py-2 text-left text-[11px] text-muted">📎 文件（下轮）</div>
+              </div>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setPlusOpen((o) => !o)}
+            aria-label="添加"
+            className="glass-strong flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl text-ink"
+          >
+            ＋
+          </button>
+          <div className="glass-strong flex flex-1 items-center gap-2 rounded-full p-1.5 pl-5">
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -252,8 +328,19 @@ export default function Chat() {
           >
             ↑
           </button>
+          </div>
         </div>
       </div>
+
+      {/* 图片大图预览 */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setLightbox('')}
+        >
+          <img src={lightbox} alt="大图" className="max-h-full max-w-full rounded-xl" />
+        </div>
+      )}
     </div>
   )
 }
