@@ -85,6 +85,17 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
 
 ## 9. 下一步 TODO（按优先级）
 
+0. **视觉美化批** ✅（已上线，手机验收过）：
+   - API Key 密码框加 👁 显示/隐藏（`components/ui/PasswordInput.tsx`，用在 TTS/API/Supabase）。
+   - 聊天头像改顶部对齐（`flex items-start`），时间戳移到气泡下方与 🔊 同行。
+   - 头像可上传图片：`profileStore` 加 `avatarAImg/avatarBImg`（dataURL，压到 256px）；
+     `components/ui/Avatar.tsx`（有图显图、无图显 emoji），Home 双头像 + 聊天气泡共用。
+   - 聊天背景可上传：`appearanceStore`（`chatBg` dataURL 压到 1280px + `chatBgDim` 变暗滑块），
+     仅作用于聊天页（背景层 `-z-10` + 黑色变暗层）。
+   - 图片处理 `lib/image.ts`（canvas 等比压缩为 JPEG dataURL），**只存本地、不上传/不进同步**。
+   - 设置子页「🖼 形象 · 外观」(`/settings/appearance`)。
+   - ⏭ 用户后续还想要：聊天输入栏「＋」号发图片/文件 + 截图选段导出（选从哪条到哪条生成图片）；自定义语音上传。
+
 1. **TTS 语音朗读（MiniMax 海螺）** ← 🚧 第一轮已做（待手机验收直连是否跨域）：
    - 已加：`ttsStore`（开关/baseURL/key/GroupId/模型/音色/语速/Worker 中转，**只存本地**）、
      `src/api/tts.ts`（直连 + Worker 中转两路，hex→mp3 blob）、`src/lib/useTtsPlayback.ts`（同时只播一条）、

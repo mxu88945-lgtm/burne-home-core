@@ -12,6 +12,10 @@ export interface Profile {
   nameB: string
   avatarA: string
   avatarB: string
+  /** 用户头像上传图（dataURL，有则优先于 avatarA emoji） */
+  avatarAImg?: string
+  /** AI/TA 头像上传图（dataURL，有则优先于 avatarB emoji） */
+  avatarBImg?: string
   /** 纪念日，ISO 日期 yyyy-mm-dd */
   anniversary: string
   /** 心情签名 */

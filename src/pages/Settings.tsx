@@ -3,6 +3,7 @@ import BackBar from '@/components/layout/BackBar'
 
 const ITEMS = [
   { to: '/theme', icon: '🎨', title: '主题', sub: '外观配色' },
+  { to: '/settings/appearance', icon: '🖼', title: '形象 · 外观', sub: '头像 · 聊天背景' },
   { to: '/persona', icon: '🎭', title: '角色人设', sub: '灵魂设定与参数' },
   { to: '/settings/sync', icon: '☁️', title: '账号 · 多设备同步', sub: 'Supabase 登录共享' },
   { to: '/settings/api', icon: '🤖', title: 'API · 模型', sub: '渠道与模型管理' },

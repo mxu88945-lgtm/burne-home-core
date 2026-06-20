@@ -1,19 +1,11 @@
 import { Link } from 'react-router-dom'
 import { useProfileStore, daysTogether } from '@/store/profileStore'
+import Avatar from '@/components/ui/Avatar'
 
-function Avatar({ emoji }: { emoji: string }) {
-  return (
-    <div
-      className="flex h-20 w-20 items-center justify-center rounded-full text-3xl"
-      style={{
-        background: 'var(--card-strong)',
-        border: '2px solid var(--card-border)',
-        boxShadow: '0 8px 22px var(--shadow)',
-      }}
-    >
-      {emoji}
-    </div>
-  )
+const avatarStyle = {
+  background: 'var(--card-strong)',
+  border: '2px solid var(--card-border)',
+  boxShadow: '0 8px 22px var(--shadow)',
 }
 
 function QuickEntry({
@@ -68,9 +60,21 @@ export default function Home() {
       {/* 情侣主视觉 */}
       <section className="glass-strong rounded-3xl px-6 py-7 text-center">
         <div className="flex items-center justify-center gap-5">
-          <Avatar emoji={profile.avatarA} />
+          <Avatar
+            img={profile.avatarAImg}
+            emoji={profile.avatarA}
+            className="h-20 w-20 rounded-full text-3xl"
+            textCls="text-3xl"
+            style={avatarStyle}
+          />
           <span className="headline text-2xl text-accent-2">&</span>
-          <Avatar emoji={profile.avatarB} />
+          <Avatar
+            img={profile.avatarBImg}
+            emoji={profile.avatarB}
+            className="h-20 w-20 rounded-full text-3xl"
+            textCls="text-3xl"
+            style={avatarStyle}
+          />
         </div>
         <h2 className="headline mt-5 text-2xl text-ink">
           {profile.nameA} <span className="text-accent">♡</span> {profile.nameB}

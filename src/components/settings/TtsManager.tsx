@@ -1,6 +1,7 @@
 import { useTtsStore, VOICE_PRESETS } from '@/store/ttsStore'
 import { useSyncStore } from '@/store/syncStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
+import PasswordInput from '@/components/ui/PasswordInput'
 
 const inputCls =
   'w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent'
@@ -41,9 +42,8 @@ export default function TtsManager() {
           value={config.baseUrl}
           onChange={(e) => update({ baseUrl: e.target.value })}
         />
-        <input
+        <PasswordInput
           className={inputCls}
-          type="password"
           placeholder="API Key（只存本地）"
           value={config.apiKey}
           onChange={(e) => update({ apiKey: e.target.value })}

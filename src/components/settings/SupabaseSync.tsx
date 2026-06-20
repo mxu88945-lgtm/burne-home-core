@@ -8,6 +8,7 @@ import {
   currentUser,
   supaSyncNow,
 } from '@/api/supabaseSync'
+import PasswordInput from '@/components/ui/PasswordInput'
 
 const inputCls =
   'w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent'
@@ -86,7 +87,7 @@ export default function SupabaseSync() {
       ) : (
         <>
           <input className={inputCls} type="email" placeholder="邮箱" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <input className={inputCls} type="password" placeholder="密码（至少 6 位）" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PasswordInput className={inputCls} placeholder="密码（至少 6 位）" value={password} onChange={(e) => setPassword(e.target.value)} />
         </>
       )}
 

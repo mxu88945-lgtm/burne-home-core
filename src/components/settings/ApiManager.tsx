@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApiStore, type ApiProvider } from '@/store/apiStore'
 import { useSyncStore } from '@/store/syncStore'
 import { listModels } from '@/api/llm'
+import PasswordInput from '@/components/ui/PasswordInput'
 
 const inputCls =
   'w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent'
@@ -222,9 +223,8 @@ export default function ApiManager() {
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
           />
-          <input
+          <PasswordInput
             className={inputCls}
-            type="password"
             placeholder="API key（只存本地）"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}

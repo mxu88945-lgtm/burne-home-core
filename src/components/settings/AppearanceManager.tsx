@@ -1,0 +1,172 @@
+import { useRef, useState } from 'react'
+import { useProfileStore } from '@/store/profileStore'
+import { useAppearanceStore } from '@/store/appearanceStore'
+import { fileToDataUrl } from '@/lib/image'
+import Avatar from '@/components/ui/Avatar'
+
+const inputCls =
+  'w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent'
+
+/** 图片上传按钮：点了选图 → 压缩 → 回调 dataURL */
+function UploadButton({
+  label,
+  maxSize,
+  onPicked,
+  onError,
+}: {
+  label: string
+  maxSize: number
+  onPicked: (dataUrl: string) => void
+  onError: (msg: string) => void
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  const [busy, setBusy] = useState(false)
+  return (
+    <>
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0]
+          e.target.value = '' // 允许重复选同一张
+          if (!file) return
+          setBusy(true)
+          onError('')
+          try {
+            onPicked(await fileToDataUrl(file, maxSize))
+          } catch (err) {
+            onError((err as Error).message)
+          } finally {
+            setBusy(false)
+          }
+        }}
+      />
+      <button
+        type="button"
+        onClick={() => ref.current?.click()}
+        disabled={busy}
+        className="glass rounded-lg px-3 py-1.5 text-xs text-ink disabled:opacity-60"
+      >
+        {busy ? '处理中…' : label}
+      </button>
+    </>
+  )
+}
+
+export default function AppearanceManager() {
+  const { profile, setProfile } = useProfileStore()
+  const { appearance, update } = useAppearanceStore()
+  const [err, setErr] = useState('')
+
+  return (
+    <div className="space-y-3">
+      {err && <div className="text-[11px] text-red-500">出错：{err}</div>}
+
+      {/* 头像 */}
+      {(
+        [
+          { key: 'A', name: '用户头像', emoji: profile.avatarA, img: profile.avatarAImg },
+          { key: 'B', name: 'AI / TA 头像', emoji: profile.avatarB, img: profile.avatarBImg },
+        ] as const
+      ).map((row) => (
+        <div key={row.key} className="glass rounded-2xl p-4 space-y-2">
+          <div className="label">{row.name}</div>
+          <div className="flex items-center gap-3">
+            <Avatar
+              img={row.img}
+              emoji={row.emoji}
+              className="h-14 w-14 rounded-full text-2xl"
+              textCls="text-2xl"
+              style={{ background: 'var(--card-strong)', border: '2px solid var(--card-border)' }}
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <UploadButton
+                label="上传图片"
+                maxSize={256}
+                onPicked={(d) =>
+                  setProfile(row.key === 'A' ? { avatarAImg: d } : { avatarBImg: d })
+                }
+                onError={setErr}
+              />
+              {row.img && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setProfile(row.key === 'A' ? { avatarAImg: undefined } : { avatarBImg: undefined })
+                  }
+                  className="text-[11px] text-muted hover:text-accent"
+                >
+                  移除图片
+                </button>
+              )}
+            </div>
+          </div>
+          {/* 没传图时可填 emoji */}
+          {!row.img && (
+            <input
+              className={inputCls}
+              maxLength={4}
+              placeholder="或填一个 emoji，如 🌙"
+              value={row.emoji}
+              onChange={(e) =>
+                setProfile(row.key === 'A' ? { avatarA: e.target.value } : { avatarB: e.target.value })
+              }
+            />
+          )}
+        </div>
+      ))}
+
+      {/* 聊天背景 */}
+      <div className="glass rounded-2xl p-4 space-y-2">
+        <div className="label">聊天背景</div>
+        <div className="flex items-center gap-3">
+          <div
+            className="h-14 w-14 shrink-0 rounded-xl bg-cover bg-center"
+            style={{
+              backgroundImage: appearance.chatBg ? `url(${appearance.chatBg})` : undefined,
+              background: appearance.chatBg ? undefined : 'var(--card-strong)',
+              border: '1px solid var(--card-border)',
+            }}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <UploadButton
+              label="上传背景"
+              maxSize={1280}
+              onPicked={(d) => update({ chatBg: d })}
+              onError={setErr}
+            />
+            {appearance.chatBg && (
+              <button
+                type="button"
+                onClick={() => update({ chatBg: '' })}
+                className="text-[11px] text-muted hover:text-accent"
+              >
+                移除背景
+              </button>
+            )}
+          </div>
+        </div>
+        {appearance.chatBg && (
+          <label className="flex items-center gap-3 text-[12px] text-muted">
+            <span className="shrink-0">变暗 {Math.round(appearance.chatBgDim * 100)}%</span>
+            <input
+              type="range"
+              min={0}
+              max={0.7}
+              step={0.05}
+              value={appearance.chatBgDim}
+              onChange={(e) => update({ chatBgDim: Number(e.target.value) })}
+              className="flex-1 accent-accent"
+            />
+          </label>
+        )}
+      </div>
+
+      <p className="text-[11px] text-muted leading-relaxed">
+        图片会自动压缩、只保存在本设备浏览器，不会上传或进入仓库。背景目前只作用于聊天页。
+      </p>
+    </div>
+  )
+}

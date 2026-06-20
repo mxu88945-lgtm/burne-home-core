@@ -9,6 +9,8 @@ import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { chatComplete } from '@/api/llm'
 import { useTtsStore } from '@/store/ttsStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
+import { useAppearanceStore } from '@/store/appearanceStore'
+import Avatar from '@/components/ui/Avatar'
 
 interface Msg {
   id: string
@@ -34,6 +36,7 @@ export default function Chat() {
   const activeChannel = useApiStore((s) => s.getActive())
   const addUsage = useUsageStore((s) => s.add)
   const ttsEnabled = useTtsStore((s) => s.config.enabled)
+  const { chatBg, chatBgDim } = useAppearanceStore((s) => s.appearance)
   const { play, playingId, loadingId, error: ttsError } = useTtsPlayback()
   const workerUrl = config.workerUrl?.trim()
   const connected = Boolean(activeChannel || workerUrl)
@@ -133,7 +136,20 @@ export default function Chat() {
   const modelLabel = activeChannel?.model || config.chatModel || (connected ? '默认' : '未连接')
 
   return (
-    <div className="flex h-full flex-col px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+    <div className="relative flex h-full flex-col px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      {/* 聊天背景图 + 变暗层（在内容之下） */}
+      {chatBg && (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-center"
+            style={{ backgroundImage: `url(${chatBg})` }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0 -z-10 bg-black"
+            style={{ opacity: chatBgDim }}
+          />
+        </>
+      )}
       {/* 角色头部（钉在顶部，不滚） */}
       <div className="flex flex-none items-center justify-between gap-2 pb-2">
         <Link to="/" className="text-[12px] text-muted hover:text-accent">
@@ -158,12 +174,14 @@ export default function Chat() {
         {messages.map((m) => {
           const me = m.role === 'me'
           return (
-            <div key={m.id} className={`flex items-end gap-2 ${me ? 'flex-row-reverse' : ''}`}>
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/50 text-sm">
-                {me ? profile.avatarA : profile.avatarB}
-              </span>
+            <div key={m.id} className={`flex items-start gap-2 ${me ? 'flex-row-reverse' : ''}`}>
+              <Avatar
+                img={me ? profile.avatarAImg : profile.avatarBImg}
+                emoji={me ? profile.avatarA : profile.avatarB}
+                className="h-7 w-7 shrink-0 rounded-full bg-white/50 text-sm"
+                textCls="text-sm"
+              />
               <div className={`flex max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`}>
-                <span className="mb-1 px-1 text-[10px] text-muted">{m.at}</span>
                 <div
                   className={[
                     'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
@@ -172,25 +190,31 @@ export default function Chat() {
                 >
                   {m.text}
                 </div>
-                {!me && ttsEnabled && m.text.trim() && (
-                  <button
-                    type="button"
-                    onClick={() => play(m.id, m.text)}
-                    aria-label="朗读"
-                    className="mt-1 px-1 text-[12px] text-muted hover:text-accent disabled:opacity-50"
-                  >
-                    {loadingId === m.id ? '⏳' : playingId === m.id ? '⏹' : '🔊'}
-                  </button>
-                )}
+                <div className="mt-1 flex items-center gap-2 px-1">
+                  <span className="text-[10px] text-muted">{m.at}</span>
+                  {!me && ttsEnabled && m.text.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => play(m.id, m.text)}
+                      aria-label="朗读"
+                      className="text-[12px] text-muted hover:text-accent disabled:opacity-50"
+                    >
+                      {loadingId === m.id ? '⏳' : playingId === m.id ? '⏹' : '🔊'}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )
         })}
         {sending && (
-          <div className="flex items-end gap-2">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/50 text-sm">
-              {profile.avatarB}
-            </span>
+          <div className="flex items-start gap-2">
+            <Avatar
+              img={profile.avatarBImg}
+              emoji={profile.avatarB}
+              className="h-7 w-7 shrink-0 rounded-full bg-white/50 text-sm"
+              textCls="text-sm"
+            />
             <div className="glass rounded-2xl rounded-bl-md px-4 py-2.5 text-sm text-muted">
               {name} 正在输入…
             </div>
