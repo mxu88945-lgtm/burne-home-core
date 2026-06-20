@@ -9,6 +9,12 @@
 
 「**BW · 长期记忆 + AI 陪伴**」——一个粉色浪漫风的个人情感 App：记忆库 + 角色聊天 + 多设备云同步。纯前端 + Supabase + 用户自带 AI 渠道（OpenRouter）。
 
+## ⚠️ 当前已知限制（用户已反馈，优先处理）
+
+- **聊天记录不持久化**：消息只存在 `Chat.tsx` 的 React `useState` 内存里，**从未写入 localStorage / 云端**，所以**一退出或刷新就清空**。这是当初故意留的「UI 壳」，**不是 bug**。
+  - 用户已明确希望做掉这个 → 见第 9 节 TODO #2。建议：新增 `chatStore`（按会话存消息到 localStorage），可选同步到 Supabase（复用他现有的 `chats` 表，或新建）。
+- 记忆库的数据是**有**持久化的（`memoryStore` → localStorage + Supabase 同步），别和聊天搞混。
+
 ## 1. 仓库 / 部署
 
 - 仓库：`mxu88945-lgtm/burne-home-core`，开发分支 **`claude/new-frontend-repo-x02o8y`**（一直在这个分支上做）。
