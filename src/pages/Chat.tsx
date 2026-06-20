@@ -18,6 +18,14 @@ import Avatar from '@/components/ui/Avatar'
 type PendingFile = NonNullable<Msg['file']>
 const MAX_FILE = 1.5 * 1024 * 1024 // 1.5MB（dataURL 存 localStorage，避免超额）
 
+/** 给 Promise 加超时，避免某些环境下 PDF worker 卡住拖死发送 */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('解析超时')), ms)),
+  ])
+}
+
 function newId() {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `msg-${Date.now()}`
 }
@@ -86,21 +94,26 @@ export default function Chat() {
       setImgErr('读不到这个文件（若来自 iCloud，请先在「文件」App 里下载到本机再选）')
       return
     }
-    let text: string | undefined
+    // 先挂上，确保随时能发送
+    setPendingImage('')
+    setPendingFile({ name: file.name, size: file.size, url })
+
+    // 后台读取内容（文本/PDF），成功则补上 text；失败/超时不影响发送
     try {
+      let text: string | undefined
       if (isTextFile(file)) {
         text = await readAsText(file)
       } else if (isPdf) {
         const { extractPdfText } = await import('@/lib/pdf')
-        text = (await extractPdfText(file)) || undefined // 扫描版 PDF 提取不到文字
+        text = (await withTimeout(extractPdfText(file), 15000)) || undefined
         if (!text) setImgErr('这个 PDF 没提取到文字（可能是扫描件/图片型），仍可作为附件发送')
       }
+      if (text) {
+        setPendingFile((prev) => (prev && prev.name === file.name ? { ...prev, text } : prev))
+      }
     } catch (e) {
-      // 解析失败不阻断：仍把文件作为附件挂上
       setImgErr(`文件内容解析失败：${(e as Error).message}；仍可作为附件发送`)
     }
-    setPendingImage('')
-    setPendingFile({ name: file.name, size: file.size, url, text })
   }
 
   async function send() {
