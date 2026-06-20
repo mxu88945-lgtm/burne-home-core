@@ -129,9 +129,9 @@ export default function Chat() {
   const modelLabel = activeChannel?.model || config.chatModel || (connected ? '默认' : '未连接')
 
   return (
-    <div className="flex min-h-[calc(100vh-9rem)] flex-col">
-      {/* 角色头部 */}
-      <div className="flex items-center justify-between pb-2">
+    <div className="flex h-full flex-col">
+      {/* 角色头部（钉在顶部，不滚） */}
+      <div className="flex flex-none items-center justify-between pb-2">
         <Link to="/" className="glass rounded-full px-3 py-1.5 text-[11px] text-ink">
           ← 主屋
         </Link>
@@ -144,8 +144,8 @@ export default function Chat() {
         <span className="w-14" />
       </div>
 
-      {/* 消息列表 */}
-      <div className="mt-2 flex-1 space-y-4 pb-36">
+      {/* 消息列表（仅此区域滚动） */}
+      <div className="mt-2 min-h-0 flex-1 space-y-4 overflow-y-auto pb-2">
         {messages.map((m) => (
           <div key={m.id} className={m.role === 'me' ? 'flex flex-col items-end' : 'flex flex-col items-start'}>
             <span className="mb-1 px-1 text-[10px] text-muted">{m.at}</span>
@@ -172,8 +172,8 @@ export default function Chat() {
         <div ref={endRef} />
       </div>
 
-      {/* 输入栏 + 模型条 */}
-      <div className="fixed inset-x-0 bottom-[5.25rem] z-20 mx-auto max-w-[440px] px-5">
+      {/* 输入栏 + 模型条（钉在底部，不滚） */}
+      <div className="flex-none pt-2">
         <div className="glass-strong flex items-center gap-2 rounded-full p-1.5 pl-4">
           <input
             value={draft}

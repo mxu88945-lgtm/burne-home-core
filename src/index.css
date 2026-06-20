@@ -71,11 +71,19 @@ body,
   height: 100%;
 }
 
+/* 根背景跟随主题，安全区/回弹处不露白 */
+html {
+  background-color: var(--bg-to);
+}
+
 body {
   margin: 0;
   -webkit-font-smoothing: antialiased;
   color: var(--text);
   font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  /* 滚动锁：整页不滚，只让内容区滚 */
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 /* ============================================================

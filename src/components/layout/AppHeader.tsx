@@ -1,6 +1,6 @@
 export default function AppHeader() {
   return (
-    <header className="px-6 pb-2 pt-7">
+    <header className="flex-none px-6 pb-2 pt-[max(1.75rem,env(safe-area-inset-top))]">
       <h1 className="headline text-2xl leading-none text-ink">
         BW <span className="text-accent">♡</span>
       </h1>

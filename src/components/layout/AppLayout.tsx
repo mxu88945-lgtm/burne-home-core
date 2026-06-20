@@ -4,11 +4,11 @@ import BottomNav from './BottomNav'
 
 export default function AppLayout() {
   return (
-    <div className="app-bg min-h-screen">
-      {/* 固定为手机宽度的居中列，桌面下不再自动伸展 */}
-      <div className="relative mx-auto flex min-h-screen w-full max-w-[440px] flex-col border-line bg-white/0 sm:border-x">
+    // 滚动锁：100dvh 固定、overflow-hidden，顶栏与底栏不随内容滚动
+    <div className="app-bg flex h-[100dvh] flex-col overflow-hidden">
+      <div className="mx-auto flex h-full w-full max-w-[440px] flex-col border-line sm:border-x">
         <AppHeader />
-        <main className="flex-1 px-5 pb-28 pt-1">
+        <main className="min-h-0 flex-1 overflow-y-auto px-5 pb-3 pt-1">
           <Outlet />
         </main>
         <BottomNav />

@@ -3,9 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="description" content="伯恩主屋版 · 长期记忆系统" />
-    <meta name="theme-color" content="#f6e0e8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="theme-color" content="#fdf3f5" />
+    <script>
+      // 首帧前预热：按上次主题设好 data-theme 与 theme-color，避免顶部白闪
+      (function () {
+        try {
+          var raw = localStorage.getItem('burne-home-core:theme')
+          var id = raw ? JSON.parse(raw).id : 'rose'
+          if (['rose', 'lavender', 'night'].indexOf(id) < 0) id = 'rose'
+          document.documentElement.dataset.theme = id
+          var bar = { rose: '#fdf3f5', lavender: '#f4f0fb', night: '#211a26' }[id]
+          var m = document.querySelector('meta[name="theme-color"]')
+          if (m) m.setAttribute('content', bar)
+        } catch (e) {}
+      })()
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
