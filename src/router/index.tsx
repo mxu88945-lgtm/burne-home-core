@@ -7,6 +7,11 @@ import Persona from '@/pages/Persona'
 import ThemePage from '@/pages/ThemePage'
 import Search from '@/pages/Search'
 import Settings from '@/pages/Settings'
+import SyncPage from '@/pages/settings/SyncPage'
+import ApiPage from '@/pages/settings/ApiPage'
+import UsagePage from '@/pages/settings/UsagePage'
+import DataPage from '@/pages/settings/DataPage'
+import PrivacyPage from '@/pages/settings/PrivacyPage'
 import NotFound from '@/pages/NotFound'
 
 export const router = createHashRouter([
@@ -21,6 +26,11 @@ export const router = createHashRouter([
       { path: 'theme', element: <ThemePage /> },
       { path: 'search', element: <Search /> },
       { path: 'settings', element: <Settings /> },
+      { path: 'settings/sync', element: <SyncPage /> },
+      { path: 'settings/api', element: <ApiPage /> },
+      { path: 'settings/usage', element: <UsagePage /> },
+      { path: 'settings/data', element: <DataPage /> },
+      { path: 'settings/privacy', element: <PrivacyPage /> },
       { path: '*', element: <NotFound /> },
     ],
   },

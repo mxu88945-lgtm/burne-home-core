@@ -10,8 +10,8 @@ const NAV = [
 
 export default function BottomNav() {
   return (
-    <nav className="flex-none px-4 pt-2 pb-[max(0.6rem,env(safe-area-inset-bottom))]">
-      <div className="glass-strong flex items-center justify-around rounded-3xl px-2 py-2">
+    <nav className="flex-none px-4 pt-1.5 pb-[max(0.4rem,env(safe-area-inset-bottom))]">
+      <div className="glass-strong flex items-center justify-around rounded-2xl px-1.5 py-1">
         {NAV.map((item) => (
           <NavLink
             key={item.to}
@@ -19,7 +19,7 @@ export default function BottomNav() {
             end={item.end}
             className={({ isActive }) =>
               [
-                'flex flex-1 flex-col items-center gap-0.5 rounded-2xl px-1 py-1.5 text-[10.5px] transition',
+                'flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-[10px] transition',
                 isActive
                   ? 'font-medium text-accent'
                   : 'text-muted hover:text-ink',
@@ -31,7 +31,7 @@ export default function BottomNav() {
                 : undefined
             }
           >
-            <span className="text-lg leading-none">{item.icon}</span>
+            <span className="text-[15px] leading-none">{item.icon}</span>
             {item.label}
           </NavLink>
         ))}

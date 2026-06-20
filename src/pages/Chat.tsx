@@ -146,24 +146,32 @@ export default function Chat() {
 
       {/* 消息列表（仅此区域滚动） */}
       <div className="mt-2 min-h-0 flex-1 space-y-4 overflow-y-auto pb-2">
-        {messages.map((m) => (
-          <div key={m.id} className={m.role === 'me' ? 'flex flex-col items-end' : 'flex flex-col items-start'}>
-            <span className="mb-1 px-1 text-[10px] text-muted">{m.at}</span>
-            <div
-              className={[
-                'max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
-                m.role === 'me'
-                  ? 'btn-primary rounded-br-md'
-                  : 'glass rounded-bl-md text-ink',
-              ].join(' ')}
-            >
-              {m.text}
+        {messages.map((m) => {
+          const me = m.role === 'me'
+          return (
+            <div key={m.id} className={`flex items-end gap-2 ${me ? 'flex-row-reverse' : ''}`}>
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/50 text-sm">
+                {me ? profile.avatarA : profile.avatarB}
+              </span>
+              <div className={`flex max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`}>
+                <span className="mb-1 px-1 text-[10px] text-muted">{m.at}</span>
+                <div
+                  className={[
+                    'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
+                    me ? 'btn-primary rounded-br-md' : 'glass rounded-bl-md text-ink',
+                  ].join(' ')}
+                >
+                  {m.text}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
         {sending && (
-          <div className="flex flex-col items-start">
-            <span className="mb-1 px-1 text-[10px] text-muted">{persona.status}</span>
+          <div className="flex items-end gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/50 text-sm">
+              {profile.avatarB}
+            </span>
             <div className="glass rounded-2xl rounded-bl-md px-4 py-2.5 text-sm text-muted">
               {name} 正在输入…
             </div>
@@ -174,7 +182,7 @@ export default function Chat() {
 
       {/* 输入栏 + 模型条（钉在底部，不滚） */}
       <div className="flex-none pt-2">
-        <div className="glass-strong flex items-center gap-2 rounded-full p-1.5 pl-4">
+        <div className="glass-strong flex items-center gap-2 rounded-full p-1.5 pl-5">
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -188,9 +196,10 @@ export default function Chat() {
             type="button"
             onClick={send}
             disabled={sending}
-            className="btn-primary rounded-full px-5 py-2 text-sm disabled:opacity-60"
+            aria-label="发送"
+            className="btn-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base disabled:opacity-50"
           >
-            发送
+            ↑
           </button>
         </div>
         <div className="mt-1.5 text-center">
