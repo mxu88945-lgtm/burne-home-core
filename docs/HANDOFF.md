@@ -121,11 +121,11 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
      Anthropic 渠道在 `llm.toAnthropic()` 转成 image base64 block。模型需支持识图（如 Gemini 2.5 / GPT-4o）。
    - 发文件 ✅：＋ 菜单纯文字「图片 / 文件」。选文件(≤1.5MB)→ 文本类(`lib/file.ts` isTextFile)读出内容
      一起发模型，二进制只存 dataURL 可下载、附说明给模型。也走待发预览，可连文字发送。
-   - PDF 读取 ✅：`lib/pdf.ts`（pdfjs-dist **legacy 构建**，动态 import 懒加载，独立 chunk，`?worker` 打包）。
-     发 PDF 自动提取文字给模型；仅文本版有效，扫描版(图片)提取不到。
-     ⚠️ 旧 iOS Safari 坑：pdfjs 6 需要 `Promise.withResolvers`，老 Safari 没有 → 报「undefined is not a function」。
-     已在 `Chat.ensureWithResolvers()`（动态 import 前调用）打补丁 + 用 legacy 构建解决。
-     发文件用「先挂载→后台解析→15s 超时」，解析失败/超时也能照常发（退化为附件，模型读不到正文）。
+   - PDF 读取 ⚠️ 前端方案在用户 iOS Safari 上失败、已降级：`lib/pdf.ts`（pdfjs-dist legacy 构建 + `?worker`，
+     动态 import 懒加载）。试过补 `Promise.withResolvers`、legacy 构建，**仍报「undefined is not a function」**
+     （用户系统已是最新，疑似 pdfjs 6 的 module worker 在 iOS Safari 不兼容）。**当前：解析失败温和提示 + PDF 当普通附件发**。
+     文本版/代码/json 等文本文件读取正常。**真正读 PDF 内容建议后续走后端解析**（Worker 里加 PDF→文本），别再死磕前端 pdfjs。
+     发文件用「先挂载→后台解析→15s 超时」，解析失败/超时不阻断发送。
    - ⏭ 截图选段导出（选区间生成长图，需 html2canvas）；＋ 菜单可扩展「表情包 / 生成图片」。
 - **回复截断修复** ✅：人设默认 `maxTokens` 1024→4096，并对旧数据做一次性迁移（≤1024 自动升 4096，
   标记 `persona-mtmig`）。用户仍可在「角色人设」页手动调（64~8192）。
