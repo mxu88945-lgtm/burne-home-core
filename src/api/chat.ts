@@ -2,9 +2,17 @@
  * 聊天客户端 —— 调用后端 Worker 的 /chat 中转（AI key 在 Worker，不在前端）。
  */
 
+/** 消息内容：纯文本，或多模态分段（文字 + 图片，OpenAI 兼容 vision 格式） */
+export type ChatContent =
+  | string
+  | Array<
+      | { type: 'text'; text: string }
+      | { type: 'image_url'; image_url: { url: string } }
+    >
+
 export interface ChatApiMessage {
   role: 'user' | 'assistant'
-  content: string
+  content: ChatContent
 }
 
 export async function sendChat(opts: {

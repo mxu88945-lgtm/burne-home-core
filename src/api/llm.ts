@@ -12,6 +12,23 @@ function trim(u: string): string {
   return u.replace(/\/+$/, '')
 }
 
+/** 把（OpenAI 兼容的）消息内容转成 Anthropic Messages API 的格式（含图片 block） */
+function toAnthropic(messages: ChatApiMessage[]) {
+  return messages.map((m) => {
+    if (typeof m.content === 'string') return { role: m.role, content: m.content }
+    const blocks = m.content.map((part) => {
+      if (part.type === 'text') return { type: 'text', text: part.text }
+      // data:image/jpeg;base64,xxxx → Anthropic base64 image block
+      const url = part.image_url.url
+      const match = /^data:(.+?);base64,(.*)$/.exec(url)
+      const mediaType = match?.[1] || 'image/jpeg'
+      const data = match?.[2] || ''
+      return { type: 'image', source: { type: 'base64', media_type: mediaType, data } }
+    })
+    return { role: m.role, content: blocks }
+  })
+}
+
 /** 拉取模型列表 */
 export async function listModels(ch: ApiChannel): Promise<string[]> {
   if (ch.provider === 'anthropic') {
@@ -97,7 +114,7 @@ export async function chatComplete(
         max_tokens: maxTokens,
         ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
         system,
-        messages,
+        messages: toAnthropic(messages),
       }),
     })
     const data = (await res.json().catch(() => ({}))) as {

@@ -47,23 +47,24 @@ export default function Chat() {
   const fileRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
 
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, sending])
+
   async function sendImage(file: File) {
     setPlusOpen(false)
     setImgErr('')
+    if (sending) return
     try {
       const image = await fileToDataUrl(file, 1280, 0.8)
-      setMessages((prev) => [
-        ...prev,
-        { id: newId(), role: 'me', text: '', at: now(), image },
-      ])
+      const mine: Msg = { id: newId(), role: 'me', text: '', at: now(), image }
+      const history = [...messages, mine]
+      setMessages(history)
+      if (connected) await respond(history)
     } catch (e) {
       setImgErr((e as Error).message)
     }
   }
-
-  useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, sending])
 
   async function send() {
     const text = draft.trim()
@@ -85,13 +86,23 @@ export default function Chat() {
       ])
       return
     }
+    await respond(history)
+  }
 
+  /** 用当前历史调用模型并把回复加入对话（图片按 vision 格式发送） */
+  async function respond(history: Msg[]) {
     const apiMsgs: ChatApiMessage[] = history
-      .filter((m) => m.text.trim()) // 图片消息无文本，不进 AI 上下文（暂不识图）
-      .map((m) => ({
-        role: m.role === 'me' ? 'user' : 'assistant',
-        content: m.text,
-      }))
+      .filter((m) => m.text.trim() || m.image)
+      .map((m) => {
+        const role = m.role === 'me' ? ('user' as const) : ('assistant' as const)
+        if (m.image) {
+          const parts: Exclude<ChatApiMessage['content'], string> = []
+          if (m.text.trim()) parts.push({ type: 'text', text: m.text })
+          parts.push({ type: 'image_url', image_url: { url: m.image } })
+          return { role, content: parts }
+        }
+        return { role, content: m.text }
+      })
     while (apiMsgs.length && apiMsgs[0].role !== 'user') apiMsgs.shift()
 
     const system =

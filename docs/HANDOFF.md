@@ -115,7 +115,9 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
    ⏭ 可选：云同步聊天记录（注意 dataURL/体积，目前 Supabase 只同步 memories）。
 3. 聊天增强批 ← 🚧 进行中：
    - 发图片 ✅：输入栏 ＋ 菜单 → 选图压缩(1280px)成 dataURL 存进 chatStore，气泡显缩略图、点开大图。
-     图片消息 text 为空、不进 AI 上下文（暂不识图；多模态识图可后续做）。
+   - 多模态识图 ✅：`ChatApiMessage.content` 支持数组（OpenAI vision 格式 `image_url`），
+     `Chat.respond()` 把图片消息按 vision 发给模型，发图后自动触发回复；
+     Anthropic 渠道在 `llm.toAnthropic()` 转成 image base64 block。模型需支持识图（如 Gemini 2.5 / GPT-4o）。
    - ⏭ 发文件（＋ 菜单已留位）、截图选段导出（选区间生成长图，需 html2canvas）。
    ⚠️ 注意：图片 dataURL 占 localStorage，多图可能超额，后续可迁 IndexedDB。
 3. 自动记忆沉淀（聊天里自动存核心记忆到记忆库）。
