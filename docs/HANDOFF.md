@@ -119,7 +119,9 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
    - 多模态识图 ✅：`ChatApiMessage.content` 支持数组（OpenAI vision 格式 `image_url`），
      `Chat.respond()` 把图片消息按 vision 发给模型，发图后自动触发回复；
      Anthropic 渠道在 `llm.toAnthropic()` 转成 image base64 block。模型需支持识图（如 Gemini 2.5 / GPT-4o）。
-   - ⏭ 发文件（＋ 菜单已留位）、截图选段导出（选区间生成长图，需 html2canvas）。
+   - 发文件 ✅：＋ 菜单纯文字「图片 / 文件」。选文件(≤1.5MB)→ 文本类(`lib/file.ts` isTextFile)读出内容
+     一起发模型，二进制只存 dataURL 可下载、附说明给模型。也走待发预览，可连文字发送。
+   - ⏭ 截图选段导出（选区间生成长图，需 html2canvas）；＋ 菜单可扩展「表情包 / 生成图片」。
    ⚠️ 注意：图片 dataURL 占 localStorage，多图可能超额，后续可迁 IndexedDB。
 3. 自动记忆沉淀（聊天里自动存核心记忆到记忆库）。
 4. 隐私锁口令（WebCrypto 哈希，只存本地）。

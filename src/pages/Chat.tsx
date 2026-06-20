@@ -12,7 +12,11 @@ import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import { useAppearanceStore } from '@/store/appearanceStore'
 import { useChatStore, type ChatMsg as Msg } from '@/store/chatStore'
 import { fileToDataUrl } from '@/lib/image'
+import { isTextFile, readAsDataUrl, readAsText, humanSize } from '@/lib/file'
 import Avatar from '@/components/ui/Avatar'
+
+type PendingFile = NonNullable<Msg['file']>
+const MAX_FILE = 1.5 * 1024 * 1024 // 1.5MB（dataURL 存 localStorage，避免超额）
 
 function newId() {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `msg-${Date.now()}`
@@ -43,9 +47,11 @@ export default function Chat() {
   const [sending, setSending] = useState(false)
   const [plusOpen, setPlusOpen] = useState(false)
   const [pendingImage, setPendingImage] = useState('')
+  const [pendingFile, setPendingFile] = useState<PendingFile | null>(null)
   const [lightbox, setLightbox] = useState('')
   const [imgErr, setImgErr] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const docRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -57,7 +63,26 @@ export default function Chat() {
     setPlusOpen(false)
     setImgErr('')
     try {
+      setPendingFile(null)
       setPendingImage(await fileToDataUrl(file, 1280, 0.8))
+    } catch (e) {
+      setImgErr((e as Error).message)
+    }
+  }
+
+  /** 选文件：文本类读出内容（一起给模型），其余只存可下载；挂作待发预览 */
+  async function pickFile(file: File) {
+    setPlusOpen(false)
+    setImgErr('')
+    if (file.size > MAX_FILE) {
+      setImgErr(`文件太大（${humanSize(file.size)}），上限 1.5MB`)
+      return
+    }
+    try {
+      const url = await readAsDataUrl(file)
+      const text = isTextFile(file) ? await readAsText(file) : undefined
+      setPendingImage('')
+      setPendingFile({ name: file.name, size: file.size, url, text })
     } catch (e) {
       setImgErr((e as Error).message)
     }
@@ -65,18 +90,20 @@ export default function Chat() {
 
   async function send() {
     const text = draft.trim()
-    if ((!text && !pendingImage) || sending) return
+    if ((!text && !pendingImage && !pendingFile) || sending) return
     const mine: Msg = {
       id: newId(),
       role: 'me',
       text,
       at: now(),
       ...(pendingImage ? { image: pendingImage } : {}),
+      ...(pendingFile ? { file: pendingFile } : {}),
     }
     const history = [...messages, mine]
     setMessages(history)
     setDraft('')
     setPendingImage('')
+    setPendingFile(null)
 
     if (!connected) {
       setMessages((prev) => [
@@ -96,16 +123,24 @@ export default function Chat() {
   /** 用当前历史调用模型并把回复加入对话（图片按 vision 格式发送） */
   async function respond(history: Msg[]) {
     const apiMsgs: ChatApiMessage[] = history
-      .filter((m) => m.text.trim() || m.image)
+      .filter((m) => m.text.trim() || m.image || m.file)
       .map((m) => {
         const role = m.role === 'me' ? ('user' as const) : ('assistant' as const)
+        // 文本（含文件信息：文本文件带内容，二进制只附说明）
+        let textPart = m.text.trim()
+        if (m.file) {
+          textPart += m.file.text
+            ? `\n\n[文件 ${m.file.name} 的内容]：\n${m.file.text}`
+            : `\n\n[用户发送了文件：${m.file.name}（${humanSize(m.file.size)}，无法读取内容）]`
+          textPart = textPart.trim()
+        }
         if (m.image) {
           const parts: Exclude<ChatApiMessage['content'], string> = []
-          if (m.text.trim()) parts.push({ type: 'text', text: m.text })
+          if (textPart) parts.push({ type: 'text', text: textPart })
           parts.push({ type: 'image_url', image_url: { url: m.image } })
           return { role, content: parts }
         }
-        return { role, content: m.text }
+        return { role, content: textPart }
       })
     while (apiMsgs.length && apiMsgs[0].role !== 'user') apiMsgs.shift()
 
@@ -229,11 +264,22 @@ export default function Chat() {
                     className="max-h-60 max-w-full cursor-pointer rounded-2xl object-cover"
                   />
                 )}
+                {m.file && (
+                  <a
+                    href={m.file.url}
+                    download={m.file.name}
+                    className={`glass flex items-center gap-2 rounded-2xl px-3 py-2 ${m.image ? 'mt-1' : ''}`}
+                  >
+                    <span className="text-base">📄</span>
+                    <span className="max-w-[180px] truncate text-[12px] text-ink">{m.file.name}</span>
+                    <span className="text-[10px] text-muted">{humanSize(m.file.size)}</span>
+                  </a>
+                )}
                 {m.text && (
                   <div
                     className={[
                       'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
-                      m.image ? 'mt-1' : '',
+                      m.image || m.file ? 'mt-1' : '',
                       me ? 'btn-primary rounded-br-md' : 'glass rounded-bl-md text-ink',
                     ].join(' ')}
                   >
@@ -300,6 +346,26 @@ export default function Chat() {
             <span className="text-[11px] text-muted">图片已就绪，可一起发送文字</span>
           </div>
         )}
+        {pendingFile && (
+          <div className="mb-2 flex items-center gap-2 px-2">
+            <div className="glass flex items-center gap-2 rounded-xl px-3 py-2">
+              <span className="text-base">📄</span>
+              <span className="max-w-[160px] truncate text-[12px] text-ink">{pendingFile.name}</span>
+              <span className="text-[10px] text-muted">{humanSize(pendingFile.size)}</span>
+              <button
+                type="button"
+                onClick={() => setPendingFile(null)}
+                aria-label="移除文件"
+                className="text-[12px] text-muted hover:text-accent"
+              >
+                ✕
+              </button>
+            </div>
+            <span className="text-[11px] text-muted">
+              {pendingFile.text ? '可读取内容' : '仅作附件'}
+            </span>
+          </div>
+        )}
         {imgErr && (
           <div className="mb-1 px-2 text-center text-[11px] text-red-500">
             发送图片失败：{imgErr}
@@ -316,6 +382,16 @@ export default function Chat() {
             if (f) pickImage(f)
           }}
         />
+        <input
+          ref={docRef}
+          type="file"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (f) pickFile(f)
+          }}
+        />
         <div className="relative flex items-center gap-2">
           {/* ＋ 菜单 */}
           {plusOpen && (
@@ -324,15 +400,21 @@ export default function Chat() {
                 className="fixed inset-0 z-10"
                 onClick={() => setPlusOpen(false)}
               />
-              <div className="glass-strong absolute bottom-12 left-0 z-20 w-36 overflow-hidden rounded-2xl p-1 text-sm text-ink">
+              <div className="glass-strong absolute bottom-12 left-0 z-20 w-32 overflow-hidden rounded-2xl p-1 text-sm text-ink">
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
                   className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
                 >
-                  🖼 图片
+                  图片
                 </button>
-                <div className="px-3 py-2 text-left text-[11px] text-muted">📎 文件（下轮）</div>
+                <button
+                  type="button"
+                  onClick={() => docRef.current?.click()}
+                  className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                >
+                  文件
+                </button>
               </div>
             </>
           )}

@@ -14,6 +14,15 @@ export interface ChatMsg {
   at: string
   /** 图片（压缩后的 dataURL，只存本地） */
   image?: string
+  /** 文件附件（只存本地） */
+  file?: {
+    name: string
+    size: number
+    /** dataURL，用于下载 */
+    url: string
+    /** 文本类文件的内容（会一起发给模型；二进制文件不存） */
+    text?: string
+  }
 }
 
 function newId() {
