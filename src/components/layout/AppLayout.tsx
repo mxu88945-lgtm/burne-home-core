@@ -4,10 +4,17 @@ import BottomNav from './BottomNav'
 
 export default function AppLayout() {
   return (
-    // 滚动锁：高度跟随可视视口（键盘弹出自动缩），顶栏与底栏不随内容滚动
+    // 滚动锁：固定壳 + 可视视口尺寸/位移，键盘弹出时整体贴住键盘上方，顶栏不被顶飞
     <div
       className="app-bg flex flex-col overflow-hidden"
-      style={{ height: 'var(--app-height, 100dvh)' }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 'var(--app-height, 100dvh)',
+        transform: 'translateY(var(--app-offset, 0px))',
+      }}
     >
       <div className="mx-auto flex h-full w-full max-w-[440px] flex-col border-line sm:border-x">
         <AppHeader />
