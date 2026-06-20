@@ -7,6 +7,8 @@ import { useApiStore } from '@/store/apiStore'
 import { useUsageStore } from '@/store/usageStore'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { chatComplete } from '@/api/llm'
+import { useTtsStore } from '@/store/ttsStore'
+import { useTtsPlayback } from '@/lib/useTtsPlayback'
 
 interface Msg {
   id: string
@@ -31,6 +33,8 @@ export default function Chat() {
   const { config } = useSyncStore()
   const activeChannel = useApiStore((s) => s.getActive())
   const addUsage = useUsageStore((s) => s.add)
+  const ttsEnabled = useTtsStore((s) => s.config.enabled)
+  const { play, playingId, loadingId, error: ttsError } = useTtsPlayback()
   const workerUrl = config.workerUrl?.trim()
   const connected = Boolean(activeChannel || workerUrl)
 
@@ -168,6 +172,16 @@ export default function Chat() {
                 >
                   {m.text}
                 </div>
+                {!me && ttsEnabled && m.text.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => play(m.id, m.text)}
+                    aria-label="朗读"
+                    className="mt-1 px-1 text-[12px] text-muted hover:text-accent disabled:opacity-50"
+                  >
+                    {loadingId === m.id ? '⏳' : playingId === m.id ? '⏹' : '🔊'}
+                  </button>
+                )}
               </div>
             </div>
           )
@@ -187,6 +201,11 @@ export default function Chat() {
 
       {/* 输入栏 + 模型条（钉在底部，不滚） */}
       <div className="flex-none pt-2">
+        {ttsError && (
+          <div className="mb-1 px-2 text-center text-[11px] text-red-500">
+            朗读失败：{ttsError}
+          </div>
+        )}
         <div className="glass-strong flex items-center gap-2 rounded-full p-1.5 pl-5">
           <input
             value={draft}

@@ -28,6 +28,11 @@ interface Env {
   OPENAI_API_KEY?: string
   OPENAI_BASE_URL?: string // 默认 https://api.openai.com/v1
   OPENAI_MODEL?: string
+
+  /* —— MiniMax 海螺 TTS 中转（解决浏览器跨域）—— */
+  MINIMAX_API_KEY?: string
+  MINIMAX_GROUP_ID?: string
+  MINIMAX_BASE_URL?: string // 默认 https://api.minimax.chat
 }
 
 interface MemoryItem {
@@ -80,6 +85,7 @@ export default {
     try {
       if (path === '/test' && req.method === 'POST') return json({ ok: true })
       if (path === '/chat' && req.method === 'POST') return await handleChat(req, env)
+      if (path === '/tts' && req.method === 'POST') return await handleTts(req, env)
 
       const mGet = path.match(/^\/spaces\/([^/]+)\/memories$/)
       if (mGet && req.method === 'GET') {
@@ -218,4 +224,77 @@ async function callOpenAI(
   }
   const reply = data.choices?.[0]?.message?.content || ''
   return json({ reply, provider: 'openai', model })
+}
+
+/**
+ * MiniMax 海螺 TTS 中转：前端 → Worker → MiniMax，返回 audio/mpeg 二进制。
+ * Key/GroupId 优先用 Worker secret（MINIMAX_*），也接受前端覆盖。
+ */
+async function handleTts(req: Request, env: Env): Promise<Response> {
+  if (!authed(req, env)) return json({ error: 'unauthorized' }, { status: 401 })
+
+  const body = (await req.json()) as {
+    text?: string
+    groupId?: string
+    apiKey?: string
+    baseUrl?: string
+    model?: string
+    voice_setting?: unknown
+    audio_setting?: unknown
+  }
+  const text = (body.text || '').trim()
+  if (!text) return json({ error: '没有可朗读的文字' }, { status: 400 })
+
+  const key = body.apiKey || env.MINIMAX_API_KEY
+  const groupId = body.groupId || env.MINIMAX_GROUP_ID
+  if (!key || !groupId)
+    return json({ error: '缺少 MiniMax API Key 或 GroupId' }, { status: 400 })
+
+  const base = (body.baseUrl || env.MINIMAX_BASE_URL || 'https://api.minimax.chat').replace(
+    /\/+$/,
+    ''
+  )
+  const res = await fetch(`${base}/v1/t2a_v2?GroupId=${encodeURIComponent(groupId)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: body.model || 'speech-01-turbo',
+      text,
+      stream: false,
+      voice_setting: body.voice_setting || { voice_id: 'female-tianmei', speed: 1, vol: 1, pitch: 0 },
+      audio_setting: body.audio_setting || {
+        sample_rate: 32000,
+        bitrate: 128000,
+        format: 'mp3',
+        channel: 1,
+      },
+    }),
+  })
+  if (!res.ok)
+    return json({ error: `MiniMax ${res.status} ${(await res.text()).slice(0, 200)}` }, { status: 502 })
+
+  const data = (await res.json()) as {
+    data?: { audio?: string }
+    base_resp?: { status_code?: number; status_msg?: string }
+  }
+  const code = data.base_resp?.status_code
+  if (code && code !== 0)
+    return json({ error: data.base_resp?.status_msg || `MiniMax 错误 ${code}` }, { status: 502 })
+  const hex = data.data?.audio
+  if (!hex) return json({ error: '返回里没有音频数据' }, { status: 502 })
+
+  return new Response(hexToBytes(hex), {
+    headers: { 'Content-Type': 'audio/mpeg', ...CORS },
+  })
+}
+
+/** hex 字符串 → 字节数组 */
+function hexToBytes(hex: string): Uint8Array {
+  const clean = hex.trim().replace(/\s+/g, '')
+  const len = clean.length >> 1
+  const out = new Uint8Array(len)
+  for (let i = 0; i < len; i++) {
+    out[i] = parseInt(clean.substr(i * 2, 2), 16)
+  }
+  return out
 }

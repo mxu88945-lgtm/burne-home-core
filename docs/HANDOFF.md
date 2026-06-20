@@ -85,10 +85,14 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
 
 ## 9. 下一步 TODO（按优先级）
 
-1. **TTS 语音朗读（MiniMax 海螺）** ← 用户点名要做的下一个：
-   - 配置：接口 `https://api.minimax.chat`、API Key（不上云）、`GroupId`、模型 `speech-01-turbo`、音色 ID。
-   - 端点 `POST /v1/t2a_v2?GroupId=xxx`，返回 hex 音频 → 转 blob 播放；AI 消息旁加 🔊 播放按钮。
-   - ⚠️ **可能跨域**（minimax 不一定开 CORS）→ 不行就走用户的 Worker 中转（worker/ 里加 /tts 端点）。进阶：克隆音色。
+1. **TTS 语音朗读（MiniMax 海螺）** ← 🚧 第一轮已做（待手机验收直连是否跨域）：
+   - 已加：`ttsStore`（开关/baseURL/key/GroupId/模型/音色/语速/Worker 中转，**只存本地**）、
+     `src/api/tts.ts`（直连 + Worker 中转两路，hex→mp3 blob）、`src/lib/useTtsPlayback.ts`（同时只播一条）、
+     设置子页「🔊 语音朗读」(`/settings/tts`，带试听)、聊天 AI 气泡下 🔊 按钮、worker `/tts` 端点（备用）。
+   - 端点 `POST /v1/t2a_v2?GroupId=xxx`，返回 `data.audio`（hex）→ 转 `audio/mpeg` blob 播放。
+   - ⚠️ **直连大概率跨域**（minimax 不一定开 CORS）→ 报错就在设置里勾「经 Worker 中转」，
+     部署 worker 并 `wrangler secret put MINIMAX_API_KEY` / `MINIMAX_GROUP_ID`（或前端配置透传）。
+   - 进阶 TODO：聊天新消息自动朗读、克隆音色、流式播放。
 2. 聊天记录**持久化到本地 + 可选同步**（目前刷新会清空）。
 3. 自动记忆沉淀（聊天里自动存核心记忆到记忆库）。
 4. 隐私锁口令（WebCrypto 哈希，只存本地）。

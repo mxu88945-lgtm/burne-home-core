@@ -18,6 +18,7 @@ export const STORAGE_KEYS = {
   persona: `${NS}:persona`,
   supabase: `${NS}:supabase`,
   usage: `${NS}:usage`,
+  tts: `${NS}:tts`,
 } as const
 
 /** 本设备 ID（多端同步用）—— 生成一次后持久化在本地 */

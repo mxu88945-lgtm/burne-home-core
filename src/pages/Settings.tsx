@@ -6,6 +6,7 @@ const ITEMS = [
   { to: '/persona', icon: '🎭', title: '角色人设', sub: '灵魂设定与参数' },
   { to: '/settings/sync', icon: '☁️', title: '账号 · 多设备同步', sub: 'Supabase 登录共享' },
   { to: '/settings/api', icon: '🤖', title: 'API · 模型', sub: '渠道与模型管理' },
+  { to: '/settings/tts', icon: '🔊', title: '语音朗读', sub: 'MiniMax 海螺 TTS' },
   { to: '/settings/usage', icon: '📊', title: '用量 · 账单', sub: 'token 与花费' },
   { to: '/settings/data', icon: '💾', title: '数据 · 备份', sub: '导出 / 恢复 / 更新' },
   { to: '/settings/privacy', icon: '🔒', title: '隐私锁', sub: '本地保护' },

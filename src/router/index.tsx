@@ -12,6 +12,7 @@ import ApiPage from '@/pages/settings/ApiPage'
 import UsagePage from '@/pages/settings/UsagePage'
 import DataPage from '@/pages/settings/DataPage'
 import PrivacyPage from '@/pages/settings/PrivacyPage'
+import TtsPage from '@/pages/settings/TtsPage'
 import NotFound from '@/pages/NotFound'
 
 export const router = createHashRouter([
@@ -28,6 +29,7 @@ export const router = createHashRouter([
       { path: 'settings', element: <Settings /> },
       { path: 'settings/sync', element: <SyncPage /> },
       { path: 'settings/api', element: <ApiPage /> },
+      { path: 'settings/tts', element: <TtsPage /> },
       { path: 'settings/usage', element: <UsagePage /> },
       { path: 'settings/data', element: <DataPage /> },
       { path: 'settings/privacy', element: <PrivacyPage /> },
