@@ -35,7 +35,8 @@ export default function DataPage() {
         await Promise.all(regs.map((r) => r.unregister()))
       }
     } finally {
-      location.replace(location.pathname + '?t=' + Date.now() + location.hash)
+      // 刷新后回到主页（避免一打开停在设置页）
+      location.href = location.pathname + '?t=' + Date.now() + '#/'
     }
   }
 

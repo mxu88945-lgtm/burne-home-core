@@ -3,7 +3,8 @@ import AppHeader from './AppHeader'
 
 export default function AppLayout() {
   const { pathname } = useLocation()
-  // 聊天页自管头部与内边距（沉浸式），其它页用全局顶栏
+  const isHome = pathname === '/'
+  // 聊天页自管头部与内边距（沉浸式）；首页用全局顶栏；其余页自带返回头
   const isChat = pathname === '/chat'
 
   return (
@@ -20,12 +21,14 @@ export default function AppLayout() {
       }}
     >
       <div className="mx-auto flex h-full w-full max-w-[440px] flex-col border-line sm:border-x">
-        {!isChat && <AppHeader />}
+        {isHome && <AppHeader />}
         <main
           className={
             isChat
               ? 'min-h-0 flex-1 overflow-y-auto'
-              : 'min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-1'
+              : isHome
+                ? 'min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-1'
+                : 'min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))]'
           }
         >
           <Outlet />

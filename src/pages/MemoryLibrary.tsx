@@ -3,6 +3,7 @@ import type { MemoryItem } from '@/types/memory'
 import { useMemoryStore } from '@/store/memoryStore'
 import MemoryCard from '@/components/memory/MemoryCard'
 import MemoryEditor from '@/components/memory/MemoryEditor'
+import BackBar from '@/components/layout/BackBar'
 import {
   KIND_FILTERS,
   type KindFilter,
@@ -30,6 +31,7 @@ export default function MemoryLibrary() {
 
   return (
     <div className="space-y-4">
+      <BackBar />
       <div className="flex items-end justify-between px-1">
         <div>
           <h2 className="headline text-2xl text-ink">记忆库 📔</h2>

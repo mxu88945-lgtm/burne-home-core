@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import BackBar from '@/components/layout/BackBar'
 
 const ITEMS = [
   { to: '/theme', icon: '🎨', title: '主题', sub: '外观配色' },
@@ -39,6 +40,7 @@ function Row({
 export default function Settings() {
   return (
     <div className="space-y-2.5">
+      <BackBar />
       <div className="px-1 pb-1">
         <h2 className="headline text-2xl text-ink">设置 ⚙️</h2>
         <p className="mt-1 text-sm text-muted">个性 · 同步 · 备份 · 隐私</p>

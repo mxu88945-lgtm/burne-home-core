@@ -4,6 +4,7 @@ import { useMemoryStore } from '@/store/memoryStore'
 import { CURRENT_WINDOW_ID } from '@/lib/constants'
 import MemoryCard from '@/components/memory/MemoryCard'
 import MemoryEditor from '@/components/memory/MemoryEditor'
+import BackBar from '@/components/layout/BackBar'
 import { matchKeyword, sortForDisplay } from '@/lib/memory'
 
 export default function Search() {
@@ -24,6 +25,7 @@ export default function Search() {
 
   return (
     <div className="space-y-4">
+      <BackBar />
       <div className="px-1">
         <h2 className="headline text-2xl text-ink">搜索回忆 🔍</h2>
         <p className="mt-1 text-xs text-muted">
