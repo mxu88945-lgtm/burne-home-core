@@ -40,15 +40,9 @@ export interface ChatSession {
 function uid(prefix: string) {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `${prefix}-${Date.now()}`
 }
-function nowLabel() {
-  return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-}
-function welcome(): ChatMsg {
-  return { id: uid('msg'), role: 'companion', text: '欢迎回家呀～有什么想跟我说的吗？♡', at: nowLabel() }
-}
 function freshSession(): ChatSession {
   const t = new Date().toISOString()
-  return { id: uid('chat'), title: '新对话', messages: [welcome()], createdAt: t, updatedAt: t }
+  return { id: uid('chat'), title: '新对话', messages: [], createdAt: t, updatedAt: t }
 }
 
 const DEFAULT_TITLE = '新对话'
