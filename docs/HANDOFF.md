@@ -156,6 +156,9 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
     `starred` 改作「置顶」；编辑器选长期/短期；卡片显示分类 chip；筛选 全部/长期/短期。
     **记忆摘要概述**：`memoryStore.overview`（单独存 `memory-overview` key），记忆库顶部卡可「✨生成」(AI 概括所有记忆，
     用激活聊天渠道/Worker) 或「编辑」手写。`MemorySummary` 字段改 longCount/shortCount。
+13. 聊天消息溢出修复：长 URL/英文长串 `overflow-wrap:anywhere` + 列容器 `min-w-0` + 气泡 `max-w-full overflow-hidden`（联网回答不再撑屏）。
+14. 自动沉淀记忆 ✅（需求3）：`chatPrefsStore.autoMemory` 开关（人设页）。开了每轮 AI 判断（高门槛、宁缺毋滥）抽取重要信息存记忆库(long/auto)；
+    用户消息含「记一下/记住…」关键词时即使没开也强制抽取。`Chat.extractMemories()` 让模型输出 JSON items，去重后 addMemory，存了在聊天里提示「🧠 已记到记忆库」。
 4. 多对话窗口 ✅：`chatStore` 重构为多会话（`sessions[]`+`activeId`，旧单会话数据自动迁移）。
    聊天头部 ☰ 打开会话侧栏：新对话 / 切换 / 删除 / 重命名；首句话自动命名（autoTitle）。
    去掉了头部「清空」（改用删除会话）。⏭ 搜索聊天记录、会话云同步待做。

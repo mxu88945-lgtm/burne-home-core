@@ -17,6 +17,7 @@ import { useImageGenStore } from '@/store/imageGenStore'
 import { generateImage } from '@/api/imagegen'
 import { useVisionStore } from '@/store/visionStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
+import { useMemoryStore } from '@/store/memoryStore'
 import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
 import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon } from '@/components/ui/icons'
@@ -69,6 +70,9 @@ export default function Chat() {
   const imageGenCfg = imgChannels.find((c) => c.id === imgActiveId) ?? imgChannels[0]
   const visionCfg = useVisionStore((s) => s.config)
   const webSearch = useChatPrefsStore((s) => s.webSearch)
+  const autoMemory = useChatPrefsStore((s) => s.autoMemory)
+  const addMemory = useMemoryStore((s) => s.addMemory)
+  const memoriesRef = useMemoryStore((s) => s.memories)
   const { chatBg, chatBgDim } = useAppearanceStore((s) => s.appearance)
   const { play, playingId, loadingId, error: ttsError } = useTtsPlayback()
   const workerUrl = config.workerUrl?.trim()
@@ -381,6 +385,63 @@ export default function Chat() {
     await respond(history)
   }
 
+  /** 自动沉淀记忆：让 AI 判断有没有值得长期记住的，存进记忆库（高门槛 / 或用户明确要求时必存） */
+  async function extractMemories(history: Msg[], force: boolean) {
+    if (!activeChannel && !workerUrl) return
+    const recent = history.slice(-8)
+    const transcript = recent
+      .map((m) => `${m.role === 'me' ? '用户' : 'AI'}：${m.text}${m.image ? '［图片］' : ''}`)
+      .join('\n')
+    const sys = '你是记忆管理助手，只输出 JSON，不要任何多余文字。'
+    const ask =
+      `判断下面对话里有没有【值得长期记住】的重要信息：用户或角色的设定、背景资料、关键事实、数据、偏好、承诺、重要事件等。` +
+      `严格标准、宁缺毋滥：忽略寒暄、日常闲聊、临时情绪、一次性内容，别因为几句话就存。` +
+      (force ? '用户已明确要求记住，请务必提取其指向的内容。' : '') +
+      `\n只输出 JSON：{"items":[{"title":"简短标题","content":"要记住的内容"}]}，没有就 {"items":[]}。\n\n对话：\n${transcript}`
+    try {
+      let text = ''
+      if (activeChannel) {
+        text = (
+          await chatComplete(activeChannel, [{ role: 'user', content: ask }], sys, {
+            workerUrl,
+            syncKey: config.syncKey,
+            maxTokens: 600,
+          })
+        ).text
+      } else {
+        text = await sendChat({
+          workerUrl: workerUrl!,
+          syncKey: config.syncKey,
+          messages: [{ role: 'user', content: ask }],
+          system: sys,
+          maxTokens: 600,
+        })
+      }
+      const match = text.match(/\{[\s\S]*\}/)
+      if (!match) return
+      const items = (JSON.parse(match[0]).items || []) as { title?: string; content?: string }[]
+      let added = 0
+      for (const it of items) {
+        const content = (it.content || '').trim()
+        const title = (it.title || '').trim()
+        if (!content) continue
+        // 去重：已有相同正文/标题就跳过
+        if (memoriesRef.some((m) => m.content.trim() === content || (title && m.title.trim() === title)))
+          continue
+        addMemory({ title: title || content.slice(0, 16), content, kind: 'long', source: 'auto' })
+        added++
+      }
+      if (added > 0) {
+        setMessages((prev) => [
+          ...prev,
+          { id: newId(), role: 'companion', text: `🧠 已记到记忆库（${added} 条）`, at: now() },
+        ])
+      }
+    } catch {
+      // 静默失败，不打扰对话
+    }
+  }
+
   /** 用当前历史调用模型并把回复加入对话（图片按 vision 格式发送） */
   async function respond(history: Msg[]) {
     const apiMsgs: ChatApiMessage[] = history
@@ -485,6 +546,12 @@ export default function Chat() {
           ...(reasoning ? { reasoning } : {}),
         },
       ])
+      // 自动沉淀记忆：开了开关每轮判断；或用户明确说「记一下」时必存
+      const lastUser = [...history].reverse().find((m) => m.role === 'me')
+      const force = !!lastUser && /记住|记一下|记下来|记下|记录|存一下|帮我记|记到/.test(lastUser.text)
+      if (reply && (autoMemory || force)) {
+        void extractMemories([...history, { id: 'tmp', role: 'companion', text: reply, at: '' }], force)
+      }
     } catch (e) {
       setMessages((prev) => [
         ...prev,

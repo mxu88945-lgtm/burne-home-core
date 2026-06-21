@@ -9,6 +9,8 @@ export default function Persona() {
   const { persona, setPersona } = usePersonaStore()
   const webSearch = useChatPrefsStore((s) => s.webSearch)
   const toggleWebSearch = useChatPrefsStore((s) => s.toggleWebSearch)
+  const autoMemory = useChatPrefsStore((s) => s.autoMemory)
+  const toggleAutoMemory = useChatPrefsStore((s) => s.toggleAutoMemory)
 
   return (
     <div className="space-y-5">
@@ -114,6 +116,20 @@ export default function Persona() {
             type="checkbox"
             checked={webSearch}
             onChange={toggleWebSearch}
+            className="h-5 w-5 accent-accent"
+          />
+        </label>
+        <label className="flex items-center justify-between">
+          <span className="text-sm text-ink">
+            自动沉淀记忆
+            <span className="block text-[11px] text-muted">
+              AI 自动把重要资料/背景/数据存进记忆库（高门槛；你说「记一下」时也会存）
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={autoMemory}
+            onChange={toggleAutoMemory}
             className="h-5 w-5 accent-accent"
           />
         </label>
