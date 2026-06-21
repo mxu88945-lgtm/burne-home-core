@@ -128,7 +128,8 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
      发文件用「先挂载→后台解析→15s 超时」，解析失败/超时不阻断发送。
    - 截图选段导出 ✅：入口在 ＋ 菜单「截图」→ 选择模式点选消息 →「生成长图」。html2canvas（懒加载）
      截离屏 `exportRef`，出图走 lightbox（iOS 长按存相册）。颜色 hex/rgba 无 oklch，兼容 OK。
-   - 生图 ✅：`imageGenStore`（**mode: images|chat** + baseURL/key/model/size/Worker 中转，只存本地）。
+   - 生图 ✅（**多渠道**：`imageGenStore` 改 channels[]+activeId，可存多个画图 API 互不覆盖，旧单配置自动迁移；
+     设置页可加渠道/切换/删除/获取模型/测试）。每渠道含 mode: images|chat + baseURL/key/model/size/Worker 中转，只存本地）。
      `api/imagegen.ts` 两模式：images=OpenAI images/generations（DALL·E）；chat=聊天接口出图（OpenRouter/Gemini，
      `/chat/completions` + `modalities:[image,text]`，取 `choices[0].message.images[0].image_url.url`）。
      ＋ 菜单「生成图片」→ prompt → 出图作消息（typing「正在画…」）。设置页有「OpenRouter 预设」一键填好。

@@ -60,7 +60,9 @@ export default function Chat() {
   const activeChannel = useApiStore((s) => s.getActive())
   const addUsage = useUsageStore((s) => s.add)
   const ttsEnabled = useTtsStore((s) => s.config.enabled)
-  const imageGenCfg = useImageGenStore((s) => s.config)
+  const imgChannels = useImageGenStore((s) => s.channels)
+  const imgActiveId = useImageGenStore((s) => s.activeId)
+  const imageGenCfg = imgChannels.find((c) => c.id === imgActiveId) ?? imgChannels[0]
   const { chatBg, chatBgDim } = useAppearanceStore((s) => s.appearance)
   const { play, playingId, loadingId, error: ttsError } = useTtsPlayback()
   const workerUrl = config.workerUrl?.trim()
@@ -143,7 +145,7 @@ export default function Chat() {
     if (generating || sending) return
     const prompt = window.prompt('描述你想生成的图片，例如：粉色夕阳下的海边小屋')
     if (!prompt || !prompt.trim()) return
-    if (!imageGenCfg.apiKey.trim() && !imageGenCfg.viaWorker) {
+    if (!imageGenCfg || (!imageGenCfg.apiKey.trim() && !imageGenCfg.viaWorker)) {
       setImgErr('请先在「设置 → 生成图片」配置文生图渠道')
       return
     }
