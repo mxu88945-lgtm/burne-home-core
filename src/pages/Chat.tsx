@@ -92,6 +92,9 @@ export default function Chat() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const [editingId, setEditingId] = useState('')
+  const [editDraft, setEditDraft] = useState('')
+  const [copiedId, setCopiedId] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const docRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -138,6 +141,44 @@ export default function Chat() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
+
+  function copyText(id: string, text: string) {
+    navigator.clipboard?.writeText(text).then(
+      () => {
+        setCopiedId(id)
+        setTimeout(() => setCopiedId(''), 1200)
+      },
+      () => setImgErr('复制失败')
+    )
+  }
+
+  /** 重新生成某条 AI 回复：删掉它（及之后），用之前的历史重新请求 */
+  async function regenerate(id: string) {
+    if (sending || generating) return
+    const idx = messages.findIndex((m) => m.id === id)
+    if (idx < 0) return
+    const history = messages.slice(0, idx)
+    setMessages(history)
+    if (connected) await respond(history)
+  }
+
+  function startEdit(m: Msg) {
+    setEditingId(m.id)
+    setEditDraft(m.text)
+  }
+
+  /** 保存编辑后的用户消息并重发（删除其后的所有消息，重新请求） */
+  async function saveEdit(id: string) {
+    const text = editDraft.trim()
+    setEditingId('')
+    if (!text) return
+    const idx = messages.findIndex((m) => m.id === id)
+    if (idx < 0) return
+    const edited: Msg = { ...messages[idx], text }
+    const history = [...messages.slice(0, idx), edited]
+    setMessages(history)
+    if (connected) await respond(history)
+  }
 
   /** AI 生成图片：输入描述 → 调文生图渠道 → 作为一条消息插入 */
   async function genImage() {
@@ -293,6 +334,7 @@ export default function Chat() {
     setSending(true)
     try {
       let reply = ''
+      let tokens: number | undefined
       if (activeChannel) {
         const r = await chatComplete(activeChannel, apiMsgs, system, {
           workerUrl,
@@ -302,6 +344,7 @@ export default function Chat() {
         })
         reply = r.text
         if (r.usage) {
+          tokens = r.usage.totalTokens
           addUsage({
             at: new Date().toISOString(),
             provider: activeChannel.provider,
@@ -326,7 +369,7 @@ export default function Chat() {
       }
       setMessages((prev) => [
         ...prev,
-        { id: newId(), role: 'companion', text: reply || '……', at: now() },
+        { id: newId(), role: 'companion', text: reply || '……', at: now(), ...(tokens ? { tokens } : {}) },
       ])
     } catch (e) {
       setMessages((prev) => [
@@ -450,30 +493,77 @@ export default function Chat() {
                     <span className="text-[10px] text-muted">{humanSize(m.file.size)}</span>
                   </a>
                 )}
-                {m.text && (
-                  <div
-                    className={[
-                      'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
-                      m.image || m.file ? 'mt-1' : '',
-                      me ? 'btn-primary rounded-br-md' : 'glass rounded-bl-md text-ink',
-                    ].join(' ')}
-                  >
-                    {m.text}
+                {editingId === m.id ? (
+                  <div className="mt-1 w-[78vw] max-w-full">
+                    <textarea
+                      value={editDraft}
+                      onChange={(e) => setEditDraft(e.target.value)}
+                      className="min-h-[72px] w-full rounded-2xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                    />
+                    <div className="mt-1 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingId('')}
+                        className="glass rounded-full px-3 py-1 text-[12px] text-ink"
+                      >
+                        取消
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => saveEdit(m.id)}
+                        className="btn-primary rounded-full px-3 py-1 text-[12px]"
+                      >
+                        保存并重发
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  m.text && (
+                    <div
+                      className={[
+                        'whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
+                        m.image || m.file ? 'mt-1' : '',
+                        me ? 'btn-primary rounded-br-md' : 'glass rounded-bl-md text-ink',
+                      ].join(' ')}
+                    >
+                      {m.text}
+                    </div>
+                  )
+                )}
+
+                {!selectMode && editingId !== m.id && (
+                  <div className="mt-1 flex flex-wrap items-center gap-2 px-1 text-[12px] text-muted">
+                    <span className="text-[10px]">{m.at}</span>
+                    {!me && ttsEnabled && m.text.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => play(m.id, m.text)}
+                        aria-label="朗读"
+                        className="hover:text-accent disabled:opacity-50"
+                      >
+                        {loadingId === m.id ? '⏳' : playingId === m.id ? '⏹' : '🔊'}
+                      </button>
+                    )}
+                    {m.text.trim() && (
+                      <button type="button" onClick={() => copyText(m.id, m.text)} className="hover:text-accent">
+                        {copiedId === m.id ? '已复制' : '复制'}
+                      </button>
+                    )}
+                    {me && m.text.trim() && (
+                      <button type="button" onClick={() => startEdit(m)} className="hover:text-accent">
+                        编辑
+                      </button>
+                    )}
+                    {!me && (
+                      <button type="button" onClick={() => regenerate(m.id)} className="hover:text-accent">
+                        重新生成
+                      </button>
+                    )}
+                    {!me && m.tokens != null && (
+                      <span className="text-[10px]">{m.tokens.toLocaleString()} tokens</span>
+                    )}
                   </div>
                 )}
-                <div className="mt-1 flex items-center gap-2 px-1">
-                  <span className="text-[10px] text-muted">{m.at}</span>
-                  {!me && ttsEnabled && m.text.trim() && (
-                    <button
-                      type="button"
-                      onClick={() => play(m.id, m.text)}
-                      aria-label="朗读"
-                      className="text-[12px] text-muted hover:text-accent disabled:opacity-50"
-                    >
-                      {loadingId === m.id ? '⏳' : playingId === m.id ? '⏹' : '🔊'}
-                    </button>
-                  )}
-                </div>
               </div>
             </div>
           )

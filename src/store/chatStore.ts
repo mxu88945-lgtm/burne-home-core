@@ -14,6 +14,8 @@ export interface ChatMsg {
   at: string
   /** 图片（压缩后的 dataURL，只存本地） */
   image?: string
+  /** 这条 AI 回复消耗的总 token（有就显示） */
+  tokens?: number
   /** 文件附件（只存本地） */
   file?: {
     name: string

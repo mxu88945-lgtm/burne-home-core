@@ -135,6 +135,9 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
      ＋ 菜单「生成图片」→ prompt → 出图作消息（typing「正在画…」）。设置页有「OpenRouter 预设」一键填好。
      ⚠️ OpenRouter **没有** images/generations 端点/dall-e-3 → 用 chat 模式 + `google/gemini-2.5-flash-image-preview`，
      且 OpenRouter 开 CORS 可直连。images 模式服务多不开 CORS→勾 Worker 中转（worker `/image` 已支持两模式，secret `IMAGE_API_KEY`）。
+5. 消息操作条 ✅（需求3 第一轮）：每条消息底部 复制 / 时间；AI 加 🔊朗读 / 重新生成 / token 数；
+   用户消息加 编辑→保存并重发（删其后消息重新请求）。`ChatMsg.tokens` 存每条 AI 回复 totalTokens。
+   ⏭ 还差：思考链展示、联网查询、单独读图模型、长对话压缩（用户需求 1/2/5/4，按此序做）。
 4. 多对话窗口 ✅：`chatStore` 重构为多会话（`sessions[]`+`activeId`，旧单会话数据自动迁移）。
    聊天头部 ☰ 打开会话侧栏：新对话 / 切换 / 删除 / 重命名；首句话自动命名（autoTitle）。
    去掉了头部「清空」（改用删除会话）。⏭ 搜索聊天记录、会话云同步待做。
