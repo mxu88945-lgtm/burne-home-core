@@ -159,6 +159,8 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
 13. 聊天消息溢出修复：长 URL/英文长串 `overflow-wrap:anywhere` + 列容器 `min-w-0` + 气泡 `max-w-full overflow-hidden`（联网回答不再撑屏）。
 14. 自动沉淀记忆 ✅（需求3）：`chatPrefsStore.autoMemory` 开关（人设页）。开了每轮 AI 判断（高门槛、宁缺毋滥）抽取重要信息存记忆库(long/auto)；
     用户消息含「记一下/记住…」关键词时即使没开也强制抽取。`Chat.extractMemories()` 让模型输出 JSON items，去重后 addMemory，存了在聊天里提示「🧠 已记到记忆库」。
+15. 对话样式 ✅：`chatPrefsStore.chatStyle`='bubble'|'flat'（外观页选）。平铺式=头像名字在文字上方、无气泡、文字铺满全宽（Chat 里 `flat` 分支）。
+    操作图标缩到 13px（`icons.tsx`），操作行 `mt-2 gap-3.5` 留空。用量明细本就只显示 10 条（`entries.slice(0,10)`，存储封顶 1000）。
 4. 多对话窗口 ✅：`chatStore` 重构为多会话（`sessions[]`+`activeId`，旧单会话数据自动迁移）。
    聊天头部 ☰ 打开会话侧栏：新对话 / 切换 / 删除 / 重命名；首句话自动命名（autoTitle）。
    去掉了头部「清空」（改用删除会话）。⏭ 搜索聊天记录、会话云同步待做。

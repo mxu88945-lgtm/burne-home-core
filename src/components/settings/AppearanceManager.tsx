@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useProfileStore } from '@/store/profileStore'
 import { useAppearanceStore } from '@/store/appearanceStore'
+import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { fileToDataUrl } from '@/lib/image'
 import Avatar from '@/components/ui/Avatar'
 
@@ -58,6 +59,8 @@ function UploadButton({
 export default function AppearanceManager() {
   const { profile, setProfile } = useProfileStore()
   const { appearance, update } = useAppearanceStore()
+  const chatStyle = useChatPrefsStore((s) => s.chatStyle)
+  const setChatStyle = useChatPrefsStore((s) => s.setChatStyle)
   const [err, setErr] = useState('')
 
   return (
@@ -117,6 +120,32 @@ export default function AppearanceManager() {
           )}
         </div>
       ))}
+
+      {/* 对话样式 */}
+      <div className="glass rounded-2xl p-4 space-y-2">
+        <div className="label">对话样式</div>
+        <div className="flex gap-2">
+          {([
+            { id: 'bubble', label: '气泡式' },
+            { id: 'flat', label: '平铺式' },
+          ] as const).map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => setChatStyle(o.id)}
+              className={[
+                'flex-1 rounded-xl py-2 text-sm transition',
+                chatStyle === o.id ? 'btn-primary' : 'glass text-muted',
+              ].join(' ')}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted">
+          平铺式：头像名字在文字上方、无气泡、文字铺满更宽（像看文档）。
+        </p>
+      </div>
 
       {/* 聊天背景 */}
       <div className="glass rounded-2xl p-4 space-y-2">

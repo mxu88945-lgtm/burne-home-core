@@ -71,6 +71,7 @@ export default function Chat() {
   const visionCfg = useVisionStore((s) => s.config)
   const webSearch = useChatPrefsStore((s) => s.webSearch)
   const autoMemory = useChatPrefsStore((s) => s.autoMemory)
+  const flat = useChatPrefsStore((s) => s.chatStyle) === 'flat'
   const addMemory = useMemoryStore((s) => s.addMemory)
   const memoriesRef = useMemoryStore((s) => s.memories)
   const { chatBg, chatBgDim } = useAppearanceStore((s) => s.appearance)
@@ -637,19 +638,40 @@ export default function Chat() {
               key={m.id}
               onClick={selectMode ? () => toggleSelect(m.id) : undefined}
               className={[
-                'flex items-start gap-2',
-                me ? 'flex-row-reverse' : '',
+                flat ? 'flex flex-col' : 'flex items-start gap-2',
+                !flat && me ? 'flex-row-reverse' : '',
                 selectMode ? 'cursor-pointer rounded-2xl p-1' : '',
                 picked ? 'bg-white/25 ring-2 ring-accent' : '',
               ].join(' ')}
             >
-              <Avatar
-                img={me ? profile.avatarAImg : profile.avatarBImg}
-                emoji={me ? profile.avatarA : profile.avatarB}
-                className="h-7 w-7 shrink-0 rounded-full bg-white/50 text-sm"
-                textCls="text-sm"
-              />
-              <div className={`flex min-w-0 max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`}>
+              {!flat && (
+                <Avatar
+                  img={me ? profile.avatarAImg : profile.avatarBImg}
+                  emoji={me ? profile.avatarA : profile.avatarB}
+                  className="h-7 w-7 shrink-0 rounded-full bg-white/50 text-sm"
+                  textCls="text-sm"
+                />
+              )}
+              <div
+                className={
+                  flat
+                    ? 'flex w-full min-w-0 flex-col'
+                    : `flex min-w-0 max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`
+                }
+              >
+                {flat && (
+                  <div className="mb-1 flex items-center gap-2">
+                    <Avatar
+                      img={me ? profile.avatarAImg : profile.avatarBImg}
+                      emoji={me ? profile.avatarA : profile.avatarB}
+                      className="h-6 w-6 shrink-0 rounded-full bg-white/50 text-xs"
+                      textCls="text-xs"
+                    />
+                    <span className="text-[12px] font-medium text-ink">
+                      {me ? profile.nameA || '我' : name}
+                    </span>
+                  </div>
+                )}
                 {m.image && (
                   <img
                     src={m.image}
@@ -702,9 +724,13 @@ export default function Chat() {
                   (m.text || (!me && m.reasoning)) && (
                     <div
                       className={[
-                        'max-w-full overflow-hidden rounded-2xl px-4 py-2.5 text-sm leading-relaxed [overflow-wrap:anywhere]',
+                        'max-w-full overflow-hidden text-sm leading-relaxed [overflow-wrap:anywhere]',
                         m.image || m.file ? 'mt-1' : '',
-                        me ? 'btn-primary rounded-br-md' : 'glass rounded-bl-md text-ink',
+                        flat
+                          ? 'text-ink'
+                          : me
+                            ? 'btn-primary rounded-2xl rounded-br-md px-4 py-2.5'
+                            : 'glass rounded-2xl rounded-bl-md px-4 py-2.5 text-ink',
                       ].join(' ')}
                     >
                       {!me && m.reasoning && (
@@ -729,7 +755,7 @@ export default function Chat() {
                 )}
 
                 {!selectMode && editingId !== m.id && (
-                  <div className="mt-1 flex flex-wrap items-center gap-3 px-1 text-muted">
+                  <div className="mt-2 flex flex-wrap items-center gap-3.5 px-1 text-muted">
                     <span className="text-[10px]">{m.at}</span>
                     {!me && ttsEnabled && m.text.trim() && (
                       <button

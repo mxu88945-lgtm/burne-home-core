@@ -8,8 +8,8 @@ const base = {
   strokeWidth: 1.8,
   strokeLinecap: 'round' as const,
   strokeLinejoin: 'round' as const,
-  width: 16,
-  height: 16,
+  width: 13,
+  height: 13,
 }
 
 export function CopyIcon({ className }: P) {
