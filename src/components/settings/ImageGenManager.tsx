@@ -36,10 +36,37 @@ export default function ImageGenManager() {
       {msg && <div className="text-[11px] text-accent">{msg}</div>}
 
       <div className="glass rounded-2xl p-4 space-y-2">
-        <div className="label">文生图配置（OpenAI 兼容，只存本地）</div>
+        <div className="flex items-center justify-between">
+          <span className="label">文生图配置（只存本地）</span>
+          <button
+            type="button"
+            onClick={() =>
+              update({
+                mode: 'chat',
+                baseUrl: 'https://openrouter.ai/api/v1',
+                model: 'google/gemini-2.5-flash-image-preview',
+              })
+            }
+            className="text-[11px] text-accent hover:underline"
+          >
+            OpenRouter 预设
+          </button>
+        </div>
+        <select
+          className={inputCls}
+          value={config.mode}
+          onChange={(e) => update({ mode: e.target.value as 'images' | 'chat' })}
+        >
+          <option value="images">images 接口（DALL·E / OpenAI 兼容）</option>
+          <option value="chat">Chat 接口出图（OpenRouter / Gemini）</option>
+        </select>
         <input
           className={inputCls}
-          placeholder="接口地址，默认 https://api.openai.com/v1"
+          placeholder={
+            config.mode === 'chat'
+              ? '接口地址，如 https://openrouter.ai/api/v1'
+              : '接口地址，默认 https://api.openai.com/v1'
+          }
           value={config.baseUrl}
           onChange={(e) => update({ baseUrl: e.target.value })}
         />
@@ -51,16 +78,22 @@ export default function ImageGenManager() {
         />
         <input
           className={inputCls}
-          placeholder="模型，如 dall-e-3 / gpt-image-1"
+          placeholder={
+            config.mode === 'chat'
+              ? '模型，如 google/gemini-2.5-flash-image-preview'
+              : '模型，如 dall-e-3 / gpt-image-1'
+          }
           value={config.model}
           onChange={(e) => update({ model: e.target.value })}
         />
-        <input
-          className={inputCls}
-          placeholder="尺寸，如 1024x1024"
-          value={config.size}
-          onChange={(e) => update({ size: e.target.value })}
-        />
+        {config.mode === 'images' && (
+          <input
+            className={inputCls}
+            placeholder="尺寸，如 1024x1024"
+            value={config.size}
+            onChange={(e) => update({ size: e.target.value })}
+          />
+        )}
       </div>
 
       <div className="glass rounded-2xl p-4 space-y-2">

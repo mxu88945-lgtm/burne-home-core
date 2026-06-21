@@ -1,15 +1,12 @@
 /**
- * 文生图客户端 —— OpenAI 兼容 images/generations。
- * 直连服务商，或经自己的 Worker 中转（解决跨域；端点见 worker/src/index.ts 的 /image）。
+ * 文生图客户端。两种模式：
+ *   - images：OpenAI 兼容 images/generations（DALL·E、gpt-image-1、兼容网关）。
+ *   - chat：聊天接口出图（OpenRouter / Gemini，走 /chat/completions + modalities:image）。
+ * 直连服务商，或经自己的 Worker 中转（解决跨域；端点见 worker 的 /image）。
  * 返回可直接用作 <img src> 的字符串（dataURL 或图片 URL）。
  */
 
 import type { ImageGenConfig } from '@/store/imageGenStore'
-
-interface ImageResp {
-  data?: { b64_json?: string; url?: string }[]
-  error?: { message?: string }
-}
 
 export async function generateImage(
   config: ImageGenConfig,
@@ -18,24 +15,86 @@ export async function generateImage(
 ): Promise<string> {
   const p = prompt.trim()
   if (!p) throw new Error('请输入图片描述')
-  return config.viaWorker ? viaWorker(config, p, opts) : direct(config, p)
+  if (config.viaWorker) return viaWorker(config, p, opts)
+  return config.mode === 'chat' ? chatDirect(config, p) : imagesDirect(config, p)
 }
 
-async function direct(config: ImageGenConfig, prompt: string): Promise<string> {
+/* ---------- images/generations ---------- */
+
+interface ImageResp {
+  data?: { b64_json?: string; url?: string }[]
+  error?: { message?: string }
+}
+
+async function imagesDirect(config: ImageGenConfig, prompt: string): Promise<string> {
   if (!config.apiKey.trim()) throw new Error('请先在「设置 → 生成图片」填 API Key')
   const base = config.baseUrl.trim().replace(/\/+$/, '') || 'https://api.openai.com/v1'
   const res = await fetch(`${base}/images/generations`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.apiKey.trim()}`,
-    },
-    body: JSON.stringify(buildBody(config, prompt)),
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey.trim()}` },
+    body: JSON.stringify(imagesBody(config, prompt)),
   })
   const data = (await res.json().catch(() => ({}))) as ImageResp
   if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`)
-  return pick(data)
+  return pickImages(data)
 }
+
+function imagesBody(config: ImageGenConfig, prompt: string) {
+  return {
+    model: config.model.trim() || 'dall-e-3',
+    prompt,
+    n: 1,
+    ...(config.size.trim() ? { size: config.size.trim() } : {}),
+  }
+}
+
+function pickImages(data: ImageResp): string {
+  const first = data.data?.[0]
+  if (first?.b64_json) return `data:image/png;base64,${first.b64_json}`
+  if (first?.url) return first.url
+  throw new Error('返回里没有图片数据')
+}
+
+/* ---------- chat 出图（OpenRouter / Gemini） ---------- */
+
+interface ChatImgResp {
+  choices?: {
+    message?: {
+      images?: { image_url?: { url?: string } }[]
+      content?: unknown
+    }
+  }[]
+  error?: { message?: string }
+}
+
+async function chatDirect(config: ImageGenConfig, prompt: string): Promise<string> {
+  if (!config.apiKey.trim()) throw new Error('请先在「设置 → 生成图片」填 API Key')
+  const base = config.baseUrl.trim().replace(/\/+$/, '') || 'https://openrouter.ai/api/v1'
+  const res = await fetch(`${base}/chat/completions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey.trim()}` },
+    body: JSON.stringify(chatBody(config, prompt)),
+  })
+  const data = (await res.json().catch(() => ({}))) as ChatImgResp
+  if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`)
+  return pickChat(data)
+}
+
+function chatBody(config: ImageGenConfig, prompt: string) {
+  return {
+    model: config.model.trim() || 'google/gemini-2.5-flash-image-preview',
+    messages: [{ role: 'user', content: prompt }],
+    modalities: ['image', 'text'],
+  }
+}
+
+function pickChat(data: ChatImgResp): string {
+  const url = data.choices?.[0]?.message?.images?.[0]?.image_url?.url
+  if (url) return url
+  throw new Error('返回里没有图片（这个模型可能不支持出图）')
+}
+
+/* ---------- Worker 中转 ---------- */
 
 async function viaWorker(
   config: ImageGenConfig,
@@ -51,28 +110,14 @@ async function viaWorker(
       ...(opts.syncKey ? { 'X-Sync-Key': opts.syncKey } : {}),
     },
     body: JSON.stringify({
+      mode: config.mode,
+      prompt,
       ...(config.apiKey.trim() ? { apiKey: config.apiKey.trim() } : {}),
       ...(config.baseUrl.trim() ? { baseUrl: config.baseUrl.trim() } : {}),
-      ...buildBody(config, prompt),
+      ...(config.mode === 'chat' ? chatBody(config, prompt) : imagesBody(config, prompt)),
     }),
   })
-  const data = (await res.json().catch(() => ({}))) as ImageResp
+  const data = (await res.json().catch(() => ({}))) as ImageResp & ChatImgResp
   if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`)
-  return pick(data)
-}
-
-function buildBody(config: ImageGenConfig, prompt: string) {
-  return {
-    model: config.model.trim() || 'dall-e-3',
-    prompt,
-    n: 1,
-    ...(config.size.trim() ? { size: config.size.trim() } : {}),
-  }
-}
-
-function pick(data: ImageResp): string {
-  const first = data.data?.[0]
-  if (first?.b64_json) return `data:image/png;base64,${first.b64_json}`
-  if (first?.url) return first.url
-  throw new Error('返回里没有图片数据')
+  return config.mode === 'chat' ? pickChat(data) : pickImages(data)
 }

@@ -301,19 +301,40 @@ async function handleImage(req: Request, env: Env): Promise<Response> {
   if (!authed(req, env)) return json({ error: 'unauthorized' }, { status: 401 })
 
   const body = (await req.json()) as {
+    mode?: 'images' | 'chat'
     prompt?: string
     apiKey?: string
     baseUrl?: string
     model?: string
     n?: number
     size?: string
+    messages?: unknown
+    modalities?: unknown
   }
   if (!body.prompt || !body.prompt.trim()) return json({ error: '请输入图片描述' }, { status: 400 })
 
   const key = body.apiKey || env.IMAGE_API_KEY
   if (!key) return json({ error: '缺少文生图 API Key' }, { status: 400 })
-  const base = (body.baseUrl || env.IMAGE_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '')
 
+  // chat 模式（OpenRouter/Gemini）走 /chat/completions；否则 images/generations
+  if (body.mode === 'chat') {
+    const base = (body.baseUrl || 'https://openrouter.ai/api/v1').replace(/\/+$/, '')
+    const res = await fetch(`${base}/chat/completions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model: body.model || 'google/gemini-2.5-flash-image-preview',
+        messages: body.messages || [{ role: 'user', content: body.prompt }],
+        modalities: body.modalities || ['image', 'text'],
+      }),
+    })
+    return new Response(await res.text(), {
+      status: res.status,
+      headers: { 'Content-Type': 'application/json', ...CORS },
+    })
+  }
+
+  const base = (body.baseUrl || env.IMAGE_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '')
   const res = await fetch(`${base}/images/generations`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
@@ -324,8 +345,7 @@ async function handleImage(req: Request, env: Env): Promise<Response> {
       ...(body.size ? { size: body.size } : {}),
     }),
   })
-  const data = await res.text()
-  return new Response(data, {
+  return new Response(await res.text(), {
     status: res.status,
     headers: { 'Content-Type': 'application/json', ...CORS },
   })

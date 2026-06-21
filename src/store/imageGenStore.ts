@@ -8,12 +8,14 @@ import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
 
 export interface ImageGenConfig {
+  /** 接口模式：images = OpenAI images/generations（DALL·E）；chat = 聊天接口出图（OpenRouter/Gemini） */
+  mode: 'images' | 'chat'
   /** 接口地址（到 /v1），默认 https://api.openai.com/v1 */
   baseUrl: string
   apiKey: string
-  /** 模型，如 dall-e-3 / gpt-image-1 / 兼容网关的出图模型 */
+  /** 模型，如 dall-e-3 / gpt-image-1；chat 模式如 google/gemini-2.5-flash-image-preview */
   model: string
-  /** 尺寸，如 1024x1024 */
+  /** 尺寸，如 1024x1024（chat 模式忽略） */
   size: string
   /** 经自己的 Worker 中转（解决浏览器跨域） */
   viaWorker: boolean
@@ -22,6 +24,7 @@ export interface ImageGenConfig {
 }
 
 export const DEFAULT_IMAGEGEN: ImageGenConfig = {
+  mode: 'images',
   baseUrl: 'https://api.openai.com/v1',
   apiKey: '',
   model: 'dall-e-3',
