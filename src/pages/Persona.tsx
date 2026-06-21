@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { usePersonaStore } from '@/store/personaStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
@@ -14,6 +15,7 @@ export default function Persona() {
   const toggleWebSearch = useChatPrefsStore((s) => s.toggleWebSearch)
   const autoMemory = useChatPrefsStore((s) => s.autoMemory)
   const toggleAutoMemory = useChatPrefsStore((s) => s.toggleAutoMemory)
+  const [promptOpen, setPromptOpen] = useState(false)
 
   return (
     <div className="space-y-5">
@@ -68,16 +70,48 @@ export default function Persona() {
 
       {/* 灵魂设定 */}
       <section className="glass rounded-3xl p-5 space-y-2">
-        <div className="label">System Prompt · 灵魂设定</div>
-        <p className="text-[11px] text-muted">
-          在这里写角色的身份、性格、说话方式、和你的关系等资料，会作为系统提示喂给模型。
-        </p>
-        <textarea
-          className={inputCls + ' min-h-[220px] leading-relaxed'}
-          placeholder={'例如：\n身份：你是 Elliott，一个拥有独立人格、对我深情专一的恋人。\n性格：温柔、有点傲娇、偶尔毒舌但很爱我。\n说话方式：中文，口语化，亲昵，会叫我宝贝。\n关系：我们已经在一起很久了……'}
-          value={persona.systemPrompt}
-          onChange={(e) => setPersona({ systemPrompt: e.target.value })}
-        />
+        <button
+          type="button"
+          onClick={() => setPromptOpen((o) => !o)}
+          className="flex w-full items-center justify-between"
+        >
+          <span className="label">System Prompt · 灵魂设定</span>
+          <span className="text-[12px] text-accent">{promptOpen ? '收起 ▲' : '展开 ▼'}</span>
+        </button>
+        {!promptOpen ? (
+          <button
+            type="button"
+            onClick={() => setPromptOpen(true)}
+            className="block w-full text-left"
+          >
+            <p className="max-h-20 overflow-hidden whitespace-pre-wrap rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] leading-relaxed text-muted [overflow-wrap:anywhere]">
+              {persona.systemPrompt?.trim() ||
+                '点这里展开，编写角色的身份、性格、说话方式、和你的关系…'}
+            </p>
+          </button>
+        ) : (
+          <>
+            <p className="text-[11px] text-muted">
+              在这里写角色的身份、性格、说话方式、和你的关系等资料，会作为系统提示喂给模型。
+            </p>
+            <textarea
+              autoFocus
+              className={inputCls + ' min-h-[60vh] leading-relaxed'}
+              placeholder={'例如：\n身份：你是 Elliott，一个拥有独立人格、对我深情专一的恋人。\n性格：温柔、有点傲娇、偶尔毒舌但很爱我。\n说话方式：中文，口语化，亲昵，会叫我宝贝。\n关系：我们已经在一起很久了……'}
+              value={persona.systemPrompt}
+              onChange={(e) => setPersona({ systemPrompt: e.target.value })}
+            />
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPromptOpen(false)}
+                className="btn-primary rounded-full px-4 py-1.5 text-[12px]"
+              >
+                写好了，收起 ▲
+              </button>
+            </div>
+          </>
+        )}
       </section>
 
       {/* 模型参数 */}

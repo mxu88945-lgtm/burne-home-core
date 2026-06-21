@@ -92,6 +92,7 @@ export default function Chat() {
   const active = sessions.find((s) => s.id === activeId) ?? sessions[0]
   const messages = active.messages
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [modelOpen, setModelOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [plusOpen, setPlusOpen] = useState(false)
@@ -619,12 +620,35 @@ export default function Chat() {
             <div className="headline truncate text-lg leading-none text-ink">{name}</div>
             <div className="mt-0.5 truncate text-[10px] text-muted">{active.title}</div>
           </div>
-          <Link
-            to="/settings/api"
-            className="max-w-[96px] truncate rounded-full bg-white/40 px-2.5 py-1 text-[10px] text-muted"
-          >
-            {modelLabel} ▾
-          </Link>
+          <div className="relative flex-none">
+            <button
+              type="button"
+              onClick={() => setModelOpen((o) => !o)}
+              className="flex max-w-[110px] items-center gap-1 rounded-full bg-white/40 px-2.5 py-1 text-[10px] text-muted"
+            >
+              <span className="truncate">{modelLabel}</span>
+              <span className="shrink-0">▾</span>
+            </button>
+            {modelOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-20"
+                  onClick={() => setModelOpen(false)}
+                />
+                <div className="glass-strong absolute right-0 top-full z-30 mt-1 w-64 max-w-[72vw] rounded-2xl p-3 text-left shadow-lg">
+                  <div className="text-[10px] text-muted">当前模型</div>
+                  <div className="mt-1 break-all text-[12px] text-ink">{modelLabel}</div>
+                  <Link
+                    to="/settings/api"
+                    onClick={() => setModelOpen(false)}
+                    className="mt-2 block text-[11px] text-accent"
+                  >
+                    在 API 设置里切换 →
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       )}
 
