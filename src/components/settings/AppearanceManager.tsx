@@ -197,18 +197,74 @@ export default function AppearanceManager() {
           </div>
         </div>
         {appearance.chatBg && (
-          <label className="flex items-center gap-3 text-[12px] text-muted">
-            <span className="shrink-0">变暗 {Math.round(appearance.chatBgDim * 100)}%</span>
-            <input
-              type="range"
-              min={0}
-              max={0.7}
-              step={0.05}
-              value={appearance.chatBgDim}
-              onChange={(e) => update({ chatBgDim: Number(e.target.value) })}
-              className="flex-1 accent-accent"
-            />
-          </label>
+          <div className="space-y-3">
+            <label className="block text-[12px] text-muted">
+              <div className="mb-1 flex justify-between">
+                <span>背景显影</span>
+                <span>{Math.round(appearance.chatBgOpacity * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={0.2}
+                max={1}
+                step={0.05}
+                value={appearance.chatBgOpacity}
+                onChange={(e) => update({ chatBgOpacity: Number(e.target.value) })}
+                className="w-full accent-accent"
+              />
+            </label>
+            <label className="block text-[12px] text-muted">
+              <div className="mb-1 flex justify-between">
+                <span>压暗</span>
+                <span>{Math.round(appearance.chatBgDim * 100)}%</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={0.7}
+                step={0.05}
+                value={appearance.chatBgDim}
+                onChange={(e) => update({ chatBgDim: Number(e.target.value) })}
+                className="w-full accent-accent"
+              />
+            </label>
+            <label className="block text-[12px] text-muted">
+              <div className="mb-1 flex justify-between">
+                <span>模糊</span>
+                <span>{appearance.chatBgBlur}px</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={20}
+                step={1}
+                value={appearance.chatBgBlur}
+                onChange={(e) => update({ chatBgBlur: Number(e.target.value) })}
+                className="w-full accent-accent"
+              />
+            </label>
+            <div className="text-[12px] text-muted">
+              <div className="mb-1">铺法</div>
+              <div className="flex gap-2">
+                {([
+                  { id: 'cover', label: '铺满' },
+                  { id: 'contain', label: '完整' },
+                ] as const).map((o) => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => update({ chatBgFit: o.id })}
+                    className={[
+                      'flex-1 rounded-xl py-2 text-sm transition',
+                      appearance.chatBgFit === o.id ? 'btn-primary' : 'glass text-muted',
+                    ].join(' ')}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

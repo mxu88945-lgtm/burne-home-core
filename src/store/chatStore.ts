@@ -54,25 +54,28 @@ interface Persisted {
 
 function load(): Persisted {
   const raw = readJSON<unknown>(STORAGE_KEYS.chat, null)
-  // 新结构
+  // 新结构。activeId 为空（''）= 空白新对话，尚未落库
   if (raw && typeof raw === 'object' && Array.isArray((raw as Persisted).sessions)) {
     const p = raw as Persisted
-    if (p.sessions.length) return { sessions: p.sessions, activeId: p.activeId || p.sessions[0].id }
+    const validActive = p.activeId && p.sessions.some((s) => s.id === p.activeId) ? p.activeId : ''
+    return { sessions: p.sessions, activeId: validActive }
   }
   // 旧结构：单会话 ChatMsg[]
   if (Array.isArray(raw) && raw.length) {
     const t = new Date().toISOString()
     const s: ChatSession = { id: uid('chat'), title: '对话', messages: raw as ChatMsg[], createdAt: t, updatedAt: t }
-    return { sessions: [s], activeId: s.id }
+    return { sessions: [s], activeId: '' }
   }
-  const s = freshSession()
-  return { sessions: [s], activeId: s.id }
+  // 全新：无任何会话，从空白开始（不预先生成空会话）
+  return { sessions: [], activeId: '' }
 }
 
 interface ChatState {
   sessions: ChatSession[]
   activeId: string
   setMessages: (m: ChatMsg[] | ((prev: ChatMsg[]) => ChatMsg[])) => void
+  /** 进入空白新对话（不落库，发第一条消息时才真正创建会话） */
+  startBlank: () => void
   createSession: () => void
   switchSession: (id: string) => void
   removeSession: (id: string) => void
@@ -93,20 +96,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setMessages: (m) => {
     const { sessions, activeId } = get()
-    const next = sessions.map((s) => {
-      if (s.id !== activeId) return s
+    let curId = activeId
+    let curSessions = sessions
+    // 空白状态（activeId 无对应会话）→ 此刻懒创建会话
+    if (!sessions.some((s) => s.id === activeId)) {
+      const s = freshSession()
+      curId = s.id
+      curSessions = [s, ...sessions]
+    }
+    const next = curSessions.map((s) => {
+      if (s.id !== curId) return s
       const messages = typeof m === 'function' ? m(s.messages) : m
       return { ...s, messages, updatedAt: new Date().toISOString() }
     })
-    persist(next, activeId)
-    set({ sessions: next })
+    persist(next, curId)
+    set({ sessions: next, activeId: curId })
   },
 
+  startBlank: () => {
+    persist(get().sessions, '')
+    set({ activeId: '' })
+  },
+
+  // 「＋ 新对话」：进入空白态即可，不预先生成空会话（发消息时才落库）
   createSession: () => {
-    const s = freshSession()
-    const sessions = [s, ...get().sessions]
-    persist(sessions, s.id)
-    set({ sessions, activeId: s.id })
+    persist(get().sessions, '')
+    set({ activeId: '' })
   },
 
   switchSession: (id) => {
@@ -116,9 +131,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   removeSession: (id) => {
-    let sessions = get().sessions.filter((s) => s.id !== id)
-    if (!sessions.length) sessions = [freshSession()]
-    const activeId = get().activeId === id ? sessions[0].id : get().activeId
+    const sessions = get().sessions.filter((s) => s.id !== id)
+    // 删的是当前会话 → 回到空白态
+    const activeId = get().activeId === id ? '' : get().activeId
     persist(sessions, activeId)
     set({ sessions, activeId })
   },

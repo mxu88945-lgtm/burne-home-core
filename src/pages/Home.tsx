@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useProfileStore, daysTogether } from '@/store/profileStore'
+import { useChatStore } from '@/store/chatStore'
 import Avatar from '@/components/ui/Avatar'
 
 const avatarStyle = {
@@ -13,15 +14,18 @@ function QuickEntry({
   icon,
   title,
   sub,
+  onClick,
 }: {
   to: string
   icon: string
   title: string
   sub: string
+  onClick?: () => void
 }) {
   return (
     <Link
       to={to}
+      onClick={onClick}
       className="glass flex flex-col gap-1 rounded-2xl px-4 py-4 transition active:scale-[0.98]"
     >
       <span className="text-xl">{icon}</span>
@@ -33,6 +37,7 @@ function QuickEntry({
 
 export default function Home() {
   const { profile, setProfile } = useProfileStore()
+  const startBlank = useChatStore((s) => s.startBlank)
   const days = daysTogether(profile.anniversary)
 
   function editProfile() {
@@ -101,7 +106,7 @@ export default function Home() {
           title="我们的记忆"
           sub="摘要 · 核心 · 全部"
         />
-        <QuickEntry to="/chat" icon="💬" title="今天聊聊" sub="说点什么吧" />
+        <QuickEntry to="/chat" icon="💬" title="今天聊聊" sub="说点什么吧" onClick={startBlank} />
         <QuickEntry to="/search" icon="🔍" title="搜索回忆" sub="找回那一刻" />
         <QuickEntry to="/settings" icon="⚙️" title="设置" sub="同步 · 备份 · 隐私" />
       </section>

@@ -12,11 +12,20 @@ export interface Appearance {
   chatBg: string
   /** 背景暗化程度 0~0.7：越大越暗，保证文字可读 */
   chatBgDim: number
+  /** 背景显影（不透明度）0.2~1：越小背景越淡、越融入底色 */
+  chatBgOpacity: number
+  /** 背景模糊 0~20 px */
+  chatBgBlur: number
+  /** 铺法：cover=铺满 / contain=完整显示 */
+  chatBgFit: 'cover' | 'contain'
 }
 
 const DEFAULT_APPEARANCE: Appearance = {
   chatBg: '',
   chatBgDim: 0.3,
+  chatBgOpacity: 1,
+  chatBgBlur: 0,
+  chatBgFit: 'cover',
 }
 
 interface AppearanceState {

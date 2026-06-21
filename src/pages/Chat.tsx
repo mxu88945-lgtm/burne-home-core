@@ -74,7 +74,9 @@ export default function Chat() {
   const flat = useChatPrefsStore((s) => s.chatStyle) === 'flat'
   const addMemory = useMemoryStore((s) => s.addMemory)
   const memoriesRef = useMemoryStore((s) => s.memories)
-  const { chatBg, chatBgDim } = useAppearanceStore((s) => s.appearance)
+  const { chatBg, chatBgDim, chatBgOpacity, chatBgBlur, chatBgFit } = useAppearanceStore(
+    (s) => s.appearance,
+  )
   const { play, playingId, loadingId, error: ttsError } = useTtsPlayback()
   const workerUrl = config.workerUrl?.trim()
   const connected = Boolean(activeChannel || workerUrl)
@@ -89,8 +91,8 @@ export default function Chat() {
   const removeSession = useChatStore((s) => s.removeSession)
   const renameSession = useChatStore((s) => s.renameSession)
   const autoTitle = useChatStore((s) => s.autoTitle)
-  const active = sessions.find((s) => s.id === activeId) ?? sessions[0]
-  const messages = active.messages
+  const active = sessions.find((s) => s.id === activeId)
+  const messages = active?.messages ?? []
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [modelOpen, setModelOpen] = useState(false)
   const [draft, setDraft] = useState('')
@@ -572,8 +574,13 @@ export default function Chat() {
       {chatBg && (
         <>
           <div
-            className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-center"
-            style={{ backgroundImage: `url(${chatBg})` }}
+            className="pointer-events-none absolute -inset-3 -z-10 bg-center bg-no-repeat"
+            style={{
+              backgroundImage: `url(${chatBg})`,
+              backgroundSize: chatBgFit === 'contain' ? 'contain' : 'cover',
+              opacity: chatBgOpacity,
+              filter: chatBgBlur ? `blur(${chatBgBlur}px)` : undefined,
+            }}
           />
           <div
             className="pointer-events-none absolute inset-0 -z-10 bg-black"
@@ -618,7 +625,7 @@ export default function Chat() {
           </div>
           <div className="min-w-0 text-center">
             <div className="headline truncate text-lg leading-none text-ink">{name}</div>
-            <div className="mt-0.5 truncate text-[10px] text-muted">{active.title}</div>
+            <div className="mt-0.5 truncate text-[10px] text-muted">{active?.title ?? '新对话'}</div>
           </div>
           <div className="relative flex-none">
             <button

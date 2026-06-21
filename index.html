@@ -23,6 +23,18 @@
           if (m) m.setAttribute('content', bar)
         } catch (e) {}
       })()
+      // 装机版（PWA standalone）冷启动时回到主页，避免每次都停在上次的聊天页
+      ;(function () {
+        try {
+          var standalone =
+            window.navigator.standalone === true ||
+            (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+          if (standalone && !sessionStorage.getItem('bw-launched')) {
+            sessionStorage.setItem('bw-launched', '1')
+            if (location.hash && location.hash !== '#/') location.hash = '#/'
+          }
+        } catch (e) {}
+      })()
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
