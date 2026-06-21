@@ -18,6 +18,8 @@ export interface Persona {
   temperature: number
   /** 最大回复 tokens */
   maxTokens: number
+  /** 显示思考过程（reasoning / thinking） */
+  reasoning?: boolean
 }
 
 const DEFAULT_PERSONA: Persona = {
@@ -26,6 +28,7 @@ const DEFAULT_PERSONA: Persona = {
   systemPrompt: '',
   temperature: 0.8,
   maxTokens: 4096,
+  reasoning: false,
 }
 
 /** 读取人设，并对旧的过小 maxTokens 做一次性迁移（默认 1024 太小、回复会被截断） */

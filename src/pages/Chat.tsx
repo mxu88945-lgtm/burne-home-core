@@ -95,6 +95,16 @@ export default function Chat() {
   const [editingId, setEditingId] = useState('')
   const [editDraft, setEditDraft] = useState('')
   const [copiedId, setCopiedId] = useState('')
+  const [openReasoning, setOpenReasoning] = useState<Set<string>>(new Set())
+
+  function toggleReasoning(id: string) {
+    setOpenReasoning((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
   const fileRef = useRef<HTMLInputElement>(null)
   const docRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
@@ -335,14 +345,17 @@ export default function Chat() {
     try {
       let reply = ''
       let tokens: number | undefined
+      let reasoning: string | undefined
       if (activeChannel) {
         const r = await chatComplete(activeChannel, apiMsgs, system, {
           workerUrl,
           syncKey: config.syncKey,
           temperature: persona.temperature,
           maxTokens: persona.maxTokens,
+          reasoning: persona.reasoning,
         })
         reply = r.text
+        reasoning = r.reasoning
         if (r.usage) {
           tokens = r.usage.totalTokens
           addUsage({
@@ -369,7 +382,14 @@ export default function Chat() {
       }
       setMessages((prev) => [
         ...prev,
-        { id: newId(), role: 'companion', text: reply || '……', at: now(), ...(tokens ? { tokens } : {}) },
+        {
+          id: newId(),
+          role: 'companion',
+          text: reply || '……',
+          at: now(),
+          ...(tokens ? { tokens } : {}),
+          ...(reasoning ? { reasoning } : {}),
+        },
       ])
     } catch (e) {
       setMessages((prev) => [
@@ -469,6 +489,22 @@ export default function Chat() {
                 textCls="text-sm"
               />
               <div className={`flex max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`}>
+                {!me && m.reasoning && (
+                  <div className="mb-1 w-full">
+                    <button
+                      type="button"
+                      onClick={() => toggleReasoning(m.id)}
+                      className="glass flex items-center gap-1 rounded-xl px-3 py-1.5 text-[11px] text-muted"
+                    >
+                      💭 思考过程 {openReasoning.has(m.id) ? '▲' : '▼'}
+                    </button>
+                    {openReasoning.has(m.id) && (
+                      <div className="glass mt-1 max-h-60 overflow-y-auto whitespace-pre-wrap rounded-xl px-3 py-2 text-[12px] leading-relaxed text-muted">
+                        {m.reasoning}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {m.image && (
                   <img
                     src={m.image}

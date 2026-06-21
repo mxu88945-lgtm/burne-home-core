@@ -90,6 +90,18 @@ export default function Persona() {
             className="w-28 rounded-xl border border-line bg-white/40 px-3 py-1.5 text-right text-sm text-ink outline-none focus:border-accent"
           />
         </label>
+        <label className="flex items-center justify-between">
+          <span className="text-sm text-ink">
+            显示思考过程
+            <span className="block text-[11px] text-muted">需模型支持（如 reasoning 模型）</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={!!persona.reasoning}
+            onChange={(e) => setPersona({ reasoning: e.target.checked })}
+            className="h-5 w-5 accent-accent"
+          />
+        </label>
       </section>
 
       <p className="pb-2 text-center text-[11px] text-muted">

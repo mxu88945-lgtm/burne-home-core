@@ -57,6 +57,8 @@ export interface ChatOptions {
   syncKey?: string
   temperature?: number
   maxTokens?: number
+  /** 让模型输出思考过程（reasoning / thinking） */
+  reasoning?: boolean
 }
 
 export interface UsageInfo {
@@ -70,6 +72,8 @@ export interface UsageInfo {
 export interface ChatResult {
   text: string
   usage?: UsageInfo
+  /** 思考过程（开启 reasoning 时） */
+  reasoning?: string
 }
 
 /** 发起一次对话，返回回复文本与用量 */
@@ -112,13 +116,17 @@ export async function chatComplete(
       body: JSON.stringify({
         model: ch.model,
         max_tokens: maxTokens,
-        ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
+        // 开思考时 anthropic 要求不传 temperature
+        ...(opts.reasoning ? {} : opts.temperature != null ? { temperature: opts.temperature } : {}),
+        ...(opts.reasoning
+          ? { thinking: { type: 'enabled', budget_tokens: Math.max(1024, Math.floor(maxTokens / 2)) } }
+          : {}),
         system,
         messages: toAnthropic(messages),
       }),
     })
     const data = (await res.json().catch(() => ({}))) as {
-      content?: { text?: string }[]
+      content?: { type?: string; text?: string; thinking?: string }[]
       usage?: { input_tokens?: number; output_tokens?: number }
       error?: { message?: string }
     }
@@ -126,6 +134,12 @@ export async function chatComplete(
     const text = Array.isArray(data.content)
       ? data.content.map((c) => c.text || '').join('')
       : ''
+    const reasoning = Array.isArray(data.content)
+      ? data.content
+          .map((c) => (c.type === 'thinking' ? c.thinking || '' : ''))
+          .join('')
+          .trim() || undefined
+      : undefined
     const u = data.usage
     const usage: UsageInfo | undefined = u
       ? {
@@ -135,7 +149,7 @@ export async function chatComplete(
           model: ch.model,
         }
       : undefined
-    return { text, usage }
+    return { text, usage, reasoning }
   }
 
   // openai 兼容
@@ -154,12 +168,14 @@ export async function chatComplete(
       messages: full,
       max_tokens: maxTokens,
       ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
+      // 思考过程（OpenRouter 等支持）
+      ...(opts.reasoning ? { reasoning: { effort: 'medium' } } : {}),
       // OpenRouter：让响应带上真实花费
       ...(isOpenRouter ? { usage: { include: true } } : {}),
     }),
   })
   const data = (await res.json().catch(() => ({}))) as {
-    choices?: { message?: { content?: string } }[]
+    choices?: { message?: { content?: string; reasoning?: string } }[]
     usage?: {
       prompt_tokens?: number
       completion_tokens?: number
@@ -179,5 +195,9 @@ export async function chatComplete(
         model: ch.model,
       }
     : undefined
-  return { text: data.choices?.[0]?.message?.content || '', usage }
+  return {
+    text: data.choices?.[0]?.message?.content || '',
+    usage,
+    reasoning: data.choices?.[0]?.message?.reasoning?.trim() || undefined,
+  }
 }

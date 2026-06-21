@@ -16,6 +16,8 @@ export interface ChatMsg {
   image?: string
   /** 这条 AI 回复消耗的总 token（有就显示） */
   tokens?: number
+  /** 思考过程（开启 reasoning 时，折叠展示） */
+  reasoning?: string
   /** 文件附件（只存本地） */
   file?: {
     name: string
