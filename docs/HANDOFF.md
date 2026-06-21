@@ -143,7 +143,9 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
 7. 读图模型 ✅（需求5）：`visionStore`（enabled/baseURL/key/model，只存本地）+ 设置子页「👁 读图模型」
    (`/settings/vision`，获取模型按 input_modalities=image 筛)。`Chat.respond()`：apiMsgs 含图片且开关开→
    这次用 vision 渠道（构造临时 ApiChannel）回复，解决主文本模型报「No endpoints found that support image input」。
-   ⏭ 还差：联网查询、长对话压缩（需求 2/4）。
+8. 联网查询 ✅（需求2）：`chatPrefsStore.webSearch` 开关（聊天头部 🌐 切换），开启时 OpenRouter 走 `model:online`。
+9. 长对话压缩 ✅（需求4）：＋ 菜单「压缩对话」→ 把较早消息调模型总结成「前情摘要」，只保留最近 4 条，省 token。
+   —— 用户 5 个新需求全部完成（思考链/联网/消息操作/压缩/读图）。剩下等后端 + 修小细节。
 4. 多对话窗口 ✅：`chatStore` 重构为多会话（`sessions[]`+`activeId`，旧单会话数据自动迁移）。
    聊天头部 ☰ 打开会话侧栏：新对话 / 切换 / 删除 / 重命名；首句话自动命名（autoTitle）。
    去掉了头部「清空」（改用删除会话）。⏭ 搜索聊天记录、会话云同步待做。

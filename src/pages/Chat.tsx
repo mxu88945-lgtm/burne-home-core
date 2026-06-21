@@ -16,6 +16,7 @@ import { isTextFile, readAsDataUrl, readAsText, humanSize } from '@/lib/file'
 import { useImageGenStore } from '@/store/imageGenStore'
 import { generateImage } from '@/api/imagegen'
 import { useVisionStore } from '@/store/visionStore'
+import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
 
@@ -66,6 +67,8 @@ export default function Chat() {
   const imgActiveId = useImageGenStore((s) => s.activeId)
   const imageGenCfg = imgChannels.find((c) => c.id === imgActiveId) ?? imgChannels[0]
   const visionCfg = useVisionStore((s) => s.config)
+  const webSearch = useChatPrefsStore((s) => s.webSearch)
+  const toggleWebSearch = useChatPrefsStore((s) => s.toggleWebSearch)
   const { chatBg, chatBgDim } = useAppearanceStore((s) => s.appearance)
   const { play, playingId, loadingId, error: ttsError } = useTtsPlayback()
   const workerUrl = config.workerUrl?.trim()
@@ -191,6 +194,68 @@ export default function Chat() {
     const history = [...messages.slice(0, idx), edited]
     setMessages(history)
     if (connected) await respond(history)
+  }
+
+  /** 压缩长对话：把较早的消息总结成「前情摘要」，只保留最近几条，省 token */
+  async function compress() {
+    setPlusOpen(false)
+    if (sending || generating) return
+    const keep = 4
+    if (messages.length <= keep + 2) {
+      setImgErr('对话还很短，暂时不用压缩')
+      return
+    }
+    if (!activeChannel && !workerUrl) {
+      setImgErr('压缩需要先配置聊天渠道')
+      return
+    }
+    if (!window.confirm('把较早的对话压缩成一段摘要？（保留最近几条，不可恢复）')) return
+    const head = messages.slice(0, messages.length - keep)
+    const tail = messages.slice(messages.length - keep)
+    const transcript = head
+      .map((m) => {
+        const who = m.role === 'me' ? '用户' : 'AI'
+        const extra = `${m.image ? '［图片］' : ''}${m.file ? `［文件:${m.file.name}］` : ''}`
+        return `${who}：${m.text}${extra}`
+      })
+      .join('\n')
+    const sys = '你是对话摘要助手，只输出摘要正文，不要寒暄。'
+    const ask = `请把下面这段对话压缩成简洁的「前情摘要」，保留关键信息、事实和情感脉络，用第三人称概述，不要遗漏重要细节：\n\n${transcript}`
+    setSending(true)
+    setImgErr('')
+    try {
+      let summary = ''
+      if (activeChannel) {
+        const r = await chatComplete(activeChannel, [{ role: 'user', content: ask }], sys, {
+          workerUrl,
+          syncKey: config.syncKey,
+          maxTokens: persona.maxTokens,
+        })
+        summary = r.text.trim()
+      } else {
+        summary = (
+          await sendChat({
+            workerUrl: workerUrl!,
+            syncKey: config.syncKey,
+            messages: [{ role: 'user', content: ask }],
+            system: sys,
+            maxTokens: persona.maxTokens,
+          })
+        ).trim()
+      }
+      if (!summary) throw new Error('摘要为空')
+      const summaryMsg: Msg = {
+        id: newId(),
+        role: 'companion',
+        text: `【前情摘要】\n${summary}`,
+        at: now(),
+      }
+      setMessages([summaryMsg, ...tail])
+    } catch (e) {
+      setImgErr(`压缩失败：${(e as Error).message}`)
+    } finally {
+      setSending(false)
+    }
   }
 
   /** AI 生成图片：输入描述 → 调文生图渠道 → 作为一条消息插入 */
@@ -371,6 +436,7 @@ export default function Chat() {
           temperature: persona.temperature,
           maxTokens: persona.maxTokens,
           reasoning: persona.reasoning,
+          webSearch,
         })
         reply = r.text
         reasoning = r.reasoning
@@ -469,6 +535,14 @@ export default function Chat() {
               className="text-base text-muted hover:text-accent"
             >
               ☰
+            </button>
+            <button
+              type="button"
+              onClick={toggleWebSearch}
+              aria-label="联网查询"
+              className={`text-[12px] ${webSearch ? 'text-accent' : 'text-muted hover:text-accent'}`}
+            >
+              🌐{webSearch ? '联网' : ''}
             </button>
           </div>
           <div className="min-w-0 text-center">
@@ -756,6 +830,13 @@ export default function Chat() {
                   className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
                 >
                   截图
+                </button>
+                <button
+                  type="button"
+                  onClick={compress}
+                  className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                >
+                  压缩对话
                 </button>
               </div>
             </>

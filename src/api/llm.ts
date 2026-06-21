@@ -73,6 +73,8 @@ export interface ChatOptions {
   maxTokens?: number
   /** 让模型输出思考过程（reasoning / thinking） */
   reasoning?: boolean
+  /** 联网查询（OpenRouter：model:online） */
+  webSearch?: boolean
 }
 
 export interface UsageInfo {
@@ -168,6 +170,9 @@ export async function chatComplete(
 
   // openai 兼容
   const isOpenRouter = /openrouter\.ai/i.test(ch.baseUrl)
+  // 联网：OpenRouter 用 model:online（已带 :online 的不重复加）
+  const model =
+    opts.webSearch && isOpenRouter && !/:online$/.test(ch.model) ? `${ch.model}:online` : ch.model
   const full = system
     ? [{ role: 'system' as const, content: system }, ...messages]
     : messages
@@ -178,7 +183,7 @@ export async function chatComplete(
       authorization: `Bearer ${ch.apiKey}`,
     },
     body: JSON.stringify({
-      model: ch.model,
+      model,
       messages: full,
       max_tokens: maxTokens,
       ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
