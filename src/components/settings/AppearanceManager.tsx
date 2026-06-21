@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useProfileStore } from '@/store/profileStore'
 import { useAppearanceStore } from '@/store/appearanceStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
+import { usePersonaStore } from '@/store/personaStore'
 import { fileToDataUrl } from '@/lib/image'
 import Avatar from '@/components/ui/Avatar'
 
@@ -61,6 +62,8 @@ export default function AppearanceManager() {
   const { appearance, update } = useAppearanceStore()
   const chatStyle = useChatPrefsStore((s) => s.chatStyle)
   const setChatStyle = useChatPrefsStore((s) => s.setChatStyle)
+  const persona = usePersonaStore((s) => s.persona)
+  const setPersona = usePersonaStore((s) => s.setPersona)
   const [err, setErr] = useState('')
 
   return (
@@ -118,6 +121,22 @@ export default function AppearanceManager() {
               }
             />
           )}
+          {/* 名字（聊天里的显示名） */}
+          <label className="block">
+            <span className="text-[11px] text-muted">
+              {row.key === 'A' ? '我的名字' : 'AI 名字'}
+            </span>
+            <input
+              className={inputCls + ' mt-1'}
+              placeholder={row.key === 'A' ? '如 B / 惟惟' : '如 Elliott'}
+              value={row.key === 'A' ? profile.nameA : persona.name}
+              onChange={(e) =>
+                row.key === 'A'
+                  ? setProfile({ nameA: e.target.value })
+                  : setPersona({ name: e.target.value })
+              }
+            />
+          </label>
         </div>
       ))}
 
