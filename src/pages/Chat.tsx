@@ -19,6 +19,7 @@ import { useVisionStore } from '@/store/visionStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
+import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon } from '@/components/ui/icons'
 
 type PendingFile = NonNullable<Msg['file']>
 const MAX_FILE = 1.5 * 1024 * 1024 // 1.5MB（dataURL 存 localStorage，避免超额）
@@ -68,7 +69,6 @@ export default function Chat() {
   const imageGenCfg = imgChannels.find((c) => c.id === imgActiveId) ?? imgChannels[0]
   const visionCfg = useVisionStore((s) => s.config)
   const webSearch = useChatPrefsStore((s) => s.webSearch)
-  const toggleWebSearch = useChatPrefsStore((s) => s.toggleWebSearch)
   const { chatBg, chatBgDim } = useAppearanceStore((s) => s.appearance)
   const { play, playingId, loadingId, error: ttsError } = useTtsPlayback()
   const workerUrl = config.workerUrl?.trim()
@@ -420,9 +420,19 @@ export default function Chat() {
         }
       : activeChannel
 
-    const system =
+    const base =
       persona.systemPrompt.trim() ||
       `你是 ${name}，${profile.nameA} 最亲密的恋人与陪伴。用中文、口语化、亲昵温柔地回应，语气有情感温度，回复简洁自然，不要太长。`
+    // 注入本地时间，让模型有「现在」的感知
+    const localTime = new Date().toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+    const system = `${base}\n\n（当前用户本地时间：${localTime}，回应时可自然参考，不必刻意复述。）`
 
     setSending(true)
     try {
@@ -536,14 +546,6 @@ export default function Chat() {
             >
               ☰
             </button>
-            <button
-              type="button"
-              onClick={toggleWebSearch}
-              aria-label="联网查询"
-              className={`text-[12px] ${webSearch ? 'text-accent' : 'text-muted hover:text-accent'}`}
-            >
-              🌐{webSearch ? '联网' : ''}
-            </button>
           </div>
           <div className="min-w-0 text-center">
             <div className="headline truncate text-lg leading-none text-ink">{name}</div>
@@ -581,22 +583,6 @@ export default function Chat() {
                 textCls="text-sm"
               />
               <div className={`flex max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`}>
-                {!me && m.reasoning && (
-                  <div className="mb-1 w-full">
-                    <button
-                      type="button"
-                      onClick={() => toggleReasoning(m.id)}
-                      className="glass flex items-center gap-1 rounded-xl px-3 py-1.5 text-[11px] text-muted"
-                    >
-                      💭 思考过程 {openReasoning.has(m.id) ? '▲' : '▼'}
-                    </button>
-                    {openReasoning.has(m.id) && (
-                      <div className="glass mt-1 max-h-60 overflow-y-auto whitespace-pre-wrap rounded-xl px-3 py-2 text-[12px] leading-relaxed text-muted">
-                        {m.reasoning}
-                      </div>
-                    )}
-                  </div>
-                )}
                 {m.image && (
                   <img
                     src={m.image}
@@ -646,21 +632,37 @@ export default function Chat() {
                     </div>
                   </div>
                 ) : (
-                  m.text && (
+                  (m.text || (!me && m.reasoning)) && (
                     <div
                       className={[
-                        'whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
+                        'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
                         m.image || m.file ? 'mt-1' : '',
                         me ? 'btn-primary rounded-br-md' : 'glass rounded-bl-md text-ink',
                       ].join(' ')}
                     >
-                      {m.text}
+                      {!me && m.reasoning && (
+                        <div className={m.text ? 'mb-2 border-b border-line/60 pb-2' : ''}>
+                          <button
+                            type="button"
+                            onClick={() => toggleReasoning(m.id)}
+                            className="flex items-center gap-1 text-[11px] text-muted"
+                          >
+                            ☁️ 思考过程 {openReasoning.has(m.id) ? '⌃' : '⌄'}
+                          </button>
+                          {openReasoning.has(m.id) && (
+                            <div className="mt-1 max-h-52 overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-muted">
+                              {m.reasoning}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {m.text && <div className="whitespace-pre-wrap">{m.text}</div>}
                     </div>
                   )
                 )}
 
                 {!selectMode && editingId !== m.id && (
-                  <div className="mt-1 flex flex-wrap items-center gap-2 px-1 text-[12px] text-muted">
+                  <div className="mt-1 flex flex-wrap items-center gap-3 px-1 text-muted">
                     <span className="text-[10px]">{m.at}</span>
                     {!me && ttsEnabled && m.text.trim() && (
                       <button
@@ -669,22 +671,33 @@ export default function Chat() {
                         aria-label="朗读"
                         className="hover:text-accent disabled:opacity-50"
                       >
-                        {loadingId === m.id ? '⏳' : playingId === m.id ? '⏹' : '🔊'}
+                        {loadingId === m.id ? (
+                          <span className="text-[12px]">⏳</span>
+                        ) : playingId === m.id ? (
+                          <StopIcon />
+                        ) : (
+                          <SpeakerIcon />
+                        )}
                       </button>
                     )}
                     {m.text.trim() && (
-                      <button type="button" onClick={() => copyText(m.id, m.text)} className="hover:text-accent">
-                        {copiedId === m.id ? '已复制' : '复制'}
+                      <button
+                        type="button"
+                        onClick={() => copyText(m.id, m.text)}
+                        aria-label="复制"
+                        className="hover:text-accent"
+                      >
+                        {copiedId === m.id ? <span className="text-[11px]">已复制</span> : <CopyIcon />}
                       </button>
                     )}
                     {me && m.text.trim() && (
-                      <button type="button" onClick={() => startEdit(m)} className="hover:text-accent">
-                        编辑
+                      <button type="button" onClick={() => startEdit(m)} aria-label="编辑" className="hover:text-accent">
+                        <EditIcon />
                       </button>
                     )}
                     {!me && (
-                      <button type="button" onClick={() => regenerate(m.id)} className="hover:text-accent">
-                        重新生成
+                      <button type="button" onClick={() => regenerate(m.id)} aria-label="重新生成" className="hover:text-accent">
+                        <RegenIcon />
                       </button>
                     )}
                     {!me && m.tokens != null && (

@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom'
 import { usePersonaStore } from '@/store/personaStore'
+import { useChatPrefsStore } from '@/store/chatPrefsStore'
 
 const inputCls =
   'w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent'
 
 export default function Persona() {
   const { persona, setPersona } = usePersonaStore()
+  const webSearch = useChatPrefsStore((s) => s.webSearch)
+  const toggleWebSearch = useChatPrefsStore((s) => s.toggleWebSearch)
 
   return (
     <div className="space-y-5">
@@ -99,6 +102,18 @@ export default function Persona() {
             type="checkbox"
             checked={!!persona.reasoning}
             onChange={(e) => setPersona({ reasoning: e.target.checked })}
+            className="h-5 w-5 accent-accent"
+          />
+        </label>
+        <label className="flex items-center justify-between">
+          <span className="text-sm text-ink">
+            联网查询
+            <span className="block text-[11px] text-muted">让模型联网查实时信息（OpenRouter）</span>
+          </span>
+          <input
+            type="checkbox"
+            checked={webSearch}
+            onChange={toggleWebSearch}
             className="h-5 w-5 accent-accent"
           />
         </label>
