@@ -140,7 +140,10 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
 6. 思考链展示 ✅（需求1）：人设页开关「显示思考过程」(`persona.reasoning`)。开启后 openai 路径请求带
    `reasoning:{effort:medium}`、anthropic 带 `thinking`（开思考时不传 temperature），解析 `message.reasoning`/thinking blocks
    存 `ChatMsg.reasoning`，AI 气泡上方「💭 思考过程 ▼」可折叠（默认收起）。需模型支持。viaWorker 路径暂不带 reasoning。
-   ⏭ 还差：联网查询、单独读图模型、长对话压缩（需求 2/5/4，按此序）。
+7. 读图模型 ✅（需求5）：`visionStore`（enabled/baseURL/key/model，只存本地）+ 设置子页「👁 读图模型」
+   (`/settings/vision`，获取模型按 input_modalities=image 筛)。`Chat.respond()`：apiMsgs 含图片且开关开→
+   这次用 vision 渠道（构造临时 ApiChannel）回复，解决主文本模型报「No endpoints found that support image input」。
+   ⏭ 还差：联网查询、长对话压缩（需求 2/4）。
 4. 多对话窗口 ✅：`chatStore` 重构为多会话（`sessions[]`+`activeId`，旧单会话数据自动迁移）。
    聊天头部 ☰ 打开会话侧栏：新对话 / 切换 / 删除 / 重命名；首句话自动命名（autoTitle）。
    去掉了头部「清空」（改用删除会话）。⏭ 搜索聊天记录、会话云同步待做。

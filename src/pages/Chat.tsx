@@ -15,6 +15,8 @@ import { fileToDataUrl } from '@/lib/image'
 import { isTextFile, readAsDataUrl, readAsText, humanSize } from '@/lib/file'
 import { useImageGenStore } from '@/store/imageGenStore'
 import { generateImage } from '@/api/imagegen'
+import { useVisionStore } from '@/store/visionStore'
+import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
 
 type PendingFile = NonNullable<Msg['file']>
@@ -63,6 +65,7 @@ export default function Chat() {
   const imgChannels = useImageGenStore((s) => s.channels)
   const imgActiveId = useImageGenStore((s) => s.activeId)
   const imageGenCfg = imgChannels.find((c) => c.id === imgActiveId) ?? imgChannels[0]
+  const visionCfg = useVisionStore((s) => s.config)
   const { chatBg, chatBgDim } = useAppearanceStore((s) => s.appearance)
   const { play, playingId, loadingId, error: ttsError } = useTtsPlayback()
   const workerUrl = config.workerUrl?.trim()
@@ -337,6 +340,21 @@ export default function Chat() {
       })
     while (apiMsgs.length && apiMsgs[0].role !== 'user') apiMsgs.shift()
 
+    // 含图片且开了「读图模型」→ 这次用支持视觉的模型回复（主文本模型可能不支持图）
+    const hasImage = apiMsgs.some((m) => Array.isArray(m.content))
+    const useVision =
+      hasImage && visionCfg.enabled && visionCfg.apiKey.trim() && visionCfg.model.trim()
+    const channel: ApiChannel | undefined = useVision
+      ? {
+          id: 'vision',
+          name: '读图',
+          provider: 'openai',
+          baseUrl: visionCfg.baseUrl,
+          apiKey: visionCfg.apiKey,
+          model: visionCfg.model,
+        }
+      : activeChannel
+
     const system =
       persona.systemPrompt.trim() ||
       `你是 ${name}，${profile.nameA} 最亲密的恋人与陪伴。用中文、口语化、亲昵温柔地回应，语气有情感温度，回复简洁自然，不要太长。`
@@ -346,8 +364,8 @@ export default function Chat() {
       let reply = ''
       let tokens: number | undefined
       let reasoning: string | undefined
-      if (activeChannel) {
-        const r = await chatComplete(activeChannel, apiMsgs, system, {
+      if (channel) {
+        const r = await chatComplete(channel, apiMsgs, system, {
           workerUrl,
           syncKey: config.syncKey,
           temperature: persona.temperature,
@@ -360,7 +378,7 @@ export default function Chat() {
           tokens = r.usage.totalTokens
           addUsage({
             at: new Date().toISOString(),
-            provider: activeChannel.provider,
+            provider: channel.provider,
             model: r.usage.model,
             promptTokens: r.usage.promptTokens,
             completionTokens: r.usage.completionTokens,

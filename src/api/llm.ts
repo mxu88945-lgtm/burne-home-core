@@ -52,6 +52,20 @@ export async function listModels(ch: ApiChannel): Promise<string[]> {
   return (data.data || []).map((m) => m.id).filter(Boolean)
 }
 
+/** 拉取「支持图片输入」的模型（OpenAI 兼容 /models，按 input_modalities 筛） */
+export async function listVisionModels(baseUrl: string, apiKey: string): Promise<string[]> {
+  const res = await fetch(`${trim(baseUrl)}/models`, {
+    headers: { authorization: `Bearer ${apiKey}` },
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const data = (await res.json()) as {
+    data?: { id: string; architecture?: { input_modalities?: string[] } }[]
+  }
+  const all = data.data || []
+  const vis = all.filter((m) => m.architecture?.input_modalities?.includes('image')).map((m) => m.id)
+  return vis.length ? vis : all.map((m) => m.id).filter(Boolean)
+}
+
 export interface ChatOptions {
   workerUrl?: string
   syncKey?: string
