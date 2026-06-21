@@ -147,7 +147,10 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
 9. 长对话压缩 ✅（需求4）：＋ 菜单「压缩对话」→ 把较早消息调模型总结成「前情摘要」，只保留最近 4 条，省 token。
    —— 用户 5 个新需求全部完成（思考链/联网/消息操作/压缩/读图）。剩下等后端 + 修小细节。
 10. 细节打磨 ✅：思考链并入气泡顶部折叠区（不再两块气泡）；消息操作改线条图标（`components/ui/icons.tsx`
-    复制/重生成/编辑/朗读）；联网开关从头部移到人设页（头部去掉🌐）；system prompt 注入本地时间（模型时间感知）。
+    复制/重生成/编辑/朗读，已统一 16px 视觉大小）；联网开关从头部移到人设页（头部去掉🌐）；
+    system prompt 注入本地时间（模型时间感知）。
+    PWA 桌面图标：`public/apple-touch-icon.png`(180) + icon-192/512，`index.html` 加 apple-touch-icon。
+    ⚠️ 图标图片是静态资源、会随 Pages 公开（已知会）。换图标=替换 public/apple-touch-icon.png 重新部署。
 4. 多对话窗口 ✅：`chatStore` 重构为多会话（`sessions[]`+`activeId`，旧单会话数据自动迁移）。
    聊天头部 ☰ 打开会话侧栏：新对话 / 切换 / 删除 / 重命名；首句话自动命名（autoTitle）。
    去掉了头部「清空」（改用删除会话）。⏭ 搜索聊天记录、会话云同步待做。
