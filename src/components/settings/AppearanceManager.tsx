@@ -196,6 +196,11 @@ export default function AppearanceManager() {
             )}
           </div>
         </div>
+        {!appearance.chatBg && (
+          <p className="text-[11px] text-muted">
+            上传背景后，这里会出现 显影 / 压暗 / 模糊 / 铺法 可以调。
+          </p>
+        )}
         {appearance.chatBg && (
           <div className="space-y-3">
             <label className="block text-[12px] text-muted">
