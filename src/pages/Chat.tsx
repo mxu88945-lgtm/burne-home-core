@@ -582,7 +582,7 @@ export default function Chat() {
                 className="h-7 w-7 shrink-0 rounded-full bg-white/50 text-sm"
                 textCls="text-sm"
               />
-              <div className={`flex max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`}>
+              <div className={`flex min-w-0 max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`}>
                 {m.image && (
                   <img
                     src={m.image}
@@ -635,7 +635,7 @@ export default function Chat() {
                   (m.text || (!me && m.reasoning)) && (
                     <div
                       className={[
-                        'rounded-2xl px-4 py-2.5 text-sm leading-relaxed',
+                        'max-w-full overflow-hidden rounded-2xl px-4 py-2.5 text-sm leading-relaxed [overflow-wrap:anywhere]',
                         m.image || m.file ? 'mt-1' : '',
                         me ? 'btn-primary rounded-br-md' : 'glass rounded-bl-md text-ink',
                       ].join(' ')}
@@ -650,13 +650,13 @@ export default function Chat() {
                             ☁️ 思考过程 {openReasoning.has(m.id) ? '⌃' : '⌄'}
                           </button>
                           {openReasoning.has(m.id) && (
-                            <div className="mt-1 max-h-52 overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-muted">
+                            <div className="mt-1 max-h-52 overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-muted [overflow-wrap:anywhere]">
                               {m.reasoning}
                             </div>
                           )}
                         </div>
                       )}
-                      {m.text && <div className="whitespace-pre-wrap">{m.text}</div>}
+                      {m.text && <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{m.text}</div>}
                     </div>
                   )
                 )}
