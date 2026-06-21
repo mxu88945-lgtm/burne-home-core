@@ -1,6 +1,6 @@
 import { THEMES, useThemeStore } from '@/store/themeStore'
 
-/** 三个小圆点的主题切换器 */
+/** 主题切换器：每个主题一个配色渐变小圆点 */
 export default function ThemeSwitcher() {
   const { theme, setTheme } = useThemeStore()
 
@@ -21,7 +21,10 @@ export default function ThemeSwitcher() {
                 ? 'ring-2 ring-offset-1 ring-accent'
                 : 'opacity-70 hover:opacity-100',
             ].join(' ')}
-            style={{ backgroundColor: t.dot, boxShadow: '0 1px 3px rgba(0,0,0,.15)' }}
+            style={{
+              background: `linear-gradient(135deg, ${t.swatches.join(', ')})`,
+              boxShadow: '0 1px 3px rgba(0,0,0,.15)',
+            }}
           />
         )
       })}

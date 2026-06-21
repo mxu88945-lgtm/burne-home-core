@@ -6,62 +6,92 @@
    主题配色 —— 通过 <html data-theme="..."> 切换
    ============================================================ */
 
-/* 🌸 暖粉 Rosé（默认） */
+/* 🌸 雾粉 Mist（默认）—— 高级感雾系粉 + 一点黛灰 */
 :root,
-[data-theme='rose'] {
-  --bg-from: #fdf3f5;
-  --bg-via: #f8e6ec;
-  --bg-to: #f1dbe6;
-  --text: #5d4750;
-  --text-soft: #ab8d99;
-  --label: #c0a3af;
-  --accent: #c47e90;
-  --accent-2: #dca7b6;
-  --card: rgba(255, 255, 255, 0.62);
-  --card-strong: rgba(255, 255, 255, 0.82);
-  --card-border: rgba(255, 255, 255, 0.75);
-  --shadow: rgba(180, 130, 150, 0.18);
+[data-theme='mist'] {
+  --bg-to: #e6d2cf;
+  --bg-mesh:
+    radial-gradient(120% 90% at 0% 0%, #f7ece9 0%, transparent 58%),
+    radial-gradient(110% 80% at 100% 6%, #f0d8d3 0%, transparent 55%),
+    radial-gradient(120% 95% at 50% 100%, #e7d6d0 0%, transparent 60%),
+    linear-gradient(160deg, #f6ebe8, #ead7d4);
+  --text: #564846;
+  --text-soft: #a08d89;
+  --label: #b9a39d;
+  --accent: #c58a83;
+  --accent-2: #d9b2ab;
+  --card: rgba(255, 255, 255, 0.5);
+  --card-strong: rgba(255, 255, 255, 0.74);
+  --card-border: rgba(255, 255, 255, 0.7);
+  --shadow: rgba(150, 120, 115, 0.18);
   --on-accent: #fff;
 }
 
-/* 💜 月光 Lavender */
-[data-theme='lavender'] {
-  --bg-from: #f4f0fb;
-  --bg-via: #ece4f6;
-  --bg-to: #e2d9f1;
-  --text: #4f4660;
-  --text-soft: #9a8fad;
-  --label: #b1a4c4;
-  --accent: #9b7bc4;
-  --accent-2: #c0a8e0;
-  --card: rgba(255, 255, 255, 0.6);
-  --card-strong: rgba(255, 255, 255, 0.82);
-  --card-border: rgba(255, 255, 255, 0.72);
-  --shadow: rgba(120, 100, 170, 0.18);
+/* 🍃 黛绿 Sage —— 雾感灰绿 + 蓝灰 */
+[data-theme='sage'] {
+  --bg-to: #cfe0d6;
+  --bg-mesh:
+    radial-gradient(120% 90% at 0% 0%, #eef2f1 0%, transparent 58%),
+    radial-gradient(110% 80% at 100% 8%, #d3e6d8 0%, transparent 55%),
+    radial-gradient(120% 95% at 50% 100%, #c6dcd2 0%, transparent 60%),
+    linear-gradient(160deg, #e9f0ec, #d2e2d8);
+  --text: #41504a;
+  --text-soft: #8aa097;
+  --label: #9db3a8;
+  --accent: #7ba18c;
+  --accent-2: #a3c2b1;
+  --card: rgba(255, 255, 255, 0.46);
+  --card-strong: rgba(255, 255, 255, 0.72);
+  --card-border: rgba(255, 255, 255, 0.68);
+  --shadow: rgba(100, 130, 115, 0.18);
   --on-accent: #fff;
 }
 
-/* 🌙 暖夜 Midnight */
-[data-theme='night'] {
-  --bg-from: #211a26;
-  --bg-via: #2a2030;
-  --bg-to: #1d1722;
-  --text: #f1e7ef;
-  --text-soft: #b6a6b4;
-  --label: #8f7d8d;
-  --accent: #e6a6c0;
-  --accent-2: #c98aa9;
-  --card: rgba(255, 255, 255, 0.06);
-  --card-strong: rgba(255, 255, 255, 0.1);
-  --card-border: rgba(255, 255, 255, 0.12);
-  --shadow: rgba(0, 0, 0, 0.35);
-  --on-accent: #2a1f28;
+/* 🫧 琉璃 Aurora —— 全息流光玻璃 */
+[data-theme='aurora'] {
+  --bg-to: #e6eef0;
+  --bg-mesh:
+    radial-gradient(90% 70% at 8% 8%, #e9d9f3 0%, transparent 55%),
+    radial-gradient(90% 70% at 92% 14%, #d4e8ee 0%, transparent 55%),
+    radial-gradient(100% 80% at 50% 100%, #f0dce8 0%, transparent 60%),
+    radial-gradient(80% 65% at 82% 92%, #dfe6f5 0%, transparent 55%),
+    linear-gradient(160deg, #eceaf4, #e6eef0);
+  --text: #4a4660;
+  --text-soft: #918caa;
+  --label: #a9a3c0;
+  --accent: #9385cf;
+  --accent-2: #b7a6e4;
+  --card: rgba(255, 255, 255, 0.4);
+  --card-strong: rgba(255, 255, 255, 0.62);
+  --card-border: rgba(255, 255, 255, 0.78);
+  --shadow: rgba(130, 120, 170, 0.2);
+  --on-accent: #fff;
+}
+
+/* 🌙 暮夜 Dusk —— 暖调深棕 + 金 */
+[data-theme='dusk'] {
+  --bg-to: #1f1b1a;
+  --bg-mesh:
+    radial-gradient(120% 90% at 0% 0%, #38312e 0%, transparent 60%),
+    radial-gradient(110% 80% at 100% 4%, #322a26 0%, transparent 55%),
+    radial-gradient(120% 95% at 50% 100%, #241f1d 0%, transparent 60%),
+    linear-gradient(160deg, #2c2724, #1f1b1a);
+  --text: #efe6da;
+  --text-soft: #b7a899;
+  --label: #8d7e71;
+  --accent: #d6ab86;
+  --accent-2: #e7c8a9;
+  --card: rgba(255, 255, 255, 0.07);
+  --card-strong: rgba(255, 255, 255, 0.12);
+  --card-border: rgba(255, 255, 255, 0.14);
+  --shadow: rgba(0, 0, 0, 0.4);
+  --on-accent: #2a221b;
 }
 
 :root {
   color-scheme: light;
 }
-[data-theme='night'] {
+[data-theme='dusk'] {
   color-scheme: dark;
 }
 
@@ -90,32 +120,30 @@ body {
    语义化组件类
    ============================================================ */
 @layer components {
-  /* 页面背景渐变 */
+  /* 页面背景：玻璃拟态的彩色网格底（让上层卡片有透视感可“透”） */
   .app-bg {
-    background:
-      radial-gradient(
-        120% 80% at 50% 0%,
-        var(--bg-from) 0%,
-        var(--bg-via) 45%,
-        var(--bg-to) 100%
-      );
+    background: var(--bg-mesh);
     background-attachment: fixed;
   }
 
-  /* 毛玻璃卡片 */
+  /* 毛玻璃卡片：半透明 + 背景模糊 + 顶部高光（玻璃光泽） */
   .glass {
     background: var(--card);
     border: 1px solid var(--card-border);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    box-shadow: 0 12px 34px var(--shadow);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow:
+      0 12px 34px var(--shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45);
   }
   .glass-strong {
     background: var(--card-strong);
     border: 1px solid var(--card-border);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    box-shadow: 0 12px 34px var(--shadow);
+    backdrop-filter: blur(20px) saturate(1.5);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    box-shadow:
+      0 12px 34px var(--shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
   /* 衬线斜体浪漫标题 */
