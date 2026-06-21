@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useImageGenStore } from '@/store/imageGenStore'
 import { useSyncStore } from '@/store/syncStore'
-import { generateImage } from '@/api/imagegen'
+import { generateImage, listImageModels } from '@/api/imagegen'
 import PasswordInput from '@/components/ui/PasswordInput'
 
 const inputCls =
@@ -14,6 +14,27 @@ export default function ImageGenManager() {
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
   const [preview, setPreview] = useState('')
+  const [models, setModels] = useState<string[]>([])
+  const [fetching, setFetching] = useState(false)
+
+  async function fetchModels() {
+    setFetching(true)
+    setMsg('')
+    try {
+      const list = await listImageModels(config)
+      setModels(list)
+      if (!config.model && list[0]) update({ model: list[0] })
+      setMsg(
+        config.mode === 'chat'
+          ? `拉到 ${list.length} 个可出图模型，选一个`
+          : `拉到 ${list.length} 个模型，选一个`
+      )
+    } catch (e) {
+      setMsg(`获取模型失败：${(e as Error).message}`)
+    } finally {
+      setFetching(false)
+    }
+  }
 
   async function test() {
     setBusy(true)
@@ -76,16 +97,38 @@ export default function ImageGenManager() {
           value={config.apiKey}
           onChange={(e) => update({ apiKey: e.target.value })}
         />
-        <input
-          className={inputCls}
-          placeholder={
-            config.mode === 'chat'
-              ? '模型，如 google/gemini-2.5-flash-image-preview'
-              : '模型，如 dall-e-3 / gpt-image-1'
-          }
-          value={config.model}
-          onChange={(e) => update({ model: e.target.value })}
-        />
+        <div className="flex items-center gap-2">
+          <input
+            className={inputCls + ' flex-1'}
+            placeholder={
+              config.mode === 'chat'
+                ? '模型，如 google/gemini-2.5-flash-image-preview'
+                : '模型，如 dall-e-3 / gpt-image-1'
+            }
+            value={config.model}
+            onChange={(e) => update({ model: e.target.value })}
+          />
+          <button
+            onClick={fetchModels}
+            disabled={fetching}
+            className="glass shrink-0 rounded-xl px-3 py-2 text-xs text-ink disabled:opacity-60"
+          >
+            {fetching ? '获取中…' : '获取模型'}
+          </button>
+        </div>
+        {models.length > 0 && (
+          <select
+            className={inputCls}
+            value={config.model}
+            onChange={(e) => update({ model: e.target.value })}
+          >
+            {models.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        )}
         {config.mode === 'images' && (
           <input
             className={inputCls}

@@ -8,6 +8,33 @@
 
 import type { ImageGenConfig } from '@/store/imageGenStore'
 
+interface ModelsResp {
+  data?: { id: string; architecture?: { output_modalities?: string[] } }[]
+  error?: { message?: string }
+}
+
+/** 列出可用模型；chat 模式只返回「支持图像输出」的，images 模式按名字筛出图相关的 */
+export async function listImageModels(config: ImageGenConfig): Promise<string[]> {
+  if (!config.apiKey.trim()) throw new Error('请先填 API Key')
+  const base =
+    config.baseUrl.trim().replace(/\/+$/, '') ||
+    (config.mode === 'chat' ? 'https://openrouter.ai/api/v1' : 'https://api.openai.com/v1')
+  const res = await fetch(`${base}/models`, {
+    headers: { Authorization: `Bearer ${config.apiKey.trim()}` },
+  })
+  const data = (await res.json().catch(() => ({}))) as ModelsResp
+  if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`)
+  const all = data.data || []
+  if (config.mode === 'chat') {
+    const imgs = all
+      .filter((m) => m.architecture?.output_modalities?.includes('image'))
+      .map((m) => m.id)
+    return imgs.length ? imgs : all.map((m) => m.id)
+  }
+  const named = all.map((m) => m.id).filter((id) => /image|dall|sd|stable|flux/i.test(id))
+  return named.length ? named : all.map((m) => m.id)
+}
+
 export async function generateImage(
   config: ImageGenConfig,
   prompt: string,
