@@ -46,8 +46,11 @@ export default function DataPage() {
 
       <div className="glass space-y-3 rounded-2xl p-4">
         <p className="text-[11px] leading-relaxed text-muted">
-          把记忆、设置、人设、渠道导出成一个文件，换设备时再导入恢复。导出的 .json
-          存在你自己设备上。
+          把<b className="text-ink">全部本地数据</b>——记忆库、<b className="text-ink">历史对话（所有会话）</b>、设置、人设、渠道、外观、用量等——导出成一个文件，换设备时再导入恢复。导出的
+          .json 存在你自己设备上。
+        </p>
+        <p className="text-[11px] leading-relaxed text-muted">
+          恢复时会用备份<b className="text-ink">覆盖</b>当前全部数据并刷新。聊天里的图片/文件较多时备份体积会偏大，属正常。
         </p>
         <label className="flex items-center gap-2 text-[12px] text-ink">
           <input

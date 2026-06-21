@@ -655,12 +655,12 @@ export default function Chat() {
               <div
                 className={
                   flat
-                    ? 'flex w-full min-w-0 flex-col'
+                    ? `flex w-full min-w-0 flex-col ${me ? 'items-end text-right' : ''}`
                     : `flex min-w-0 max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`
                 }
               >
                 {flat && (
-                  <div className="mb-1 flex items-center gap-2">
+                  <div className={`mb-1 flex items-center gap-2 ${me ? 'flex-row-reverse' : ''}`}>
                     <Avatar
                       img={me ? profile.avatarAImg : profile.avatarBImg}
                       emoji={me ? profile.avatarA : profile.avatarB}

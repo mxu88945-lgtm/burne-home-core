@@ -1,12 +1,15 @@
 import { Link } from 'react-router-dom'
 import { usePersonaStore } from '@/store/personaStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
+import { useProfileStore } from '@/store/profileStore'
 
 const inputCls =
   'w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent'
 
 export default function Persona() {
   const { persona, setPersona } = usePersonaStore()
+  const profile = useProfileStore((s) => s.profile)
+  const setProfile = useProfileStore((s) => s.setProfile)
   const webSearch = useChatPrefsStore((s) => s.webSearch)
   const toggleWebSearch = useChatPrefsStore((s) => s.toggleWebSearch)
   const autoMemory = useChatPrefsStore((s) => s.autoMemory)
@@ -28,11 +31,20 @@ export default function Persona() {
         <span className="w-12" />
       </div>
 
-      {/* 身份信息 */}
+      {/* 称呼 · 名字 */}
       <section className="glass rounded-3xl p-5 space-y-3">
-        <div className="label">角色信息</div>
+        <div className="label">称呼 · 名字</div>
         <label className="block">
-          <span className="text-[11px] text-muted">名字</span>
+          <span className="text-[11px] text-muted">我的名字（聊天里你的显示名）</span>
+          <input
+            className={inputCls + ' mt-1'}
+            placeholder="如 B / 惟惟"
+            value={profile.nameA}
+            onChange={(e) => setProfile({ nameA: e.target.value })}
+          />
+        </label>
+        <label className="block">
+          <span className="text-[11px] text-muted">AI 名字（角色名，聊天里 TA 的显示名）</span>
           <input
             className={inputCls + ' mt-1'}
             placeholder="如 Elliott"
@@ -41,7 +53,7 @@ export default function Persona() {
           />
         </label>
         <label className="block">
-          <span className="text-[11px] text-muted">状态签名</span>
+          <span className="text-[11px] text-muted">AI 状态签名</span>
           <input
             className={inputCls + ' mt-1'}
             placeholder="如 thinking quietly"
@@ -49,6 +61,9 @@ export default function Persona() {
             onChange={(e) => setPersona({ status: e.target.value })}
           />
         </label>
+        <p className="text-[11px] text-muted">
+          名字两边通用：这里和主页改的是同一份，聊天气泡 / 平铺头像名都会跟着变。
+        </p>
       </section>
 
       {/* 灵魂设定 */}
