@@ -20,7 +20,7 @@ import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { useMemoryStore } from '@/store/memoryStore'
 import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
-import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon } from '@/components/ui/icons'
+import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, SendIcon } from '@/components/ui/icons'
 
 type PendingFile = NonNullable<Msg['file']>
 const MAX_FILE = 1.5 * 1024 * 1024 // 1.5MB（dataURL 存 localStorage，避免超额）
@@ -928,7 +928,7 @@ export default function Chat() {
             if (f) pickFile(f)
           }}
         />
-        <div className="relative flex items-center gap-2">
+        <div className="relative flex items-center">
           {/* ＋ 菜单 */}
           {plusOpen && (
             <>
@@ -936,7 +936,7 @@ export default function Chat() {
                 className="fixed inset-0 z-10"
                 onClick={() => setPlusOpen(false)}
               />
-              <div className="glass-strong absolute bottom-12 left-0 z-20 w-32 overflow-hidden rounded-2xl p-1 text-sm text-ink">
+              <div className="glass-strong absolute bottom-14 left-2 z-20 w-32 overflow-hidden rounded-2xl p-1 text-sm text-ink">
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
@@ -978,33 +978,33 @@ export default function Chat() {
               </div>
             </>
           )}
-          <button
-            type="button"
-            onClick={() => setPlusOpen((o) => !o)}
-            aria-label="添加"
-            className="glass-strong flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xl text-ink"
-          >
-            ＋
-          </button>
-          <div className="glass-strong flex flex-1 items-center gap-2 rounded-full p-1.5 pl-5">
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') send()
-            }}
-            placeholder={`say something to ${name}…`}
-            className="headline flex-1 bg-transparent text-sm not-italic text-ink outline-none placeholder:italic placeholder:text-muted"
-          />
-          <button
-            type="button"
-            onClick={send}
-            disabled={sending}
-            aria-label="发送"
-            className="btn-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base disabled:opacity-50"
-          >
-            ↑
-          </button>
+          <div className="glass-strong flex flex-1 items-center gap-1 rounded-full py-1.5 pl-2 pr-1.5">
+            <button
+              type="button"
+              onClick={() => setPlusOpen((o) => !o)}
+              aria-label="添加"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl text-muted hover:bg-white/40 hover:text-ink"
+            >
+              ＋
+            </button>
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') send()
+              }}
+              placeholder={`say something to ${name}…`}
+              className="headline min-w-0 flex-1 bg-transparent text-sm not-italic text-ink outline-none placeholder:italic placeholder:text-muted"
+            />
+            <button
+              type="button"
+              onClick={send}
+              disabled={sending}
+              aria-label="发送"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-accent hover:bg-white/40 disabled:opacity-40"
+            >
+              <SendIcon className="h-[18px] w-[18px]" />
+            </button>
           </div>
         </div>
       </div>

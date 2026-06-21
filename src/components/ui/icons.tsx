@@ -55,3 +55,13 @@ export function StopIcon({ className }: P) {
     </svg>
   )
 }
+
+/** 发送 · 纸飞机 */
+export function SendIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M22 2 11 13" />
+      <path d="M22 2 15 22l-4-9-9-4 20-7z" />
+    </svg>
+  )
+}
