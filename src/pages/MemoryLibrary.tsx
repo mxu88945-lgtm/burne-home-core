@@ -1,12 +1,17 @@
 import { useMemo, useState } from 'react'
 import type { MemoryItem } from '@/types/memory'
 import { useMemoryStore } from '@/store/memoryStore'
+import { useApiStore } from '@/store/apiStore'
+import { useSyncStore } from '@/store/syncStore'
+import { chatComplete } from '@/api/llm'
+import { sendChat } from '@/api/chat'
 import MemoryCard from '@/components/memory/MemoryCard'
 import MemoryEditor from '@/components/memory/MemoryEditor'
 import BackBar from '@/components/layout/BackBar'
 import {
   KIND_FILTERS,
   type KindFilter,
+  kindLabel,
   matchKind,
   matchKeyword,
   sortForDisplay,
@@ -15,11 +20,19 @@ import {
 export default function MemoryLibrary() {
   const memories = useMemoryStore((s) => s.memories)
   const toggleStar = useMemoryStore((s) => s.toggleStar)
+  const overview = useMemoryStore((s) => s.overview)
+  const setOverview = useMemoryStore((s) => s.setOverview)
   const summary = useMemoryStore((s) => s.getSummary())
+  const activeChannel = useApiStore((s) => s.getActive())
+  const sync = useSyncStore((s) => s.config)
 
   const [kind, setKind] = useState<KindFilter>('all')
   const [kw, setKw] = useState('')
   const [editing, setEditing] = useState<MemoryItem | 'new' | null>(null)
+  const [genBusy, setGenBusy] = useState(false)
+  const [editOverview, setEditOverview] = useState(false)
+  const [draft, setDraft] = useState('')
+  const [err, setErr] = useState('')
 
   const list = useMemo(
     () =>
@@ -29,6 +42,54 @@ export default function MemoryLibrary() {
     [memories, kind, kw]
   )
 
+  async function generateOverview() {
+    if (genBusy) return
+    if (memories.length === 0) {
+      setErr('还没有记忆可以概述')
+      return
+    }
+    const workerUrl = sync.workerUrl?.trim()
+    if (!activeChannel && !workerUrl) {
+      setErr('请先在「设置 → API / 模型」配置聊天渠道')
+      return
+    }
+    setErr('')
+    setGenBusy(true)
+    try {
+      const transcript = memories
+        .map((m) => `- [${kindLabel(m.kind)}]${m.title ? ` ${m.title}：` : ''}${m.content}`)
+        .join('\n')
+      const sys = '你是记忆摘要助手，只输出摘要正文，不要寒暄。'
+      const ask = `请把下面这些记忆概括成一段简洁、温柔的「记忆总览」（200字以内），点出主要主题、重要的人和事、以及情感脉络：\n\n${transcript}`
+      let text = ''
+      if (activeChannel) {
+        text = (
+          await chatComplete(activeChannel, [{ role: 'user', content: ask }], sys, {
+            workerUrl,
+            syncKey: sync.syncKey,
+            maxTokens: 800,
+          })
+        ).text.trim()
+      } else {
+        text = (
+          await sendChat({
+            workerUrl: workerUrl!,
+            syncKey: sync.syncKey,
+            messages: [{ role: 'user', content: ask }],
+            system: sys,
+            maxTokens: 800,
+          })
+        ).trim()
+      }
+      if (!text) throw new Error('摘要为空')
+      setOverview(text)
+    } catch (e) {
+      setErr(`生成失败：${(e as Error).message}`)
+    } finally {
+      setGenBusy(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <BackBar />
@@ -36,7 +97,7 @@ export default function MemoryLibrary() {
         <div>
           <h2 className="headline text-2xl text-ink">记忆库 📔</h2>
           <p className="mt-1 text-xs text-muted">
-            共 {summary.total} 条 · 核心 {summary.coreCount}
+            共 {summary.total} 条 · 长期 {summary.longCount} · 短期 {summary.shortCount}
           </p>
         </div>
         <button
@@ -46,6 +107,65 @@ export default function MemoryLibrary() {
           ＋ 新增
         </button>
       </div>
+
+      {/* 记忆摘要概述 */}
+      <div className="glass rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <span className="label">记忆摘要概述</span>
+          <div className="flex items-center gap-3 text-[12px]">
+            <button
+              onClick={generateOverview}
+              disabled={genBusy}
+              className="text-accent disabled:opacity-50"
+            >
+              {genBusy ? '生成中…' : '✨ 生成'}
+            </button>
+            <button
+              onClick={() => {
+                setDraft(overview)
+                setEditOverview(true)
+              }}
+              className="text-muted hover:text-accent"
+            >
+              编辑
+            </button>
+          </div>
+        </div>
+        {editOverview ? (
+          <div className="mt-2">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={4}
+              placeholder="写一段记忆总览，或点上面「✨ 生成」让 AI 概括…"
+              className="w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            />
+            <div className="mt-2 flex justify-end gap-2">
+              <button
+                onClick={() => setEditOverview(false)}
+                className="glass rounded-full px-3 py-1 text-[12px] text-ink"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  setOverview(draft.trim())
+                  setEditOverview(false)
+                }}
+                className="btn-primary rounded-full px-3 py-1 text-[12px]"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted">
+            {overview || '还没有概述～点「✨ 生成」让 AI 概括你的记忆，或「编辑」手写一段。'}
+          </p>
+        )}
+      </div>
+
+      {err && <div className="px-1 text-[11px] text-red-500">{err}</div>}
 
       {/* 搜索 + 分类筛选 */}
       <input

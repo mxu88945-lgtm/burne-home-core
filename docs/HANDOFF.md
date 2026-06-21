@@ -151,6 +151,11 @@ docs/           ROADMAP.md · SUPABASE.md · HANDOFF.md(本文)
     system prompt 注入本地时间（模型时间感知）。
     PWA 桌面图标：`public/apple-touch-icon.png`(180) + icon-192/512，`index.html` 加 apple-touch-icon。
     ⚠️ 图标图片是静态资源、会随 Pages 公开（已知会）。换图标=替换 public/apple-touch-icon.png 重新部署。
+11. 新对话默认空白（去掉欢迎语，`chatStore.freshSession` messages 为空）。
+12. 记忆库改造 ✅：分类从 核心/普通/自动 → **长期/短期**（`MemoryKind='long'|'short'`，旧数据迁移 core→long、其余→short）；
+    `starred` 改作「置顶」；编辑器选长期/短期；卡片显示分类 chip；筛选 全部/长期/短期。
+    **记忆摘要概述**：`memoryStore.overview`（单独存 `memory-overview` key），记忆库顶部卡可「✨生成」(AI 概括所有记忆，
+    用激活聊天渠道/Worker) 或「编辑」手写。`MemorySummary` 字段改 longCount/shortCount。
 4. 多对话窗口 ✅：`chatStore` 重构为多会话（`sessions[]`+`activeId`，旧单会话数据自动迁移）。
    聊天头部 ☰ 打开会话侧栏：新对话 / 切换 / 删除 / 重命名；首句话自动命名（autoTitle）。
    去掉了头部「清空」（改用删除会话）。⏭ 搜索聊天记录、会话云同步待做。

@@ -1,5 +1,5 @@
 import type { MemoryItem } from '@/types/memory'
-import { formatWhen, isCore } from '@/lib/memory'
+import { formatWhen, isCore, kindLabel } from '@/lib/memory'
 
 export default function MemoryCard({
   item,
@@ -19,9 +19,15 @@ export default function MemoryCard({
           className="flex-1 text-left"
         >
           <div className="flex items-center gap-2">
-            {item.kind === 'auto' && (
-              <span className="label !tracking-normal">自动</span>
-            )}
+            <span
+              className="rounded-full px-2 py-0.5 text-[10px]"
+              style={{
+                background: item.kind === 'long' ? 'var(--accent)' : 'var(--card-strong)',
+                color: item.kind === 'long' ? '#fff' : 'var(--text-soft)',
+              }}
+            >
+              {kindLabel(item.kind)}
+            </span>
             <span className="text-sm font-medium text-ink">
               {item.title || '（无标题）'}
             </span>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { MemoryItem } from '@/types/memory'
+import type { MemoryItem, MemoryKind } from '@/types/memory'
 import { useMemoryStore } from '@/store/memoryStore'
 import { parseTags } from '@/lib/memory'
 
@@ -18,6 +18,7 @@ export default function MemoryEditor({
   const [content, setContent] = useState(editing?.content ?? '')
   const [tags, setTags] = useState((editing?.tags ?? []).join(' '))
   const [starred, setStarred] = useState(editing?.starred ?? false)
+  const [kind, setKind] = useState<MemoryKind>(editing?.kind ?? 'long')
 
   function save() {
     if (!title.trim() && !content.trim()) {
@@ -29,6 +30,7 @@ export default function MemoryEditor({
       content: content.trim(),
       tags: parseTags(tags),
       starred,
+      kind,
     }
     if (editing) updateMemory(editing.id, fields)
     else addMemory(fields)
@@ -76,8 +78,23 @@ export default function MemoryEditor({
             placeholder="标签（空格或逗号分隔）"
             className="w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent"
           />
+          <div className="flex gap-2">
+            {(['long', 'short'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setKind(k)}
+                className={[
+                  'flex-1 rounded-xl py-2 text-sm transition',
+                  kind === k ? 'btn-primary' : 'glass text-muted',
+                ].join(' ')}
+              >
+                {k === 'long' ? '长期记忆' : '短期记忆'}
+              </button>
+            ))}
+          </div>
           <label className="flex items-center justify-between">
-            <span className="text-sm text-ink">设为核心记忆 ★</span>
+            <span className="text-sm text-ink">置顶 ★</span>
             <input
               type="checkbox"
               checked={starred}

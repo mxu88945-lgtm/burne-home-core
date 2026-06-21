@@ -5,11 +5,10 @@
  * 后续「记忆库页面」「Notion 同步」「备份/恢复」都基于这些类型。
  */
 
-/** 记忆分类 */
+/** 记忆分类：长期（重要、持久）/ 短期（日常、近期） */
 export type MemoryKind =
-  | 'core' // 核心记忆（手动标星、最重要、永久置顶）
-  | 'normal' // 普通记忆（日常）
-  | 'auto' // 自动记忆（系统/对话自动沉淀）
+  | 'long' // 长期记忆
+  | 'short' // 短期记忆
 
 /** 记忆来源 */
 export type MemorySource =
@@ -55,9 +54,8 @@ export type NewMemoryInput = Pick<MemoryItem, 'title' | 'content'> &
 /** 记忆摘要（摘要区展示用，可由系统聚合生成） */
 export interface MemorySummary {
   total: number
-  coreCount: number
-  normalCount: number
-  autoCount: number
+  longCount: number
+  shortCount: number
   /** 最近更新时间 */
   lastUpdatedAt?: string
   /** 一句话总览（后续可接 AI 生成，这一轮先留字段） */

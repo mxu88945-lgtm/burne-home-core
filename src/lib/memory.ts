@@ -2,30 +2,31 @@
 
 import type { MemoryItem } from '@/types/memory'
 
-export type KindFilter = 'all' | 'core' | 'normal' | 'auto'
+export type KindFilter = 'all' | 'long' | 'short'
 
 export const KIND_FILTERS: { id: KindFilter; label: string }[] = [
   { id: 'all', label: '全部' },
-  { id: 'core', label: '核心' },
-  { id: 'normal', label: '普通' },
-  { id: 'auto', label: '自动' },
+  { id: 'long', label: '长期' },
+  { id: 'short', label: '短期' },
 ]
 
-/** 是否核心：核心类 或 被标星 */
+export function kindLabel(k: MemoryItem['kind']): string {
+  return k === 'long' ? '长期' : '短期'
+}
+
+/** 是否置顶（标星） */
 export function isCore(m: MemoryItem): boolean {
-  return m.kind === 'core' || m.starred
+  return m.starred
 }
 
 export function matchKind(m: MemoryItem, f: KindFilter): boolean {
   switch (f) {
     case 'all':
       return true
-    case 'core':
-      return isCore(m)
-    case 'normal':
-      return m.kind === 'normal' && !m.starred
-    case 'auto':
-      return m.kind === 'auto'
+    case 'long':
+      return m.kind === 'long'
+    case 'short':
+      return m.kind === 'short'
   }
 }
 

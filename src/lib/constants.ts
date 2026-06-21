@@ -24,6 +24,7 @@ export const STORAGE_KEYS = {
   imagegen: `${NS}:imagegen`,
   vision: `${NS}:vision`,
   chatprefs: `${NS}:chatprefs`,
+  memoryOverview: `${NS}:memory-overview`,
 } as const
 
 /** 本设备 ID（多端同步用）—— 生成一次后持久化在本地 */
