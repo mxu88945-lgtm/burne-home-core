@@ -88,23 +88,23 @@
   --on-accent: #2a221b;
 }
 
-/* 🤍 素白 Ink —— 极简暖白 + 墨黑（编辑器纸感） */
+/* 🤍 素白 Ink —— 极简中性白 + 墨黑（编辑器纸感，无暖粉） */
 [data-theme='ink'] {
-  --bg-to: #e8e6e1;
+  --bg-to: #e6e8ea;
   --bg-mesh:
-    radial-gradient(120% 90% at 0% 0%, #f7f6f3 0%, transparent 60%),
-    radial-gradient(110% 80% at 100% 6%, #f0efeb 0%, transparent 55%),
-    radial-gradient(120% 95% at 50% 100%, #e8e6e1 0%, transparent 60%),
-    linear-gradient(160deg, #f4f3f0, #e9e7e2);
-  --text: #2f2d2a;
-  --text-soft: #8c8881;
-  --label: #a8a49c;
-  --accent: #3a3733;
-  --accent-2: #6f6a63;
+    radial-gradient(120% 90% at 0% 0%, #f6f7f8 0%, transparent 60%),
+    radial-gradient(110% 80% at 100% 6%, #eef0f1 0%, transparent 55%),
+    radial-gradient(120% 95% at 50% 100%, #e6e8ea 0%, transparent 60%),
+    linear-gradient(160deg, #f2f3f4, #e7e9ea);
+  --text: #2c2e30;
+  --text-soft: #888c8f;
+  --label: #a4a8ab;
+  --accent: #383a3c;
+  --accent-2: #6a6e71;
   --card: rgba(255, 255, 255, 0.55);
-  --card-strong: rgba(255, 255, 255, 0.72);
+  --card-strong: rgba(255, 255, 255, 0.74);
   --card-border: rgba(255, 255, 255, 0.72);
-  --shadow: rgba(60, 55, 50, 0.12);
+  --shadow: rgba(40, 45, 50, 0.12);
   --on-accent: #fff;
 }
 
