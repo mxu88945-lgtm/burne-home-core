@@ -386,7 +386,7 @@ export default function ReadingRoom() {
           const t = e.changedTouches[0]
           const dx = t.clientX - s.x
           const dy = t.clientY - s.y
-          if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+          if (Math.abs(dx) > 80 && Math.abs(dx) > Math.abs(dy) * 2) {
             if (dx < 0) go(1)
             else go(-1)
           }
