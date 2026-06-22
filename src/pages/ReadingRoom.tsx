@@ -58,6 +58,9 @@ export default function ReadingRoom() {
   const [sending, setSending] = useState(false)
   const [unread, setUnread] = useState(false)
   const busyRef = useRef(false)
+  const readerRef = useRef<HTMLDivElement>(null)
+  const touchX = useRef<number | null>(null)
+  const discListRef = useRef<HTMLDivElement>(null)
 
   const activeChannel = useApiStore((s) => s.getActive())
   const { config } = useSyncStore()
@@ -70,6 +73,17 @@ export default function ReadingRoom() {
     loadActive()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 翻页后回到这页顶部
+  useEffect(() => {
+    if (readerRef.current) readerRef.current.scrollTop = 0
+  }, [cur])
+
+  // 讨论：新消息 / 打开面板时滚到最新
+  useEffect(() => {
+    const el = discListRef.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [messages.length, panelOpen, sending])
 
   function buildSys(idx: number) {
     return (
@@ -139,7 +153,7 @@ export default function ReadingRoom() {
       ]
       const r = await chatComplete(activeChannel, history, buildSys(idx), {
         temperature: persona.temperature,
-        maxTokens: 240,
+        maxTokens: 360,
         workerUrl: config.workerUrl?.trim(),
         syncKey: config.syncKey,
       })
@@ -357,8 +371,20 @@ export default function ReadingRoom() {
         />
       </div>
 
-      {/* 阅读区 */}
-      <div className="glass min-h-0 flex-1 overflow-y-auto rounded-3xl p-5">
+      {/* 阅读区（左右滑动翻页） */}
+      <div
+        ref={readerRef}
+        onTouchStart={(e) => {
+          touchX.current = e.touches[0].clientX
+        }}
+        onTouchEnd={(e) => {
+          if (touchX.current == null) return
+          const dx = e.changedTouches[0].clientX - touchX.current
+          touchX.current = null
+          if (Math.abs(dx) > 50) (dx < 0 ? go(1) : go(-1))
+        }}
+        className="glass min-h-0 flex-1 overflow-y-auto rounded-3xl p-5"
+      >
         <p className="headline whitespace-pre-wrap text-[15px] not-italic leading-loose text-ink [overflow-wrap:anywhere]">
           {pages[cur]}
         </p>
@@ -421,7 +447,7 @@ export default function ReadingRoom() {
                 </button>
               </div>
             </div>
-            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-1">
+            <div ref={discListRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-1">
               {messages.length === 0 && (
                 <p className="px-1 pt-4 text-center text-[12px] text-muted">
                   问问 {taName} 对这页的看法，或说说你的感受～

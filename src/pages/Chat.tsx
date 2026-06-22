@@ -578,7 +578,7 @@ export default function Chat() {
   const modelLabel = activeChannel?.model || config.chatModel || (connected ? '默认' : '未连接')
 
   return (
-    <div className="relative flex h-full flex-col px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+    <div className="relative flex h-full flex-col pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       {/* 聊天背景图 + 变暗层（在内容之下） */}
       {chatBg && (
         <>
@@ -601,7 +601,7 @@ export default function Chat() {
       <div className="min-h-0 flex-1 overflow-y-auto">
       {/* 角色头部（sticky 贴顶） */}
       {selectMode ? (
-        <div className="glass-bar sticky top-0 z-20 -mx-4 flex items-center justify-between gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <div className="glass-bar sticky top-0 z-20 flex items-center justify-between gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <button
             type="button"
             onClick={exitSelect}
@@ -620,7 +620,7 @@ export default function Chat() {
           </button>
         </div>
       ) : (
-        <div className="glass-bar sticky top-0 z-20 -mx-4 flex items-center justify-between gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <div className="glass-bar sticky top-0 z-20 flex items-center justify-between gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <div className="flex flex-none items-center gap-3">
             <Link to="/" className="text-[12px] text-muted hover:text-accent">
               ← Back
@@ -671,7 +671,7 @@ export default function Chat() {
       )}
 
       {/* 消息列表 */}
-      <div className="space-y-4 pb-2 pt-3">
+      <div className="space-y-4 px-4 pb-2 pt-3">
         {messages.map((m) => {
           const me = m.role === 'me'
           const picked = selectMode && selected.has(m.id)
@@ -863,14 +863,14 @@ export default function Chat() {
 
       {/* 选择模式底部提示 */}
       {selectMode && (
-        <div className="flex-none pt-2 pb-1 text-center text-[11px] text-muted">
+        <div className="flex-none px-4 pt-2 pb-1 text-center text-[11px] text-muted">
           点选要导出的消息，再点右上「生成长图」
         </div>
       )}
 
       {/* 输入栏 + 模型条（钉在底部，不滚） */}
       {!selectMode && (
-      <div className="flex-none pt-2">
+      <div className="flex-none px-4 pt-2">
         {ttsError && (
           <div className="mb-1 px-2 text-center text-[11px] text-red-500">
             朗读失败：{ttsError}
