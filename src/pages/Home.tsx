@@ -41,7 +41,8 @@ export default function Home() {
   const { profile, setProfile } = useProfileStore()
   const startBlank = useChatStore((s) => s.startBlank)
   const periodDays = usePeriodStore((s) => s.days)
-  const pstat = computeStat(periodDays)
+  const periodLen = usePeriodStore((s) => s.periodLen)
+  const pstat = computeStat(periodDays, periodLen)
   const days = daysTogether(profile.anniversary)
 
   const pMain = !pstat.hasData

@@ -13,13 +13,15 @@ const WEEK = ['一', '二', '三', '四', '五', '六', '日']
 export default function CalendarPage() {
   const days = usePeriodStore((s) => s.days)
   const inject = usePeriodStore((s) => s.inject)
-  const toggleDay = usePeriodStore((s) => s.toggleDay)
+  const periodLen = usePeriodStore((s) => s.periodLen)
+  const markFrom = usePeriodStore((s) => s.markFrom)
+  const setPeriodLen = usePeriodStore((s) => s.setPeriodLen)
   const toggleInject = usePeriodStore((s) => s.toggleInject)
 
   const now = new Date()
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() }) // m: 0-11
 
-  const stat = useMemo(() => computeStat(days), [days])
+  const stat = useMemo(() => computeStat(days, periodLen), [days, periodLen])
   const periodSet = useMemo(() => new Set(days), [days])
   const today = todayStr()
 
@@ -48,7 +50,32 @@ export default function CalendarPage() {
       </div>
       <div className="px-1">
         <h2 className="headline text-2xl text-ink">生理期日历 🌸</h2>
-        <p className="mt-1 text-xs text-muted">点一天标记/取消经期，自动预测下次</p>
+        <p className="mt-1 text-xs text-muted">
+          点经期开始那天，自动标记一整段；点已标的某天可取消整段
+        </p>
+      </div>
+
+      {/* 经期天数设置 */}
+      <div className="glass flex items-center justify-between rounded-2xl p-4">
+        <span className="text-sm text-ink">
+          我的经期一般
+          <span className="block text-[11px] text-muted">点开始日时自动标这么多天</span>
+        </span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setPeriodLen(periodLen - 1)}
+            className="glass flex h-8 w-8 items-center justify-center rounded-full text-ink"
+          >
+            −
+          </button>
+          <span className="w-12 text-center text-sm text-ink">{periodLen} 天</span>
+          <button
+            onClick={() => setPeriodLen(periodLen + 1)}
+            className="glass flex h-8 w-8 items-center justify-center rounded-full text-ink"
+          >
+            ＋
+          </button>
+        </div>
       </div>
 
       {/* 概览 */}
@@ -109,7 +136,7 @@ export default function CalendarPage() {
             return (
               <button
                 key={i}
-                onClick={() => toggleDay(d)}
+                onClick={() => markFrom(d)}
                 className={[
                   'relative flex h-10 items-center justify-center rounded-xl text-sm transition',
                   isPeriod ? 'btn-primary' : isPred ? 'bg-accent/15 text-accent' : 'text-ink hover:bg-white/40',

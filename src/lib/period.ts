@@ -54,7 +54,7 @@ export interface PeriodStat {
   ovulation: string | null
 }
 
-export function computeStat(days: string[]): PeriodStat {
+export function computeStat(days: string[], periodLen?: number): PeriodStat {
   const g = groupPeriods(days)
   const starts = g.map((x) => x[0])
   let avgCycle = 28
@@ -63,8 +63,10 @@ export function computeStat(days: string[]): PeriodStat {
     for (let i = 1; i < starts.length; i++) s += diffDays(starts[i], starts[i - 1])
     avgCycle = clamp(Math.round(s / (starts.length - 1)), 21, 45)
   }
-  let avgLen = 5
-  if (g.length) avgLen = clamp(Math.round(g.reduce((a, x) => a + x.length, 0) / g.length), 2, 10)
+  // 用户设了经期天数就用它；否则按记录平均
+  let avgLen = periodLen && periodLen > 0 ? periodLen : 5
+  if (!periodLen && g.length)
+    avgLen = clamp(Math.round(g.reduce((a, x) => a + x.length, 0) / g.length), 2, 10)
 
   const today = todayStr()
   let todayDay: number | null = null
@@ -100,8 +102,8 @@ export function isPredictedPeriod(date: string, stat: PeriodStat): boolean {
 }
 
 /** 给聊天注入的生理期关心提示（无则空串） */
-export function periodChatNote(days: string[], name: string): string {
-  const st = computeStat(days)
+export function periodChatNote(days: string[], name: string, periodLen?: number): string {
+  const st = computeStat(days, periodLen)
   if (!st.hasData) return ''
   if (st.todayDay)
     return `（${name}正处在生理期第 ${st.todayDay} 天，可能小腹不适、容易累或情绪敏感。请你格外体贴温柔地关心她，自然地提醒她喝热水、别吃凉的、早点休息，别让她劳累。不要生硬说教。）`

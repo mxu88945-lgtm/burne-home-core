@@ -134,6 +134,7 @@ export default function Chat() {
   const docRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -511,7 +512,7 @@ export default function Chat() {
     let system = `${base}\n\n（当前用户本地时间：${localTime}，回应时可自然参考，不必刻意复述。）`
     const periodState = usePeriodStore.getState()
     if (periodState.inject) {
-      const note = periodChatNote(periodState.days, profile.nameA || '她')
+      const note = periodChatNote(periodState.days, profile.nameA || '她', periodState.periodLen)
       if (note) system += `\n\n${note}`
     }
 
@@ -605,7 +606,7 @@ export default function Chat() {
         </>
       )}
       {/* 滚动区：顶栏 sticky 贴顶，消息从其下方滚过（毛玻璃透出内容） */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
       {/* 角色头部（sticky 贴顶） */}
       {selectMode ? (
         <div className="glass-bar sticky top-0 z-20 flex items-center justify-between gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
@@ -867,6 +868,33 @@ export default function Chat() {
         <div ref={endRef} />
         </div>
       </div>
+
+      {/* 回顶部 / 回底部 悬浮按钮 */}
+      {!selectMode && (
+        <div className="pointer-events-none absolute bottom-24 right-3 z-10 flex flex-col gap-1.5">
+          <button
+            type="button"
+            onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+            aria-label="回到顶部"
+            className="glass-strong pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full text-sm text-ink"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              scrollRef.current?.scrollTo({
+                top: scrollRef.current.scrollHeight,
+                behavior: 'smooth',
+              })
+            }
+            aria-label="回到底部"
+            className="glass-strong pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full text-sm text-ink"
+          >
+            ↓
+          </button>
+        </div>
+      )}
 
       {/* 选择模式底部提示 */}
       {selectMode && (
