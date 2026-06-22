@@ -1,0 +1,324 @@
+import { useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useReadingStore, paginate } from '@/store/readingStore'
+import { useApiStore } from '@/store/apiStore'
+import { useSyncStore } from '@/store/syncStore'
+import { usePersonaStore } from '@/store/personaStore'
+import { useProfileStore } from '@/store/profileStore'
+import { chatComplete } from '@/api/llm'
+import type { ChatApiMessage } from '@/api/chat'
+import { readAsText } from '@/lib/file'
+import { SendIcon } from '@/components/ui/icons'
+
+function uid() {
+  return 'randomUUID' in crypto ? crypto.randomUUID() : `r-${Date.now()}-${Math.random()}`
+}
+function now() {
+  return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
+const inputCls =
+  'w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent'
+
+export default function ReadingRoom() {
+  const { book, page, messages, setBook, clearBook, setPage, setMessages } = useReadingStore()
+  const pages = useMemo(() => (book ? paginate(book.content) : []), [book])
+  const total = pages.length
+  const cur = Math.min(page, Math.max(0, total - 1))
+
+  // 导入态
+  const [title, setTitle] = useState('')
+  const [draftText, setDraftText] = useState('')
+  const [err, setErr] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  // 讨论
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [ask, setAsk] = useState('')
+  const [sending, setSending] = useState(false)
+
+  const activeChannel = useApiStore((s) => s.getActive())
+  const { config } = useSyncStore()
+  const persona = usePersonaStore((s) => s.persona)
+  const nameA = useProfileStore((s) => s.profile.nameA) || '我'
+  const taName = persona.name || '他'
+
+  async function onPickFile(file: File) {
+    setErr('')
+    try {
+      const text = await readAsText(file)
+      setDraftText(text)
+      if (!title) setTitle(file.name.replace(/\.[^.]+$/, ''))
+    } catch {
+      setErr('读取文件失败，换个 .txt 试试')
+    }
+  }
+
+  function startReading() {
+    if (!draftText.trim()) {
+      setErr('先粘贴或上传一些内容')
+      return
+    }
+    setBook(title, draftText)
+    setTitle('')
+    setDraftText('')
+    setErr('')
+  }
+
+  function go(delta: number) {
+    const next = Math.min(total - 1, Math.max(0, cur + delta))
+    if (next !== cur) setPage(next)
+  }
+
+  async function discuss() {
+    const text = ask.trim()
+    if (!text || sending) return
+    const mine = { id: uid(), role: 'me' as const, text, at: now() }
+    setMessages((prev) => [...prev, mine])
+    setAsk('')
+    if (!activeChannel) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: uid(),
+          role: 'companion',
+          text: '（还没配 API 哦～去「设置 → API · 模型」加一条渠道，我就能陪你一起读啦 ♡）',
+          at: now(),
+        },
+      ])
+      return
+    }
+    setSending(true)
+    try {
+      const sys =
+        `${persona.systemPrompt}\n\n` +
+        `[场景] 你正在和${nameA}一起读《${book!.title}》，现在读到第 ${cur + 1}/${total} 页。` +
+        `像真的一起看书那样，结合下面这页内容，用你的人格口吻和${nameA}聊：有看法、有情绪、口语化、简洁，别太长。\n\n` +
+        `[当前这页内容]\n${pages[cur]}`
+      const history: ChatApiMessage[] = [...messages, mine]
+        .slice(-8)
+        .map((m) => ({ role: m.role === 'me' ? 'user' : 'assistant', content: m.text }))
+      const r = await chatComplete(activeChannel, history, sys, {
+        temperature: persona.temperature,
+        maxTokens: Math.min(persona.maxTokens, 800),
+        workerUrl: config.workerUrl?.trim(),
+        syncKey: config.syncKey,
+      })
+      setMessages((prev) => [
+        ...prev,
+        { id: uid(), role: 'companion', text: r.text.trim(), at: now() },
+      ])
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        { id: uid(), role: 'companion', text: `（出错了：${(e as Error).message}）`, at: now() },
+      ])
+    } finally {
+      setSending(false)
+    }
+  }
+
+  /* ---------- 导入态 ---------- */
+  if (!book) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Link to="/" className="glass rounded-full px-3 py-1.5 text-xs text-ink">
+            ← 主页
+          </Link>
+        </div>
+        <div className="px-1">
+          <h2 className="headline text-2xl text-ink">一起看书 📖</h2>
+          <p className="mt-1 text-sm text-muted">导入一本书 / 一篇小说，和 TA 一起读、一起聊</p>
+        </div>
+
+        {err && <div className="text-[12px] text-red-500">{err}</div>}
+
+        <div className="glass space-y-3 rounded-3xl p-5">
+          <label className="block">
+            <span className="text-[11px] text-muted">书名（可不填）</span>
+            <input
+              className={inputCls + ' mt-1'}
+              placeholder="如 小王子"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+          </label>
+          <label className="block">
+            <span className="text-[11px] text-muted">正文（粘贴文字）</span>
+            <textarea
+              className={inputCls + ' mt-1 min-h-[200px] leading-relaxed'}
+              placeholder="把小说 / 文章的文字粘贴到这里…"
+              value={draftText}
+              onChange={(e) => setDraftText(e.target.value)}
+            />
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="glass rounded-xl px-4 py-2 text-sm text-ink"
+            >
+              上传 .txt
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".txt,.md,text/plain"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                e.target.value = ''
+                if (f) onPickFile(f)
+              }}
+            />
+            <button
+              type="button"
+              onClick={startReading}
+              className="btn-primary rounded-xl px-5 py-2 text-sm"
+            >
+              开始阅读
+            </button>
+          </div>
+          <p className="text-[11px] text-muted">书只存在你本机，不上传、不进仓库。</p>
+        </div>
+      </div>
+    )
+  }
+
+  /* ---------- 阅读态 ---------- */
+  return (
+    <div className="relative flex h-full flex-col">
+      {/* 顶栏 */}
+      <div className="flex flex-none items-center justify-between gap-2 pb-2">
+        <Link to="/" className="text-[12px] text-muted hover:text-accent">
+          ← 主页
+        </Link>
+        <div className="min-w-0 text-center">
+          <div className="headline truncate text-lg leading-none text-ink">{book.title}</div>
+          <div className="mt-0.5 text-[10px] text-muted">
+            第 {cur + 1} / {total} 页
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm('换一本书？当前的阅读进度和讨论会清空。')) clearBook()
+          }}
+          className="text-[12px] text-muted hover:text-accent"
+        >
+          重选
+        </button>
+      </div>
+
+      {/* 进度条 */}
+      <div className="mb-2 h-1 w-full overflow-hidden rounded-full bg-white/40">
+        <div
+          className="h-full bg-accent transition-all"
+          style={{ width: `${total ? ((cur + 1) / total) * 100 : 0}%` }}
+        />
+      </div>
+
+      {/* 阅读区 */}
+      <div className="glass min-h-0 flex-1 overflow-y-auto rounded-3xl p-5">
+        <p className="headline whitespace-pre-wrap text-[15px] not-italic leading-loose text-ink [overflow-wrap:anywhere]">
+          {pages[cur]}
+        </p>
+      </div>
+
+      {/* 翻页 */}
+      <div className="flex flex-none items-center gap-2 pt-2">
+        <button
+          type="button"
+          onClick={() => go(-1)}
+          disabled={cur <= 0}
+          className="glass flex-1 rounded-xl py-2.5 text-sm text-ink disabled:opacity-40"
+        >
+          ‹ 上一页
+        </button>
+        <button
+          type="button"
+          onClick={() => setPanelOpen((o) => !o)}
+          aria-label="讨论"
+          className="btn-primary rounded-xl px-4 py-2.5 text-sm"
+        >
+          💬
+        </button>
+        <button
+          type="button"
+          onClick={() => go(1)}
+          disabled={cur >= total - 1}
+          className="glass flex-1 rounded-xl py-2.5 text-sm text-ink disabled:opacity-40"
+        >
+          下一页 ›
+        </button>
+      </div>
+
+      {/* 讨论小窗 */}
+      {panelOpen && (
+        <div className="absolute inset-x-0 bottom-0 z-20 flex max-h-[62%] flex-col">
+          <div className="glass-strong flex min-h-0 flex-1 flex-col rounded-t-3xl p-3">
+            <div className="flex flex-none items-center justify-between px-1 pb-2">
+              <span className="headline text-base text-ink">和 {taName} 聊这页</span>
+              <button
+                type="button"
+                onClick={() => setPanelOpen(false)}
+                className="text-[12px] text-muted hover:text-accent"
+              >
+                收起 ▾
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-1">
+              {messages.length === 0 && (
+                <p className="px-1 pt-4 text-center text-[12px] text-muted">
+                  问问 {taName} 对这页的看法，或说说你的感受～
+                </p>
+              )}
+              {messages.map((m) => (
+                <div key={m.id} className={m.role === 'me' ? 'text-right' : 'text-left'}>
+                  <div
+                    className={[
+                      'inline-block max-w-[85%] rounded-2xl px-3 py-2 text-sm [overflow-wrap:anywhere]',
+                      m.role === 'me'
+                        ? 'btn-primary rounded-br-md'
+                        : 'glass rounded-bl-md text-ink',
+                    ].join(' ')}
+                  >
+                    <span className="whitespace-pre-wrap">{m.text}</span>
+                  </div>
+                </div>
+              ))}
+              {sending && (
+                <div className="text-left">
+                  <span className="glass inline-block rounded-2xl px-3 py-2 text-sm text-muted">
+                    {taName} 正在看这页…
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="mt-2 flex flex-none items-center gap-1 rounded-full bg-white/40 py-1.5 pl-3 pr-1.5">
+              <input
+                value={ask}
+                onChange={(e) => setAsk(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') discuss()
+                }}
+                placeholder={`和 ${taName} 说说这页…`}
+                className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted"
+              />
+              <button
+                type="button"
+                onClick={discuss}
+                disabled={sending || !ask.trim()}
+                aria-label="发送"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-accent hover:bg-white/40 disabled:opacity-40"
+              >
+                <SendIcon className="h-[17px] w-[17px]" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

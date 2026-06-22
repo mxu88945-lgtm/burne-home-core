@@ -107,7 +107,7 @@ export default function Home() {
           sub="摘要 · 核心 · 全部"
         />
         <QuickEntry to="/chat" icon="💬" title="今天聊聊" sub="说点什么吧" onClick={startBlank} />
-        <QuickEntry to="/search" icon="🔍" title="搜索回忆" sub="找回那一刻" />
+        <QuickEntry to="/reading" icon="📖" title="一起看书" sub="和 TA 共读一本书" />
         <QuickEntry to="/settings" icon="⚙️" title="设置" sub="同步 · 备份 · 隐私" />
       </section>
 

@@ -3,6 +3,7 @@ import AppLayout from '@/components/layout/AppLayout'
 import Home from '@/pages/Home'
 import MemoryLibrary from '@/pages/MemoryLibrary'
 import Chat from '@/pages/Chat'
+import ReadingRoom from '@/pages/ReadingRoom'
 import Persona from '@/pages/Persona'
 import ThemePage from '@/pages/ThemePage'
 import Search from '@/pages/Search'
@@ -26,6 +27,7 @@ export const router = createHashRouter([
       { index: true, element: <Home /> },
       { path: 'memories', element: <MemoryLibrary /> },
       { path: 'chat', element: <Chat /> },
+      { path: 'reading', element: <ReadingRoom /> },
       { path: 'persona', element: <Persona /> },
       { path: 'theme', element: <ThemePage /> },
       { path: 'search', element: <Search /> },
