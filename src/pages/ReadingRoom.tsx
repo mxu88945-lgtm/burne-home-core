@@ -88,8 +88,11 @@ export default function ReadingRoom() {
   function buildSys(idx: number) {
     return (
       `${persona.systemPrompt}\n\n` +
-      `[场景] 你正在和${nameA}一起读《${activeBook!.title}》，现在读到第 ${idx + 1}/${total} 页。` +
-      `像真的一起看书那样，结合下面这页内容，用你的人格口吻聊：有看法、有情绪、口语化、简洁，别太长。\n\n` +
+      `[一起看书 · 聊天风格（仅本场景，务必遵守）]\n` +
+      `你正在和${nameA}一起读《${activeBook!.title}》，现在读到第 ${idx + 1}/${total} 页。\n` +
+      `这里是像微信聊天一样的即时消息：请只用简短、口语化的短句，直接说出你对这页的看法 / 感受 / 吐槽。\n` +
+      `严格禁止：动作描写、神态描写、环境旁白、括号里的小动作（如「我把书放下」「侧头看你」之类一律不要）。\n` +
+      `只说话本身，几句话以内说完，别长篇大论。保留你的人格和语气即可。\n\n` +
       `[当前这页内容]\n${pages[idx]}`
     )
   }
