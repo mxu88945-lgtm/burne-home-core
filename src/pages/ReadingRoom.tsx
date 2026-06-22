@@ -35,13 +35,9 @@ export default function ReadingRoom() {
     setPage,
     setMessages,
     markCommented,
-    toggleAutoComment,
     apiChannelId,
-    setApiChannelId,
     summaryEvery,
     autoSummary,
-    setSummaryEvery,
-    toggleAutoSummary,
     addSummary,
   } = useReadingStore()
 
@@ -512,65 +508,7 @@ export default function ReadingRoom() {
           <div className="glass-strong flex min-h-0 flex-1 flex-col rounded-t-3xl p-3">
             <div className="flex flex-none items-center justify-between px-1 pb-2">
               <span className="headline text-base text-ink">和 {taName} 聊这页</span>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={toggleAutoComment}
-                  className={`text-[11px] ${autoComment ? 'text-accent' : 'text-muted'}`}
-                >
-                  {autoComment ? '✓ ' : ''}主动跟读
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPanelOpen(false)}
-                  className="text-[12px] text-muted hover:text-accent"
-                >
-                  收起 ▾
-                </button>
-              </div>
-            </div>
-            <div className="flex-none px-1 pb-2">
-              <select
-                value={apiChannelId}
-                onChange={(e) => setApiChannelId(e.target.value)}
-                className="w-full rounded-xl border border-line bg-white/40 px-2 py-1.5 text-[12px] text-ink outline-none"
-              >
-                <option value="">模型：跟随主聊天</option>
-                {channels.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name || c.model || '未命名渠道'}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {/* 剧情摘要控制 */}
-            <div className="flex flex-none flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-1 pb-2 text-[11px] text-muted">
-              <div className="flex items-center gap-1.5">
-                <span>剧情摘要</span>
-                <button
-                  type="button"
-                  onClick={() => setSummaryEvery(summaryEvery - 1)}
-                  className="glass flex h-6 w-6 items-center justify-center rounded-full text-ink"
-                >
-                  −
-                </button>
-                <span className="text-ink">每 {summaryEvery} 页</span>
-                <button
-                  type="button"
-                  onClick={() => setSummaryEvery(summaryEvery + 1)}
-                  className="glass flex h-6 w-6 items-center justify-center rounded-full text-ink"
-                >
-                  ＋
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleAutoSummary}
-                  className={autoSummary ? 'text-accent' : 'text-muted'}
-                >
-                  {autoSummary ? '自动 ✓' : '自动 ✕'}
-                </button>
-              </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 text-[12px]">
                 <button type="button" onClick={() => setReviewOpen(true)} className="text-accent">
                   📖 回顾{summaries.length ? `(${summaries.length})` : ''}
                 </button>
@@ -580,7 +518,14 @@ export default function ReadingRoom() {
                   disabled={summarizing}
                   className="text-accent disabled:opacity-50"
                 >
-                  {summarizing ? '总结中…' : '立即总结'}
+                  {summarizing ? '总结中…' : '总结'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPanelOpen(false)}
+                  className="text-muted hover:text-accent"
+                >
+                  收起 ▾
                 </button>
               </div>
             </div>

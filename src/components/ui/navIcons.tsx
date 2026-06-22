@@ -151,6 +151,16 @@ export function CompressIcon({ className }: P) {
   )
 }
 
+/** 读书 · 书本 */
+export function BookIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M4 5a2 2 0 0 1 2-2h6v17H6a2 2 0 0 0-2 2z" />
+      <path d="M20 5a2 2 0 0 0-2-2h-6v17h6a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
 /** 隐私锁 · 锁 */
 export function LockIcon({ className }: P) {
   return (

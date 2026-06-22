@@ -24,6 +24,7 @@ import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, SendIcon } from '
 import { renderRichText, stripLinks } from '@/lib/richText'
 import { usePeriodStore } from '@/store/periodStore'
 import { periodChatNote } from '@/lib/period'
+import { useTaskStore, parseTasks } from '@/store/taskStore'
 import {
   ImageIcon,
   FileIcon,
@@ -83,6 +84,12 @@ export default function Chat() {
   const autoMemory = useChatPrefsStore((s) => s.autoMemory)
   const flat = useChatPrefsStore((s) => s.chatStyle) === 'flat'
   const showLinks = useChatPrefsStore((s) => s.showLinks)
+  const allowTasks = useChatPrefsStore((s) => s.allowTasks)
+  const tasks = useTaskStore((s) => s.tasks)
+  const addTask = useTaskStore((s) => s.addTask)
+  const completeTask = useTaskStore((s) => s.complete)
+  const cancelTask = useTaskStore((s) => s.cancel)
+  const [nowTs, setNowTs] = useState(Date.now())
   const addMemory = useMemoryStore((s) => s.addMemory)
   const memoriesRef = useMemoryStore((s) => s.memories)
   const { chatBg, chatBgDim, chatBgOpacity, chatBgBlur, chatBgFit } = useAppearanceStore(
@@ -177,6 +184,14 @@ export default function Chat() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
+
+  // 有进行中的任务时每秒刷新倒计时
+  const hasActiveTask = tasks.some((t) => t.status === 'active')
+  useEffect(() => {
+    if (!hasActiveTask) return
+    const id = setInterval(() => setNowTs(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [hasActiveTask])
 
   function copyText(id: string, text: string) {
     navigator.clipboard?.writeText(text).then(
@@ -515,6 +530,9 @@ export default function Chat() {
       const note = periodChatNote(periodState.days, profile.nameA || '她', periodState.periodLen)
       if (note) system += `\n\n${note}`
     }
+    if (allowTasks) {
+      system += `\n\n（你可以在合适时机给${profile.nameA || '她'}下一个带倒计时的小任务来关心她，比如喝水、起身活动、早点睡。需要时在回复最后单独一行用这个格式输出：[[task|分钟数|任务内容]]，例如 [[task|2|去喝一杯水，不是奶茶不是咖啡，白水]]。一次最多一个、别频繁；不需要就别输出，正常聊天即可。）`
+    }
 
     setSending(true)
     try {
@@ -555,6 +573,14 @@ export default function Chat() {
           temperature: persona.temperature,
           maxTokens: persona.maxTokens,
         })
+      }
+      // 解析 TA 下的任务标记 → 生成倒计时任务卡，并从正文移除标记
+      if (allowTasks && reply) {
+        const { tasks: parsed, clean } = parseTasks(reply)
+        if (parsed.length) {
+          parsed.forEach((t) => addTask(t.text, t.minutes))
+          reply = clean
+        }
       }
       setMessages((prev) => [
         ...prev,
@@ -906,6 +932,50 @@ export default function Chat() {
       {/* 输入栏 + 模型条（钉在底部，不滚） */}
       {!selectMode && (
       <div className="flex-none px-4 pt-2">
+        {/* TA 下的任务卡（倒计时） */}
+        {tasks
+          .filter((t) => t.status === 'active')
+          .map((t) => {
+            const remain = Math.max(0, t.deadline - nowTs)
+            const mm = String(Math.floor(remain / 60000)).padStart(2, '0')
+            const ss = String(Math.floor((remain % 60000) / 1000)).padStart(2, '0')
+            const pct = Math.max(0, Math.min(100, (remain / (t.minutes * 60000)) * 100))
+            const over = remain <= 0
+            return (
+              <div key={t.id} className="glass-strong mb-2 rounded-2xl p-3">
+                <div className="flex items-center gap-1.5 text-[11px] text-accent">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                  指令
+                </div>
+                <div className="mt-1 text-sm text-ink [overflow-wrap:anywhere]">{t.text}</div>
+                <div className="mt-1 flex items-baseline gap-2">
+                  <span className="headline text-2xl not-italic text-ink">
+                    {over ? '时间到 ⏰' : `${mm}:${ss}`}
+                  </span>
+                  {!over && <span className="text-[11px] text-muted">还剩</span>}
+                </div>
+                <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/40">
+                  <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => completeTask(t.id)}
+                    className="btn-primary flex-1 rounded-xl py-2 text-sm"
+                  >
+                    完成
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => cancelTask(t.id)}
+                    className="glass rounded-xl px-5 py-2 text-sm text-ink"
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            )
+          })}
         {ttsError && (
           <div className="mb-1 px-2 text-center text-[11px] text-red-500">
             朗读失败：{ttsError}

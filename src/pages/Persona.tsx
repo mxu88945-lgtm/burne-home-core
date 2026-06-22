@@ -17,6 +17,8 @@ export default function Persona() {
   const toggleAutoMemory = useChatPrefsStore((s) => s.toggleAutoMemory)
   const showLinks = useChatPrefsStore((s) => s.showLinks)
   const toggleShowLinks = useChatPrefsStore((s) => s.toggleShowLinks)
+  const allowTasks = useChatPrefsStore((s) => s.allowTasks)
+  const toggleAllowTasks = useChatPrefsStore((s) => s.toggleAllowTasks)
   const [promptOpen, setPromptOpen] = useState(false)
 
   return (
@@ -181,6 +183,20 @@ export default function Persona() {
             type="checkbox"
             checked={showLinks}
             onChange={toggleShowLinks}
+            className="h-5 w-5 accent-accent"
+          />
+        </label>
+        <label className="flex items-center justify-between">
+          <span className="text-sm text-ink">
+            允许 TA 给我下任务
+            <span className="block text-[11px] text-muted">
+              TA 可在合适时给你带倒计时的小提醒（喝水/休息…），聊天底部出现可完成/取消的任务卡
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={allowTasks}
+            onChange={toggleAllowTasks}
             className="h-5 w-5 accent-accent"
           />
         </label>

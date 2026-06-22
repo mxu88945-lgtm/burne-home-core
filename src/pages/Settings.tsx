@@ -13,6 +13,7 @@ import {
   ChartIcon,
   ArchiveIcon,
   LockIcon,
+  BookIcon,
 } from '@/components/ui/navIcons'
 
 type IconType = ComponentType<{ className?: string }>
@@ -21,6 +22,7 @@ const ITEMS: { to: string; Icon: IconType; title: string; sub: string }[] = [
   { to: '/theme', Icon: PaletteIcon, title: '主题', sub: '外观配色' },
   { to: '/settings/appearance', Icon: ImageIcon, title: '形象 · 外观', sub: '头像 · 聊天背景' },
   { to: '/persona', Icon: PersonIcon, title: '角色人设', sub: '灵魂设定与参数' },
+  { to: '/settings/reading', Icon: BookIcon, title: '读书', sub: '独立模型 · 剧情摘要 · 跟读' },
   { to: '/settings/sync', Icon: CloudIcon, title: '账号 · 多设备同步', sub: 'Supabase 登录共享' },
   { to: '/settings/api', Icon: ChipIcon, title: 'API · 模型', sub: '渠道与模型管理' },
   { to: '/settings/tts', Icon: SpeakerWaveIcon, title: '语音朗读', sub: 'MiniMax 海螺 TTS' },

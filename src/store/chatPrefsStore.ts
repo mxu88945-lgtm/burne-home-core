@@ -17,15 +17,24 @@ interface ChatPrefs {
   chatStyle: ChatStyle
   /** 回复里显示链接来源（默认关：隐藏联网引用的域名链接） */
   showLinks: boolean
+  /** 允许 TA 给我下带倒计时的小任务/提醒 */
+  allowTasks: boolean
 }
 
-const DEFAULT: ChatPrefs = { webSearch: false, autoMemory: false, chatStyle: 'bubble', showLinks: false }
+const DEFAULT: ChatPrefs = {
+  webSearch: false,
+  autoMemory: false,
+  chatStyle: 'bubble',
+  showLinks: false,
+  allowTasks: false,
+}
 
 interface ChatPrefsState extends ChatPrefs {
   toggleWebSearch: () => void
   toggleAutoMemory: () => void
   setChatStyle: (s: ChatStyle) => void
   toggleShowLinks: () => void
+  toggleAllowTasks: () => void
 }
 
 const init = { ...DEFAULT, ...readJSON<Partial<ChatPrefs>>(STORAGE_KEYS.chatprefs, {}) }
@@ -35,6 +44,7 @@ export const useChatPrefsStore = create<ChatPrefsState>((set, get) => ({
   autoMemory: init.autoMemory,
   chatStyle: init.chatStyle,
   showLinks: init.showLinks,
+  allowTasks: init.allowTasks,
   toggleWebSearch: () => {
     const webSearch = !get().webSearch
     writeJSON(STORAGE_KEYS.chatprefs, { ...pick(get()), webSearch })
@@ -54,6 +64,11 @@ export const useChatPrefsStore = create<ChatPrefsState>((set, get) => ({
     writeJSON(STORAGE_KEYS.chatprefs, { ...pick(get()), showLinks })
     set({ showLinks })
   },
+  toggleAllowTasks: () => {
+    const allowTasks = !get().allowTasks
+    writeJSON(STORAGE_KEYS.chatprefs, { ...pick(get()), allowTasks })
+    set({ allowTasks })
+  },
 }))
 
 function pick(s: ChatPrefsState): ChatPrefs {
@@ -62,5 +77,6 @@ function pick(s: ChatPrefsState): ChatPrefs {
     autoMemory: s.autoMemory,
     chatStyle: s.chatStyle,
     showLinks: s.showLinks,
+    allowTasks: s.allowTasks,
   }
 }
