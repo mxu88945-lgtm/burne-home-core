@@ -16,6 +16,14 @@ export interface ReadingMsg {
   at: string
 }
 
+/** 一段剧情摘要（剧情记忆） */
+export interface PlotSummary {
+  /** 覆盖到第几页（0 起，含） */
+  toPage: number
+  text: string
+  at: string
+}
+
 /** 书架上的一本书（不含正文；正文按 contentKey 存 IndexedDB） */
 export interface ShelfBook {
   id: string
@@ -24,6 +32,8 @@ export interface ShelfBook {
   page: number
   messages: ReadingMsg[]
   commented: number[]
+  /** 剧情摘要记忆（按阅读进度累积） */
+  summaries?: PlotSummary[]
   /** 正文在 IndexedDB 里的 key */
   contentKey: string
 }
@@ -73,12 +83,31 @@ function loadPersisted(): Persisted {
 }
 
 const init = loadPersisted()
-const apiInit = readJSON<{ id?: string }>(STORAGE_KEYS.readingApi, {})
+
+interface ReadingPrefs {
+  id: string
+  summaryEvery: number
+  autoSummary: boolean
+}
+const prefsInit = {
+  id: '',
+  summaryEvery: 10,
+  autoSummary: true,
+  ...readJSON<Partial<ReadingPrefs>>(STORAGE_KEYS.readingApi, {}),
+}
 
 interface ReadingState extends Persisted {
   /** 读书讨论用的渠道 id（''=跟随主聊天的激活渠道）；独立于主页 */
   apiChannelId: string
+  /** 每多少页自动生成一段剧情摘要 */
+  summaryEvery: number
+  /** 是否自动生成剧情摘要 */
+  autoSummary: boolean
   setApiChannelId: (id: string) => void
+  setSummaryEvery: (n: number) => void
+  toggleAutoSummary: () => void
+  /** 给当前书追加一段剧情摘要 */
+  addSummary: (text: string, toPage: number) => void
   /** 当前打开的书的正文（从 IndexedDB 异步载入） */
   content: string
   /** 当前书正文是否载入完成 */
@@ -102,13 +131,45 @@ export const useReadingStore = create<ReadingState>((set, get) => ({
   books: init.books,
   activeId: init.activeId,
   autoComment: init.autoComment,
-  apiChannelId: apiInit.id || '',
+  apiChannelId: prefsInit.id || '',
+  summaryEvery: prefsInit.summaryEvery || 10,
+  autoSummary: prefsInit.autoSummary !== false,
   content: '',
   loaded: init.activeId === '',
 
   setApiChannelId: (id) => {
-    writeJSON(STORAGE_KEYS.readingApi, { id })
+    writeJSON(STORAGE_KEYS.readingApi, {
+      id,
+      summaryEvery: get().summaryEvery,
+      autoSummary: get().autoSummary,
+    })
     set({ apiChannelId: id })
+  },
+  setSummaryEvery: (n) => {
+    const summaryEvery = Math.max(3, Math.min(30, Math.round(n) || 10))
+    writeJSON(STORAGE_KEYS.readingApi, {
+      id: get().apiChannelId,
+      summaryEvery,
+      autoSummary: get().autoSummary,
+    })
+    set({ summaryEvery })
+  },
+  toggleAutoSummary: () => {
+    const autoSummary = !get().autoSummary
+    writeJSON(STORAGE_KEYS.readingApi, {
+      id: get().apiChannelId,
+      summaryEvery: get().summaryEvery,
+      autoSummary,
+    })
+    set({ autoSummary })
+  },
+  addSummary: (text, toPage) => {
+    const cur = get().books.find((b) => b.id === get().activeId)
+    if (!cur) return
+    const summaries = [...(cur.summaries ?? []), { text, toPage, at: new Date().toISOString() }]
+    const books = get().books.map((b) => (b.id === get().activeId ? { ...b, summaries } : b))
+    persist(books, get().activeId, get().autoComment)
+    set({ books })
   },
 
   loadActive: async () => {

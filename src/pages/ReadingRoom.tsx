@@ -38,6 +38,11 @@ export default function ReadingRoom() {
     toggleAutoComment,
     apiChannelId,
     setApiChannelId,
+    summaryEvery,
+    autoSummary,
+    setSummaryEvery,
+    toggleAutoSummary,
+    addSummary,
   } = useReadingStore()
 
   const activeBook = books.find((b) => b.id === activeId) || null
@@ -46,6 +51,8 @@ export default function ReadingRoom() {
   const cur = Math.min(activeBook?.page ?? 0, Math.max(0, total - 1))
   const messages = activeBook?.messages ?? []
   const commented = activeBook?.commented ?? []
+  const summaries = activeBook?.summaries ?? []
+  const lastCovered = summaries.length ? summaries[summaries.length - 1].toPage : -1
 
   // 导入态
   const [importing, setImporting] = useState(false)
@@ -59,7 +66,10 @@ export default function ReadingRoom() {
   const [ask, setAsk] = useState('')
   const [sending, setSending] = useState(false)
   const [unread, setUnread] = useState(false)
+  const [summarizing, setSummarizing] = useState(false)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const busyRef = useRef(false)
+  const sumBusyRef = useRef(false)
   const readerRef = useRef<HTMLDivElement>(null)
   const touchRef = useRef<{ x: number; y: number } | null>(null)
   const discListRef = useRef<HTMLDivElement>(null)
@@ -90,9 +100,16 @@ export default function ReadingRoom() {
     if (el) el.scrollTop = el.scrollHeight
   }, [messages.length, panelOpen, sending])
 
+  function recap() {
+    if (!summaries.length) return ''
+    const all = summaries.map((s) => s.text).join('\n\n')
+    const trimmed = all.length > 1800 ? all.slice(-1800) : all
+    return `\n\n[前情提要（你和${nameA}一起读到现在的剧情与你俩的讨论/预测，请记住并自然延续，别自相矛盾）]\n${trimmed}`
+  }
+
   function buildSys(idx: number) {
     return (
-      `${persona.systemPrompt}\n\n` +
+      `${persona.systemPrompt}${recap()}\n\n` +
       `[一起看书 · 聊天风格（仅本场景，务必遵守）]\n` +
       `你正在和${nameA}一起读《${activeBook!.title}》，现在读到第 ${idx + 1}/${total} 页。\n` +
       `这里是像微信聊天一样的即时消息：请只用简短、口语化的短句，直接说出你对这页的看法 / 感受 / 吐槽。\n` +
@@ -178,6 +195,52 @@ export default function ReadingRoom() {
       setSending(false)
     }
   }
+
+  /** 生成一段剧情摘要（覆盖 lastCovered+1 .. toPage） */
+  async function generateSummary(toPage: number) {
+    if (!activeChannel || !activeBook || sumBusyRef.current) return
+    const from = lastCovered + 1
+    if (toPage < from) return
+    sumBusyRef.current = true
+    setSummarizing(true)
+    try {
+      const segText = pages.slice(from, toPage + 1).join('\n\n').slice(0, 8000)
+      const disc = messages
+        .slice(-12)
+        .map((m) => `${m.role === 'me' ? nameA : taName}：${m.text}`)
+        .join('\n')
+      const prev = summaries.length ? summaries[summaries.length - 1].text : ''
+      const sys = '你是剧情记录助手，只输出简洁中文摘要正文，不要寒暄、不要客套。'
+      const ask =
+        `《${activeBook.title}》第 ${from + 1}~${toPage + 1} 页内容：\n${segText}\n\n` +
+        (disc ? `我们（${nameA} 与 ${taName}）这段的讨论：\n${disc}\n\n` : '') +
+        (prev ? `已有前情提要（接着写、别重复）：\n${prev}\n\n` : '') +
+        `请输出这一段的「剧情摘要」：先 3~5 句讲清这几页发生了什么；再用一两句概括「${nameA} 和 ${taName} 各自的看法或预测」（没有讨论就略过）。控制在 180 字内。`
+      const r = await chatComplete(activeChannel, [{ role: 'user', content: ask }], sys, {
+        temperature: 0.5,
+        maxTokens: 600,
+        workerUrl: config.workerUrl?.trim(),
+        syncKey: config.syncKey,
+      })
+      const text = r.text.trim()
+      if (text) addSummary(text, toPage)
+    } catch {
+      /* 静默 */
+    } finally {
+      sumBusyRef.current = false
+      setSummarizing(false)
+    }
+  }
+
+  // 每读够 summaryEvery 页，自动生成一段剧情摘要
+  useEffect(() => {
+    if (!loaded || !autoSummary || !activeBook || !content || !activeChannel) return
+    if (cur - lastCovered >= summaryEvery) {
+      const t = setTimeout(() => generateSummary(lastCovered + summaryEvery), 1800)
+      return () => clearTimeout(t)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cur, autoSummary, summaryEvery, lastCovered, activeChannel, loaded])
 
   // 翻到新页且开启「主动跟读」时，停留一会儿后让 TA 主动冒观点
   useEffect(() => {
@@ -480,6 +543,47 @@ export default function ReadingRoom() {
                 ))}
               </select>
             </div>
+            {/* 剧情摘要控制 */}
+            <div className="flex flex-none flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-1 pb-2 text-[11px] text-muted">
+              <div className="flex items-center gap-1.5">
+                <span>剧情摘要</span>
+                <button
+                  type="button"
+                  onClick={() => setSummaryEvery(summaryEvery - 1)}
+                  className="glass flex h-6 w-6 items-center justify-center rounded-full text-ink"
+                >
+                  −
+                </button>
+                <span className="text-ink">每 {summaryEvery} 页</span>
+                <button
+                  type="button"
+                  onClick={() => setSummaryEvery(summaryEvery + 1)}
+                  className="glass flex h-6 w-6 items-center justify-center rounded-full text-ink"
+                >
+                  ＋
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleAutoSummary}
+                  className={autoSummary ? 'text-accent' : 'text-muted'}
+                >
+                  {autoSummary ? '自动 ✓' : '自动 ✕'}
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={() => setReviewOpen(true)} className="text-accent">
+                  📖 回顾{summaries.length ? `(${summaries.length})` : ''}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => generateSummary(cur)}
+                  disabled={summarizing}
+                  className="text-accent disabled:opacity-50"
+                >
+                  {summarizing ? '总结中…' : '立即总结'}
+                </button>
+              </div>
+            </div>
             <div ref={discListRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-1">
               {messages.length === 0 && (
                 <p className="px-1 pt-4 text-center text-[12px] text-muted">
@@ -525,6 +629,46 @@ export default function ReadingRoom() {
               >
                 <SendIcon className="h-[17px] w-[17px]" />
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 剧情回顾 */}
+      {reviewOpen && (
+        <div
+          className="absolute inset-0 z-30 flex flex-col bg-black/40"
+          onClick={() => setReviewOpen(false)}
+        >
+          <div
+            className="glass-strong mt-auto flex max-h-[78%] flex-col rounded-t-3xl p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex flex-none items-center justify-between pb-2">
+              <span className="headline text-base text-ink">剧情回顾 📖</span>
+              <button
+                type="button"
+                onClick={() => setReviewOpen(false)}
+                className="text-[12px] text-muted hover:text-accent"
+              >
+                关闭
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
+              {summaries.length === 0 ? (
+                <p className="pt-6 text-center text-[12px] text-muted">
+                  还没有剧情摘要～读够 {summaryEvery} 页会自动生成，或点「立即总结」。
+                </p>
+              ) : (
+                summaries.map((s, i) => (
+                  <div key={i} className="glass rounded-2xl p-3">
+                    <div className="label mb-1">到第 {s.toPage + 1} 页</div>
+                    <p className="whitespace-pre-wrap text-[13px] leading-relaxed text-ink [overflow-wrap:anywhere]">
+                      {s.text}
+                    </p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
