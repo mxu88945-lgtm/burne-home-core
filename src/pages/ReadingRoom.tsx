@@ -59,7 +59,7 @@ export default function ReadingRoom() {
   const [unread, setUnread] = useState(false)
   const busyRef = useRef(false)
   const readerRef = useRef<HTMLDivElement>(null)
-  const touchX = useRef<number | null>(null)
+  const touchRef = useRef<{ x: number; y: number } | null>(null)
   const discListRef = useRef<HTMLDivElement>(null)
 
   const activeChannel = useApiStore((s) => s.getActive())
@@ -119,7 +119,7 @@ export default function ReadingRoom() {
         .map((m) => ({ role: m.role === 'me' ? 'user' : 'assistant', content: m.text }))
       const r = await chatComplete(activeChannel, history, buildSys(cur), {
         temperature: persona.temperature,
-        maxTokens: Math.min(persona.maxTokens, 800),
+        maxTokens: Math.min(persona.maxTokens, 1500),
         workerUrl: config.workerUrl?.trim(),
         syncKey: config.syncKey,
       })
@@ -153,7 +153,7 @@ export default function ReadingRoom() {
       ]
       const r = await chatComplete(activeChannel, history, buildSys(idx), {
         temperature: persona.temperature,
-        maxTokens: 360,
+        maxTokens: 800,
         workerUrl: config.workerUrl?.trim(),
         syncKey: config.syncKey,
       })
@@ -374,14 +374,25 @@ export default function ReadingRoom() {
       {/* 阅读区（左右滑动翻页） */}
       <div
         ref={readerRef}
+        style={{ touchAction: 'pan-y' }}
         onTouchStart={(e) => {
-          touchX.current = e.touches[0].clientX
+          const t = e.touches[0]
+          touchRef.current = { x: t.clientX, y: t.clientY }
         }}
         onTouchEnd={(e) => {
-          if (touchX.current == null) return
-          const dx = e.changedTouches[0].clientX - touchX.current
-          touchX.current = null
-          if (Math.abs(dx) > 50) (dx < 0 ? go(1) : go(-1))
+          const s = touchRef.current
+          touchRef.current = null
+          if (!s) return
+          const t = e.changedTouches[0]
+          const dx = t.clientX - s.x
+          const dy = t.clientY - s.y
+          if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+            if (dx < 0) go(1)
+            else go(-1)
+          }
+        }}
+        onTouchCancel={() => {
+          touchRef.current = null
         }}
         className="glass min-h-0 flex-1 overflow-y-auto rounded-3xl p-5"
       >
