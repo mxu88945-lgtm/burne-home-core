@@ -23,10 +23,12 @@ const inputCls =
 export default function ReadingRoom() {
   const {
     book,
+    loaded,
     page,
     messages,
     autoComment,
     commented,
+    loadContent,
     setBook,
     clearBook,
     setPage,
@@ -176,12 +178,32 @@ export default function ReadingRoom() {
 
   // 翻到新页且开启「主动跟读」时，停留一会儿后让 TA 主动冒观点
   useEffect(() => {
-    if (!autoComment || !book || !activeChannel || total === 0) return
+    if (!loaded || !autoComment || !book || !book.content || !activeChannel || total === 0) return
     if (commented.includes(cur)) return
     const t = setTimeout(() => commentOnPage(cur), 1400)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cur, autoComment, total, activeChannel])
+  }, [cur, autoComment, total, activeChannel, loaded])
+
+  // 进房间时从 IndexedDB 异步载入书正文
+  useEffect(() => {
+    loadContent()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function jumpPage() {
+    const v = window.prompt(`跳到第几页？（1 - ${total}）`, String(cur + 1))
+    if (v == null) return
+    const n = parseInt(v, 10)
+    if (!Number.isNaN(n)) setPage(Math.min(total - 1, Math.max(0, n - 1)))
+  }
+
+  /* ---------- 载入中 ---------- */
+  if (!loaded) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted">载入中…</div>
+    )
+  }
 
   /* ---------- 导入态 ---------- */
   if (!book) {
@@ -278,12 +300,12 @@ export default function ReadingRoom() {
         <Link to="/" className="text-[12px] text-muted hover:text-accent">
           ← 主页
         </Link>
-        <div className="min-w-0 text-center">
+        <button type="button" onClick={jumpPage} className="min-w-0 text-center">
           <div className="headline truncate text-lg leading-none text-ink">{book.title}</div>
           <div className="mt-0.5 text-[10px] text-muted">
-            第 {cur + 1} / {total} 页
+            第 {cur + 1} / {total} 页 · 点这里跳页
           </div>
-        </div>
+        </button>
         <button
           type="button"
           onClick={() => {
