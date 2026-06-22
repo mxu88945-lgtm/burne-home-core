@@ -201,20 +201,20 @@ export default function Chat() {
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
   function completeTask(id: string) {
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === id && m.task
-          ? { ...m, task: { ...m.task, status: 'done', doneAt: Date.now() } }
-          : m,
-      ),
+    const updated = messages.map((m) =>
+      m.id === id && m.task
+        ? { ...m, task: { ...m.task, status: 'done' as const, doneAt: Date.now() } }
+        : m,
     )
+    setMessages(updated)
+    if (connected && !sending) void respond(updated)
   }
   function cancelTask(id: string) {
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.id === id && m.task ? { ...m, task: { ...m.task, status: 'cancelled' } } : m,
-      ),
+    const updated = messages.map((m) =>
+      m.id === id && m.task ? { ...m, task: { ...m.task, status: 'cancelled' as const } } : m,
     )
+    setMessages(updated)
+    if (connected && !sending) void respond(updated)
   }
 
   function copyText(id: string, text: string) {
@@ -503,18 +503,18 @@ export default function Chat() {
       .filter((m) => m.text.trim() || m.image || m.file || m.task)
       .map((m) => {
         const role = m.role === 'me' ? ('user' as const) : ('assistant' as const)
-        // 任务消息 → 给模型一段可读说明，让它知道任务状态并能接话
+        // 任务消息 → 以「我向 TA 汇报」的用户口吻表达，让模型自然接话
         if (m.task) {
           const tk = m.task
-          let note = `［你给对方下的任务：${tk.text}，限时${tk.minutes}分钟］`
+          let note = `（你给我下了任务：${tk.text}，限时${tk.minutes}分钟，我还在进行。）`
           if (tk.status === 'done' && tk.doneAt) {
             const used = Math.round((tk.doneAt - tk.startedAt) / 1000)
             const diff = Math.round((tk.deadline - tk.doneAt) / 1000)
-            note = `［任务「${tk.text}」已完成，用时${used}秒，${diff >= 0 ? `提前${diff}秒` : `超时${-diff}秒`}］`
+            note = `（我完成了你下的任务：${tk.text}，用时${used}秒，${diff >= 0 ? `提前${diff}秒` : `超时${-diff}秒`}。）`
           } else if (tk.status === 'cancelled') {
-            note = `［任务「${tk.text}」被对方取消了］`
+            note = `（我取消了你下的任务：${tk.text}。）`
           }
-          return { role, content: note }
+          return { role: 'user' as const, content: note }
         }
         // 文本（含文件信息：文本文件带内容，二进制只附说明）
         let textPart = m.text.trim()
