@@ -107,14 +107,21 @@ export default function Home() {
         </p>
       </section>
 
-      {/* 在一起的天数 */}
-      <section className="glass rounded-3xl px-6 py-6 text-center">
+      {/* 在一起的天数（点击改纪念日） */}
+      <button
+        type="button"
+        onClick={() => {
+          const v = window.prompt('你们在一起的纪念日（如 2025-05-01）', profile.anniversary)
+          if (v == null) return
+          const norm = v.trim().replace(/[./]/g, '-')
+          if (norm) setProfile({ anniversary: norm })
+        }}
+        className="glass w-full rounded-3xl px-6 py-6 text-center transition active:scale-[0.99]"
+      >
         <div className="text-5xl font-semibold text-accent">{days}</div>
         <div className="label mt-1">一起的 {days} 天</div>
-        <div className="mt-1 text-[11px] text-muted">
-          Since {profile.anniversary}
-        </div>
-      </section>
+        <div className="mt-1 text-[11px] text-muted">Since {profile.anniversary} · 点这里改</div>
+      </button>
 
       {/* 生理期日历卡 */}
       <Link

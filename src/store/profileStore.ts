@@ -45,9 +45,10 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   },
 }))
 
-/** 计算在一起的天数（>= 0） */
+/** 计算在一起的天数（>= 0）。容错：支持 2025-05-01 / 2025.5.1 / 2025/5/1 */
 export function daysTogether(anniversary: string): number {
-  const start = new Date(anniversary + 'T00:00:00')
+  const norm = (anniversary || '').trim().replace(/[./]/g, '-')
+  const start = new Date(norm + 'T00:00:00')
   if (Number.isNaN(start.getTime())) return 0
   const today = new Date()
   const diff = today.getTime() - start.getTime()
