@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useReadingStore, paginate } from '@/store/readingStore'
 import { useApiStore } from '@/store/apiStore'
@@ -21,7 +21,19 @@ const inputCls =
   'w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent'
 
 export default function ReadingRoom() {
-  const { book, page, messages, setBook, clearBook, setPage, setMessages } = useReadingStore()
+  const {
+    book,
+    page,
+    messages,
+    autoComment,
+    commented,
+    setBook,
+    clearBook,
+    setPage,
+    setMessages,
+    toggleAutoComment,
+    markCommented,
+  } = useReadingStore()
   const pages = useMemo(() => (book ? paginate(book.content) : []), [book])
   const total = pages.length
   const cur = Math.min(page, Math.max(0, total - 1))
@@ -36,6 +48,8 @@ export default function ReadingRoom() {
   const [panelOpen, setPanelOpen] = useState(false)
   const [ask, setAsk] = useState('')
   const [sending, setSending] = useState(false)
+  const [unread, setUnread] = useState(false)
+  const busyRef = useRef(false)
 
   const activeChannel = useApiStore((s) => s.getActive())
   const { config } = useSyncStore()
@@ -70,6 +84,15 @@ export default function ReadingRoom() {
     if (next !== cur) setPage(next)
   }
 
+  function buildSys(idx: number) {
+    return (
+      `${persona.systemPrompt}\n\n` +
+      `[场景] 你正在和${nameA}一起读《${book!.title}》，现在读到第 ${idx + 1}/${total} 页。` +
+      `像真的一起看书那样，结合下面这页内容，用你的人格口吻聊：有看法、有情绪、口语化、简洁，别太长。\n\n` +
+      `[当前这页内容]\n${pages[idx]}`
+    )
+  }
+
   async function discuss() {
     const text = ask.trim()
     if (!text || sending) return
@@ -90,11 +113,7 @@ export default function ReadingRoom() {
     }
     setSending(true)
     try {
-      const sys =
-        `${persona.systemPrompt}\n\n` +
-        `[场景] 你正在和${nameA}一起读《${book!.title}》，现在读到第 ${cur + 1}/${total} 页。` +
-        `像真的一起看书那样，结合下面这页内容，用你的人格口吻和${nameA}聊：有看法、有情绪、口语化、简洁，别太长。\n\n` +
-        `[当前这页内容]\n${pages[cur]}`
+      const sys = buildSys(cur)
       const history: ChatApiMessage[] = [...messages, mine]
         .slice(-8)
         .map((m) => ({ role: m.role === 'me' ? 'user' : 'assistant', content: m.text }))
@@ -117,6 +136,52 @@ export default function ReadingRoom() {
       setSending(false)
     }
   }
+
+  /** TA 主动读这页并冒观点（翻到新页时触发，每页只评一次） */
+  async function commentOnPage(idx: number) {
+    if (!activeChannel || !book || busyRef.current) return
+    if (commented.includes(idx)) return
+    busyRef.current = true
+    setSending(true)
+    try {
+      const nudge: ChatApiMessage = {
+        role: 'user',
+        content: `（我们一起翻到了第 ${idx + 1} 页，你看完这页，主动说一两句你的看法或感受，不用等我开口。）`,
+      }
+      const history: ChatApiMessage[] = [
+        ...messages.slice(-4).map(
+          (m) => ({ role: m.role === 'me' ? 'user' : 'assistant', content: m.text }) as ChatApiMessage,
+        ),
+        nudge,
+      ]
+      const r = await chatComplete(activeChannel, history, buildSys(idx), {
+        temperature: persona.temperature,
+        maxTokens: 240,
+        workerUrl: config.workerUrl?.trim(),
+        syncKey: config.syncKey,
+      })
+      const text = r.text.trim()
+      if (text) {
+        setMessages((prev) => [...prev, { id: uid(), role: 'companion', text, at: now() }])
+        if (!panelOpen) setUnread(true)
+      }
+      markCommented(idx)
+    } catch {
+      /* 主动评论失败就静默，不打扰阅读 */
+    } finally {
+      busyRef.current = false
+      setSending(false)
+    }
+  }
+
+  // 翻到新页且开启「主动跟读」时，停留一会儿后让 TA 主动冒观点
+  useEffect(() => {
+    if (!autoComment || !book || !activeChannel || total === 0) return
+    if (commented.includes(cur)) return
+    const t = setTimeout(() => commentOnPage(cur), 1400)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cur, autoComment, total, activeChannel])
 
   /* ---------- 导入态 ---------- */
   if (!book) {
@@ -182,6 +247,25 @@ export default function ReadingRoom() {
           </div>
           <p className="text-[11px] text-muted">书只存在你本机，不上传、不进仓库。</p>
         </div>
+
+        <details className="glass rounded-2xl p-4 text-[12px] text-ink">
+          <summary className="cursor-pointer text-sm font-medium">怎么弄到书的文字？📥</summary>
+          <div className="mt-2 space-y-2 leading-relaxed text-muted">
+            <p>
+              <b className="text-ink">最简单：复制粘贴。</b>{' '}
+              在浏览器/看书 App 里选中小说文字 → 复制 → 回到这里长按输入框「粘贴」。一次贴一章也行。
+            </p>
+            <p>
+              <b className="text-ink">下载 txt 文件：</b>{' '}
+              很多免费书站能下 .txt（搜「书名 txt 下载」）。iPhone 上下好后会进「文件」App，
+              回这里点「上传 .txt」→ 在「文件」里选它。
+            </p>
+            <p>
+              公版老书（鲁迅、四大名著、外国名著等）可在「古登堡计划 / 中国哲学书电子化计划」等站免费拿全文。
+            </p>
+            <p>太长也没事：每次只把你正在读的「这一页」发给 TA，不会一下子烧很多 token。</p>
+          </div>
+        </details>
       </div>
     )
   }
@@ -238,11 +322,17 @@ export default function ReadingRoom() {
         </button>
         <button
           type="button"
-          onClick={() => setPanelOpen((o) => !o)}
+          onClick={() => {
+            setUnread(false)
+            setPanelOpen((o) => !o)
+          }}
           aria-label="讨论"
-          className="btn-primary rounded-xl px-4 py-2.5 text-sm"
+          className="btn-primary relative rounded-xl px-4 py-2.5 text-sm"
         >
           💬
+          {unread && !panelOpen && (
+            <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white/70" />
+          )}
         </button>
         <button
           type="button"
@@ -260,13 +350,22 @@ export default function ReadingRoom() {
           <div className="glass-strong flex min-h-0 flex-1 flex-col rounded-t-3xl p-3">
             <div className="flex flex-none items-center justify-between px-1 pb-2">
               <span className="headline text-base text-ink">和 {taName} 聊这页</span>
-              <button
-                type="button"
-                onClick={() => setPanelOpen(false)}
-                className="text-[12px] text-muted hover:text-accent"
-              >
-                收起 ▾
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={toggleAutoComment}
+                  className={`text-[11px] ${autoComment ? 'text-accent' : 'text-muted'}`}
+                >
+                  {autoComment ? '✓ ' : ''}主动跟读
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPanelOpen(false)}
+                  className="text-[12px] text-muted hover:text-accent"
+                >
+                  收起 ▾
+                </button>
+              </div>
             </div>
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-1">
               {messages.length === 0 && (
