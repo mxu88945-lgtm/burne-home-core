@@ -705,7 +705,7 @@ export default function Chat() {
               <div
                 className={
                   flat
-                    ? 'flex w-full min-w-0 flex-col'
+                    ? `flex w-full min-w-0 flex-col ${me ? 'items-end' : ''}`
                     : `flex min-w-0 max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`
                 }
               >
