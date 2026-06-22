@@ -36,6 +36,8 @@ export default function ReadingRoom() {
     setMessages,
     markCommented,
     toggleAutoComment,
+    apiChannelId,
+    setApiChannelId,
   } = useReadingStore()
 
   const activeBook = books.find((b) => b.id === activeId) || null
@@ -62,7 +64,10 @@ export default function ReadingRoom() {
   const touchRef = useRef<{ x: number; y: number } | null>(null)
   const discListRef = useRef<HTMLDivElement>(null)
 
-  const activeChannel = useApiStore((s) => s.getActive())
+  const mainActive = useApiStore((s) => s.getActive())
+  const channels = useApiStore((s) => s.channels)
+  // 读书独立渠道：选了就用选的，否则跟随主聊天
+  const activeChannel = (apiChannelId && channels.find((c) => c.id === apiChannelId)) || mainActive
   const { config } = useSyncStore()
   const persona = usePersonaStore((s) => s.persona)
   const nameA = useProfileStore((s) => s.profile.nameA) || '我'
@@ -460,6 +465,20 @@ export default function ReadingRoom() {
                   收起 ▾
                 </button>
               </div>
+            </div>
+            <div className="flex-none px-1 pb-2">
+              <select
+                value={apiChannelId}
+                onChange={(e) => setApiChannelId(e.target.value)}
+                className="w-full rounded-xl border border-line bg-white/40 px-2 py-1.5 text-[12px] text-ink outline-none"
+              >
+                <option value="">模型：跟随主聊天</option>
+                {channels.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name || c.model || '未命名渠道'}
+                  </option>
+                ))}
+              </select>
             </div>
             <div ref={discListRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-1">
               {messages.length === 0 && (

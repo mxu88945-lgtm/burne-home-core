@@ -73,8 +73,12 @@ function loadPersisted(): Persisted {
 }
 
 const init = loadPersisted()
+const apiInit = readJSON<{ id?: string }>(STORAGE_KEYS.readingApi, {})
 
 interface ReadingState extends Persisted {
+  /** 读书讨论用的渠道 id（''=跟随主聊天的激活渠道）；独立于主页 */
+  apiChannelId: string
+  setApiChannelId: (id: string) => void
   /** 当前打开的书的正文（从 IndexedDB 异步载入） */
   content: string
   /** 当前书正文是否载入完成 */
@@ -98,8 +102,14 @@ export const useReadingStore = create<ReadingState>((set, get) => ({
   books: init.books,
   activeId: init.activeId,
   autoComment: init.autoComment,
+  apiChannelId: apiInit.id || '',
   content: '',
   loaded: init.activeId === '',
+
+  setApiChannelId: (id) => {
+    writeJSON(STORAGE_KEYS.readingApi, { id })
+    set({ apiChannelId: id })
+  },
 
   loadActive: async () => {
     const { activeId, books, autoComment } = get()
