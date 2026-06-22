@@ -120,6 +120,37 @@ export function ArchiveIcon({ className }: P) {
   )
 }
 
+/** 文件 · 文档 */
+export function FileIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+    </svg>
+  )
+}
+
+/** 截图 · 取景框 */
+export function CropIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M6 2v16a1 1 0 0 0 1 1h15" />
+      <path d="M18 22V6a1 1 0 0 0-1-1H2" />
+    </svg>
+  )
+}
+
+/** 压缩 · 向内箭头 */
+export function CompressIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M9 4v4H5M4 9l4-1" />
+      <path d="M15 20v-4h4M20 15l-4 1" />
+      <path d="M20 4l-5 5M4 20l5-5" />
+    </svg>
+  )
+}
+
 /** 隐私锁 · 锁 */
 export function LockIcon({ className }: P) {
   return (

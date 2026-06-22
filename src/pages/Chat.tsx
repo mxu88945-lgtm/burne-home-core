@@ -22,6 +22,13 @@ import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
 import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, SendIcon } from '@/components/ui/icons'
 import { renderRichText, stripLinks } from '@/lib/richText'
+import {
+  ImageIcon,
+  FileIcon,
+  ImageSparkIcon,
+  CropIcon,
+  CompressIcon,
+} from '@/components/ui/navIcons'
 
 type PendingFile = NonNullable<Msg['file']>
 const MAX_FILE = 1.5 * 1024 * 1024 // 1.5MB（dataURL 存 localStorage，避免超额）
@@ -611,7 +618,7 @@ export default function Chat() {
           </button>
         </div>
       ) : (
-        <div className="flex flex-none items-center justify-between gap-2 pb-2">
+        <div className="glass-bar -mx-4 -mt-[max(0.75rem,env(safe-area-inset-top))] flex flex-none items-center justify-between gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <div className="flex flex-none items-center gap-3">
             <Link to="/" className="text-[12px] text-muted hover:text-accent">
               ← Back
@@ -938,26 +945,29 @@ export default function Chat() {
                 className="fixed inset-0 z-10"
                 onClick={() => setPlusOpen(false)}
               />
-              <div className="glass-strong absolute bottom-14 left-2 z-20 w-32 overflow-hidden rounded-2xl p-1 text-sm text-ink">
+              <div className="glass-strong absolute bottom-14 left-2 z-20 w-36 overflow-hidden rounded-2xl p-1 text-sm text-ink">
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left hover:bg-white/40"
                 >
+                  <ImageIcon className="h-4 w-4 shrink-0 text-accent" />
                   图片
                 </button>
                 <button
                   type="button"
                   onClick={() => docRef.current?.click()}
-                  className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left hover:bg-white/40"
                 >
+                  <FileIcon className="h-4 w-4 shrink-0 text-accent" />
                   文件
                 </button>
                 <button
                   type="button"
                   onClick={genImage}
-                  className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left hover:bg-white/40"
                 >
+                  <ImageSparkIcon className="h-4 w-4 shrink-0 text-accent" />
                   生成图片
                 </button>
                 <button
@@ -966,15 +976,17 @@ export default function Chat() {
                     setPlusOpen(false)
                     setSelectMode(true)
                   }}
-                  className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left hover:bg-white/40"
                 >
+                  <CropIcon className="h-4 w-4 shrink-0 text-accent" />
                   截图
                 </button>
                 <button
                   type="button"
                   onClick={compress}
-                  className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left hover:bg-white/40"
                 >
+                  <CompressIcon className="h-4 w-4 shrink-0 text-accent" />
                   压缩对话
                 </button>
               </div>

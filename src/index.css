@@ -25,6 +25,8 @@
   --card-border: rgba(255, 255, 255, 0.65);
   --shadow: rgba(150, 120, 115, 0.18);
   --on-accent: #fff;
+  /* 顶栏毛玻璃条底色（~20%） */
+  --bar: rgba(255, 255, 255, 0.2);
 }
 
 /* 🍃 黛绿 Sage —— 雾感灰绿 + 蓝灰 */
@@ -86,6 +88,7 @@
   --card-border: rgba(255, 255, 255, 0.14);
   --shadow: rgba(0, 0, 0, 0.4);
   --on-accent: #2a221b;
+  --bar: rgba(255, 255, 255, 0.08);
 }
 
 /* 🤍 素白 Ink —— 极简中性白 + 墨黑（编辑器纸感，无暖粉） */
@@ -164,6 +167,13 @@ body {
     box-shadow:
       0 12px 34px var(--shadow),
       inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+
+  /* 顶栏毛玻璃条（半透明，可透出下方内容） */
+  .glass-bar {
+    background: var(--bar);
+    backdrop-filter: blur(16px) saturate(1.3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
   }
 
   /* 衬线斜体浪漫标题 */
