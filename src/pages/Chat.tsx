@@ -21,7 +21,7 @@ import { useMemoryStore } from '@/store/memoryStore'
 import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
 import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, SendIcon } from '@/components/ui/icons'
-import { renderRichText } from '@/lib/richText'
+import { renderRichText, stripLinks } from '@/lib/richText'
 
 type PendingFile = NonNullable<Msg['file']>
 const MAX_FILE = 1.5 * 1024 * 1024 // 1.5MB（dataURL 存 localStorage，避免超额）
@@ -73,6 +73,7 @@ export default function Chat() {
   const webSearch = useChatPrefsStore((s) => s.webSearch)
   const autoMemory = useChatPrefsStore((s) => s.autoMemory)
   const flat = useChatPrefsStore((s) => s.chatStyle) === 'flat'
+  const showLinks = useChatPrefsStore((s) => s.showLinks)
   const addMemory = useMemoryStore((s) => s.addMemory)
   const memoriesRef = useMemoryStore((s) => s.memories)
   const { chatBg, chatBgDim, chatBgOpacity, chatBgBlur, chatBgFit } = useAppearanceStore(
@@ -781,7 +782,7 @@ export default function Chat() {
                           )}
                         </div>
                       )}
-                      {m.text && <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{renderRichText(m.text)}</div>}
+                      {m.text && <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{renderRichText(showLinks ? m.text : stripLinks(m.text))}</div>}
                     </div>
                   )
                 )}

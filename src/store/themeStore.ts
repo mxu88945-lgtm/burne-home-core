@@ -10,7 +10,7 @@ import { create } from 'zustand'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
 
-export type ThemeId = 'mist' | 'sage' | 'aurora' | 'dusk'
+export type ThemeId = 'mist' | 'sage' | 'aurora' | 'dusk' | 'ink'
 
 export interface ThemeMeta {
   id: ThemeId
@@ -26,6 +26,7 @@ export const THEMES: ThemeMeta[] = [
   { id: 'sage', name: '黛绿', emoji: '🍃', desc: '雾感灰绿 · 蓝灰', swatches: ['#E5E9F2', '#D7E8D5', '#C8D5DD', '#AFC7B4', '#96B3A2'] },
   { id: 'aurora', name: '琉璃', emoji: '🫧', desc: '全息流光玻璃', swatches: ['#E9D9F3', '#D4E8EE', '#F0DCE8', '#DFE6F5', '#B7A6E4'] },
   { id: 'dusk', name: '暮夜', emoji: '🌙', desc: '暖调深棕 · 金', swatches: ['#36302E', '#5A4B40', '#D6AB86', '#E7C8A9', '#2C2724'] },
+  { id: 'ink', name: '素白', emoji: '🤍', desc: '极简暖白 · 墨黑', swatches: ['#FFFFFF', '#F4F3F0', '#E9E7E2', '#C9C5BD', '#3A3733'] },
 ]
 
 const DEFAULT_THEME: ThemeId = 'mist'
@@ -36,10 +37,11 @@ export const BAR_COLORS: Record<ThemeId, string> = {
   sage: '#e9f0ec',
   aurora: '#eceaf4',
   dusk: '#2c2724',
+  ink: '#f4f3f0',
 }
 
 function isThemeId(v: unknown): v is ThemeId {
-  return v === 'mist' || v === 'sage' || v === 'aurora' || v === 'dusk'
+  return v === 'mist' || v === 'sage' || v === 'aurora' || v === 'dusk' || v === 'ink'
 }
 
 /** 把主题写到 <html> 上，并同步 theme-color meta —— 启动时也会调用，避免闪烁 */

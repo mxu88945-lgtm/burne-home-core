@@ -14,6 +14,25 @@ function shortUrl(url: string): string {
 const LINK_RE = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s)]+)/g
 
 /**
+ * 抹掉文本里的链接（联网引用），并清理残留的空括号/分隔符。
+ * 用于「不显示链接来源」时让回复干净。
+ */
+export function stripLinks(text: string): string {
+  let t = text
+  // [label](url) 与 裸链接整体删除
+  t = t.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '')
+  t = t.replace(/https?:\/\/[^\s)]+/g, '')
+  // 清理只剩分隔符的空括号（中英文）
+  t = t.replace(/[（(]\s*[,，、;；·\s]*[)）]/g, '')
+  // 标点前的多余空格、连续空格
+  t = t.replace(/[ \t]+([，,。、；;）)])/g, '$1')
+  t = t.replace(/[ \t]{2,}/g, ' ')
+  // 行尾残留空格
+  t = t.replace(/[ \t]+\n/g, '\n')
+  return t.trim()
+}
+
+/**
  * 把消息文本里的链接美化成可点击的干净链接：
  * - `[文字](url)` → 只显示「文字」，点击打开
  * - 裸链接 → 显示「域名 ↗」，点击打开

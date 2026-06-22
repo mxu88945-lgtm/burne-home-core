@@ -15,6 +15,8 @@ export default function Persona() {
   const toggleWebSearch = useChatPrefsStore((s) => s.toggleWebSearch)
   const autoMemory = useChatPrefsStore((s) => s.autoMemory)
   const toggleAutoMemory = useChatPrefsStore((s) => s.toggleAutoMemory)
+  const showLinks = useChatPrefsStore((s) => s.showLinks)
+  const toggleShowLinks = useChatPrefsStore((s) => s.toggleShowLinks)
   const [promptOpen, setPromptOpen] = useState(false)
 
   return (
@@ -165,6 +167,20 @@ export default function Persona() {
             type="checkbox"
             checked={webSearch}
             onChange={toggleWebSearch}
+            className="h-5 w-5 accent-accent"
+          />
+        </label>
+        <label className="flex items-center justify-between">
+          <span className="text-sm text-ink">
+            回复里显示链接来源
+            <span className="block text-[11px] text-muted">
+              关掉后隐藏联网引用的域名链接，回复更干净（默认关）
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={showLinks}
+            onChange={toggleShowLinks}
             className="h-5 w-5 accent-accent"
           />
         </label>
