@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom'
 import { useProfileStore, daysTogether } from '@/store/profileStore'
 import { useChatStore } from '@/store/chatStore'
+import { usePeriodStore } from '@/store/periodStore'
+import { computeStat } from '@/lib/period'
 import Avatar from '@/components/ui/Avatar'
 
 const avatarStyle = {
@@ -38,7 +40,22 @@ function QuickEntry({
 export default function Home() {
   const { profile, setProfile } = useProfileStore()
   const startBlank = useChatStore((s) => s.startBlank)
+  const periodDays = usePeriodStore((s) => s.days)
+  const pstat = computeStat(periodDays)
   const days = daysTogether(profile.anniversary)
+
+  const pMain = !pstat.hasData
+    ? '记录'
+    : pstat.todayDay
+      ? `第 ${pstat.todayDay} 天`
+      : pstat.daysUntilNext != null
+        ? `${pstat.daysUntilNext} 天`
+        : '—'
+  const pSub = !pstat.hasData
+    ? '生理期日历'
+    : pstat.todayDay
+      ? '经期中 · 记得喝热水'
+      : '距下次生理期'
 
   function editProfile() {
     const nameA = window.prompt('你的名字', profile.nameA)
@@ -97,6 +114,20 @@ export default function Home() {
           Since {profile.anniversary}
         </div>
       </section>
+
+      {/* 生理期日历卡 */}
+      <Link
+        to="/calendar"
+        className="glass flex items-center justify-between rounded-3xl px-6 py-5 transition active:scale-[0.99]"
+      >
+        <div>
+          <div className="label">生理期 🌸</div>
+          <div className="mt-1 text-[11px] text-muted">{pSub}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-semibold text-accent">{pMain}</div>
+        </div>
+      </Link>
 
       {/* 快捷入口 */}
       <section className="grid grid-cols-2 gap-3">

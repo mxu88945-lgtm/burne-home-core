@@ -22,6 +22,8 @@ import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
 import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, SendIcon } from '@/components/ui/icons'
 import { renderRichText, stripLinks } from '@/lib/richText'
+import { usePeriodStore } from '@/store/periodStore'
+import { periodChatNote } from '@/lib/period'
 import {
   ImageIcon,
   FileIcon,
@@ -506,7 +508,12 @@ export default function Chat() {
       hour: '2-digit',
       minute: '2-digit',
     })
-    const system = `${base}\n\n（当前用户本地时间：${localTime}，回应时可自然参考，不必刻意复述。）`
+    let system = `${base}\n\n（当前用户本地时间：${localTime}，回应时可自然参考，不必刻意复述。）`
+    const periodState = usePeriodStore.getState()
+    if (periodState.inject) {
+      const note = periodChatNote(periodState.days, profile.nameA || '她')
+      if (note) system += `\n\n${note}`
+    }
 
     setSending(true)
     try {

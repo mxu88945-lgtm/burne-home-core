@@ -4,6 +4,7 @@ import Home from '@/pages/Home'
 import MemoryLibrary from '@/pages/MemoryLibrary'
 import Chat from '@/pages/Chat'
 import ReadingRoom from '@/pages/ReadingRoom'
+import CalendarPage from '@/pages/CalendarPage'
 import Persona from '@/pages/Persona'
 import ThemePage from '@/pages/ThemePage'
 import Search from '@/pages/Search'
@@ -28,6 +29,7 @@ export const router = createHashRouter([
       { path: 'memories', element: <MemoryLibrary /> },
       { path: 'chat', element: <Chat /> },
       { path: 'reading', element: <ReadingRoom /> },
+      { path: 'calendar', element: <CalendarPage /> },
       { path: 'persona', element: <Persona /> },
       { path: 'theme', element: <ThemePage /> },
       { path: 'search', element: <Search /> },
