@@ -31,6 +31,7 @@ export default function MemoryLibrary() {
   const [editing, setEditing] = useState<MemoryItem | 'new' | null>(null)
   const [genBusy, setGenBusy] = useState(false)
   const [editOverview, setEditOverview] = useState(false)
+  const [summaryOpen, setSummaryOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [err, setErr] = useState('')
 
@@ -83,6 +84,7 @@ export default function MemoryLibrary() {
       }
       if (!text) throw new Error('摘要为空')
       setOverview(text)
+      setSummaryOpen(true)
     } catch (e) {
       setErr(`生成失败：${(e as Error).message}`)
     } finally {
@@ -111,7 +113,13 @@ export default function MemoryLibrary() {
       {/* 记忆摘要概述 */}
       <div className="glass rounded-2xl p-4">
         <div className="flex items-center justify-between">
-          <span className="label">记忆摘要概述</span>
+          <button
+            onClick={() => setSummaryOpen((o) => !o)}
+            className="flex items-center gap-1"
+          >
+            <span className="label">记忆摘要概述</span>
+            <span className="text-[11px] text-accent">{summaryOpen ? '▲' : '▼'}</span>
+          </button>
           <div className="flex items-center gap-3 text-[12px]">
             <button
               onClick={generateOverview}
@@ -124,6 +132,7 @@ export default function MemoryLibrary() {
               onClick={() => {
                 setDraft(overview)
                 setEditOverview(true)
+                setSummaryOpen(true)
               }}
               className="text-muted hover:text-accent"
             >
@@ -158,10 +167,19 @@ export default function MemoryLibrary() {
               </button>
             </div>
           </div>
-        ) : (
+        ) : summaryOpen ? (
           <p className="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted">
             {overview || '还没有概述～点「✨ 生成」让 AI 概括你的记忆，或「编辑」手写一段。'}
           </p>
+        ) : (
+          <button
+            onClick={() => setSummaryOpen(true)}
+            className="mt-2 block w-full text-left"
+          >
+            <p className="max-h-10 overflow-hidden text-xs leading-relaxed text-muted [overflow-wrap:anywhere]">
+              {overview || '还没有概述～点「✨ 生成」或「编辑」。点这里展开。'}
+            </p>
+          </button>
         )}
       </div>
 
