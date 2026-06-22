@@ -181,13 +181,24 @@ export default function Chat() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
 
-  // 有进行中的任务时每秒刷新倒计时
+  // 有进行中的任务时每秒刷新倒计时；切回前台立刻按本地真实时间同步
   const hasActiveTask = messages.some((m) => m.task?.status === 'active')
   useEffect(() => {
     if (!hasActiveTask) return
-    const id = setInterval(() => setNowTs(Date.now()), 1000)
-    return () => clearInterval(id)
+    const sync = () => setNowTs(Date.now())
+    sync()
+    const id = setInterval(sync, 1000)
+    document.addEventListener('visibilitychange', sync)
+    window.addEventListener('focus', sync)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', sync)
+      window.removeEventListener('focus', sync)
+    }
   }, [hasActiveTask])
+
+  const mmss = (s: number) =>
+    `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
   function completeTask(id: string) {
     setMessages((prev) =>
@@ -761,15 +772,11 @@ export default function Chat() {
           const me = m.role === 'me'
           const picked = selectMode && selected.has(m.id)
 
-          // 任务卡（嵌在对话里；完成后保留为记录）
+          // 任务卡：进行中的在右上角悬浮卡显示；完成/取消后落进对话成记录
           if (m.task) {
             const tk = m.task
-            const fmt = (s: number) =>
-              `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+            if (tk.status === 'active') return null
             const totalSec = tk.minutes * 60
-            const remain = Math.max(0, tk.deadline - nowTs)
-            const over = remain <= 0
-            const pct = Math.max(0, Math.min(100, (remain / (totalSec * 1000)) * 100))
             const startStr = new Date(tk.startedAt).toLocaleTimeString('zh-CN', {
               hour: '2-digit',
               minute: '2-digit',
@@ -794,52 +801,18 @@ export default function Chat() {
                   <div className="mt-1.5 text-[15px] leading-snug text-ink [overflow-wrap:anywhere]">
                     {tk.text}
                   </div>
-                  {tk.status === 'active' ? (
-                    <>
-                      <div className="mt-2 flex items-baseline gap-2">
-                        <span className="headline text-3xl not-italic text-ink">
-                          {over ? '时间到' : fmt(Math.ceil(remain / 1000))}
-                        </span>
-                        <span className="text-[11px] text-muted">{over ? '⏰' : '还剩'}</span>
-                      </div>
-                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/40">
-                        <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                      <div className="mt-2.5 flex gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            completeTask(m.id)
-                          }}
-                          className="btn-primary flex-1 rounded-xl py-2 text-sm"
-                        >
-                          完成
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            cancelTask(m.id)
-                          }}
-                          className="glass rounded-xl px-5 py-2 text-sm text-ink"
-                        >
-                          取消
-                        </button>
-                      </div>
-                    </>
-                  ) : tk.status === 'done' ? (
+                  {tk.status === 'done' ? (
                     <div className="mt-2 text-sm">
                       <span className="font-medium text-green-600">✓ 已完成</span>{' '}
                       <span className="text-muted">
-                        用时 {fmt(usedSec)} · {diffSec >= 0 ? `提前 ${diffSec}″` : `超时 ${-diffSec}″`}
+                        用时 {mmss(usedSec)} · {diffSec >= 0 ? `提前 ${diffSec}″` : `超时 ${-diffSec}″`}
                       </span>
                     </div>
                   ) : (
                     <div className="mt-2 text-sm text-muted">已取消</div>
                   )}
                   <div className="mt-2 text-[10px] text-muted">
-                    {startStr} 起 · 限时 {fmt(totalSec)}
+                    {startStr} 起 · 限时 {mmss(totalSec)}
                   </div>
                 </div>
               </div>
@@ -1031,6 +1004,59 @@ export default function Chat() {
         <div ref={endRef} />
         </div>
       </div>
+
+      {/* 进行中的任务：固定在右上角的小窗 */}
+      {!selectMode && messages.some((m) => m.task?.status === 'active') && (
+        <div
+          className="absolute right-2 z-20 w-52 max-w-[64%] space-y-2"
+          style={{ top: 'calc(env(safe-area-inset-top) + 3.4rem)' }}
+        >
+          {messages
+            .filter((m) => m.task?.status === 'active')
+            .map((m) => {
+              const tk = m.task!
+              const remain = Math.max(0, tk.deadline - nowTs)
+              const over = remain <= 0
+              const pct = Math.max(0, Math.min(100, (remain / (tk.minutes * 60000)) * 100))
+              return (
+                <div key={m.id} className="glass-strong rounded-2xl p-2.5 shadow-lg">
+                  <div className="flex items-center gap-1 text-[10px] text-accent">
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                    指令
+                  </div>
+                  <div className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-ink [overflow-wrap:anywhere]">
+                    {tk.text}
+                  </div>
+                  <div className="mt-0.5 flex items-baseline gap-1">
+                    <span className="headline text-xl not-italic text-ink">
+                      {over ? '时间到' : mmss(Math.ceil(remain / 1000))}
+                    </span>
+                    {!over && <span className="text-[10px] text-muted">还剩</span>}
+                  </div>
+                  <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/40">
+                    <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="mt-1.5 flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => completeTask(m.id)}
+                      className="btn-primary flex-1 rounded-lg py-1 text-[12px]"
+                    >
+                      完成
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => cancelTask(m.id)}
+                      className="glass rounded-lg px-2.5 py-1 text-[12px] text-ink"
+                    >
+                      取消
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+        </div>
+      )}
 
       {/* 回顶部 / 回底部 悬浮按钮 */}
       {!selectMode && (
