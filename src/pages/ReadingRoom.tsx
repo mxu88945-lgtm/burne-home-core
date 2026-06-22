@@ -22,25 +22,31 @@ const inputCls =
 
 export default function ReadingRoom() {
   const {
-    book,
-    loaded,
-    page,
-    messages,
+    books,
+    activeId,
     autoComment,
-    commented,
-    loadContent,
-    setBook,
-    clearBook,
+    content,
+    loaded,
+    loadActive,
+    openBook,
+    closeBook,
+    addBook,
+    deleteBook,
     setPage,
     setMessages,
-    toggleAutoComment,
     markCommented,
+    toggleAutoComment,
   } = useReadingStore()
-  const pages = useMemo(() => (book ? paginate(book.content) : []), [book])
+
+  const activeBook = books.find((b) => b.id === activeId) || null
+  const pages = useMemo(() => (activeBook ? paginate(content) : []), [content, activeId])
   const total = pages.length
-  const cur = Math.min(page, Math.max(0, total - 1))
+  const cur = Math.min(activeBook?.page ?? 0, Math.max(0, total - 1))
+  const messages = activeBook?.messages ?? []
+  const commented = activeBook?.commented ?? []
 
   // 导入态
+  const [importing, setImporting] = useState(false)
   const [title, setTitle] = useState('')
   const [draftText, setDraftText] = useState('')
   const [err, setErr] = useState('')
@@ -59,37 +65,16 @@ export default function ReadingRoom() {
   const nameA = useProfileStore((s) => s.profile.nameA) || '我'
   const taName = persona.name || '他'
 
-  async function onPickFile(file: File) {
-    setErr('')
-    try {
-      const text = await readAsText(file)
-      setDraftText(text)
-      if (!title) setTitle(file.name.replace(/\.[^.]+$/, ''))
-    } catch {
-      setErr('读取文件失败，换个 .txt 试试')
-    }
-  }
-
-  function startReading() {
-    if (!draftText.trim()) {
-      setErr('先粘贴或上传一些内容')
-      return
-    }
-    setBook(title, draftText)
-    setTitle('')
-    setDraftText('')
-    setErr('')
-  }
-
-  function go(delta: number) {
-    const next = Math.min(total - 1, Math.max(0, cur + delta))
-    if (next !== cur) setPage(next)
-  }
+  // 进房间时载入当前书正文
+  useEffect(() => {
+    loadActive()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function buildSys(idx: number) {
     return (
       `${persona.systemPrompt}\n\n` +
-      `[场景] 你正在和${nameA}一起读《${book!.title}》，现在读到第 ${idx + 1}/${total} 页。` +
+      `[场景] 你正在和${nameA}一起读《${activeBook!.title}》，现在读到第 ${idx + 1}/${total} 页。` +
       `像真的一起看书那样，结合下面这页内容，用你的人格口吻聊：有看法、有情绪、口语化、简洁，别太长。\n\n` +
       `[当前这页内容]\n${pages[idx]}`
     )
@@ -115,20 +100,16 @@ export default function ReadingRoom() {
     }
     setSending(true)
     try {
-      const sys = buildSys(cur)
       const history: ChatApiMessage[] = [...messages, mine]
         .slice(-8)
         .map((m) => ({ role: m.role === 'me' ? 'user' : 'assistant', content: m.text }))
-      const r = await chatComplete(activeChannel, history, sys, {
+      const r = await chatComplete(activeChannel, history, buildSys(cur), {
         temperature: persona.temperature,
         maxTokens: Math.min(persona.maxTokens, 800),
         workerUrl: config.workerUrl?.trim(),
         syncKey: config.syncKey,
       })
-      setMessages((prev) => [
-        ...prev,
-        { id: uid(), role: 'companion', text: r.text.trim(), at: now() },
-      ])
+      setMessages((prev) => [...prev, { id: uid(), role: 'companion', text: r.text.trim(), at: now() }])
     } catch (e) {
       setMessages((prev) => [
         ...prev,
@@ -141,7 +122,7 @@ export default function ReadingRoom() {
 
   /** TA 主动读这页并冒观点（翻到新页时触发，每页只评一次） */
   async function commentOnPage(idx: number) {
-    if (!activeChannel || !book || busyRef.current) return
+    if (!activeChannel || !activeBook || busyRef.current) return
     if (commented.includes(idx)) return
     busyRef.current = true
     setSending(true)
@@ -178,19 +159,17 @@ export default function ReadingRoom() {
 
   // 翻到新页且开启「主动跟读」时，停留一会儿后让 TA 主动冒观点
   useEffect(() => {
-    if (!loaded || !autoComment || !book || !book.content || !activeChannel || total === 0) return
+    if (!loaded || !autoComment || !activeBook || !content || !activeChannel || total === 0) return
     if (commented.includes(cur)) return
     const t = setTimeout(() => commentOnPage(cur), 1400)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cur, autoComment, total, activeChannel, loaded])
+  }, [cur, autoComment, total, activeChannel, loaded, activeId])
 
-  // 进房间时从 IndexedDB 异步载入书正文
-  useEffect(() => {
-    loadContent()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
+  function go(delta: number) {
+    const next = Math.min(total - 1, Math.max(0, cur + delta))
+    if (next !== cur) setPage(next)
+  }
   function jumpPage() {
     const v = window.prompt(`跳到第几页？（1 - ${total}）`, String(cur + 1))
     if (v == null) return
@@ -198,94 +177,153 @@ export default function ReadingRoom() {
     if (!Number.isNaN(n)) setPage(Math.min(total - 1, Math.max(0, n - 1)))
   }
 
-  /* ---------- 载入中 ---------- */
-  if (!loaded) {
-    return (
-      <div className="flex h-full items-center justify-center text-sm text-muted">载入中…</div>
-    )
+  async function onPickFile(file: File) {
+    setErr('')
+    try {
+      const text = await readAsText(file)
+      setDraftText(text)
+      if (!title) setTitle(file.name.replace(/\.[^.]+$/, ''))
+    } catch {
+      setErr('读取文件失败，换个 .txt 试试')
+    }
+  }
+  async function startReading() {
+    if (!draftText.trim()) {
+      setErr('先粘贴或上传一些内容')
+      return
+    }
+    await addBook(title, draftText)
+    setTitle('')
+    setDraftText('')
+    setErr('')
+    setImporting(false)
   }
 
-  /* ---------- 导入态 ---------- */
-  if (!book) {
+  /* ---------- 载入中（正在打开某本书） ---------- */
+  if (activeId && !loaded) {
+    return <div className="flex h-full items-center justify-center text-sm text-muted">载入中…</div>
+  }
+
+  /* ---------- 书架 / 导入 ---------- */
+  if (!activeBook) {
+    const showImport = importing || books.length === 0
     return (
       <div className="space-y-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2">
           <Link to="/" className="glass rounded-full px-3 py-1.5 text-xs text-ink">
             ← 主页
           </Link>
+          {books.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setImporting((v) => !v)}
+              className="btn-primary rounded-full px-3 py-1.5 text-xs"
+            >
+              {showImport ? '✕ 收起' : '＋ 导入新书'}
+            </button>
+          )}
         </div>
         <div className="px-1">
-          <h2 className="headline text-2xl text-ink">一起看书 📖</h2>
-          <p className="mt-1 text-sm text-muted">导入一本书 / 一篇小说，和 TA 一起读、一起聊</p>
+          <h2 className="headline text-2xl text-ink">书架 📚</h2>
+          <p className="mt-1 text-sm text-muted">和 TA 一起读 · 点开继续，进度各自保存</p>
         </div>
 
         {err && <div className="text-[12px] text-red-500">{err}</div>}
 
-        <div className="glass space-y-3 rounded-3xl p-5">
-          <label className="block">
-            <span className="text-[11px] text-muted">书名（可不填）</span>
-            <input
-              className={inputCls + ' mt-1'}
-              placeholder="如 小王子"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </label>
-          <label className="block">
-            <span className="text-[11px] text-muted">正文（粘贴文字）</span>
-            <textarea
-              className={inputCls + ' mt-1 min-h-[200px] leading-relaxed'}
-              placeholder="把小说 / 文章的文字粘贴到这里…"
-              value={draftText}
-              onChange={(e) => setDraftText(e.target.value)}
-            />
-          </label>
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="glass rounded-xl px-4 py-2 text-sm text-ink"
-            >
-              上传 .txt
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".txt,.md,text/plain"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                e.target.value = ''
-                if (f) onPickFile(f)
-              }}
-            />
-            <button
-              type="button"
-              onClick={startReading}
-              className="btn-primary rounded-xl px-5 py-2 text-sm"
-            >
-              开始阅读
-            </button>
+        {/* 导入表单 */}
+        {showImport && (
+          <div className="glass space-y-3 rounded-3xl p-5">
+            <label className="block">
+              <span className="text-[11px] text-muted">书名（可不填）</span>
+              <input
+                className={inputCls + ' mt-1'}
+                placeholder="如 小王子"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+            </label>
+            <label className="block">
+              <span className="text-[11px] text-muted">正文（粘贴文字）</span>
+              <textarea
+                className={inputCls + ' mt-1 min-h-[180px] leading-relaxed'}
+                placeholder="把小说 / 文章的文字粘贴到这里…"
+                value={draftText}
+                onChange={(e) => setDraftText(e.target.value)}
+              />
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="glass rounded-xl px-4 py-2 text-sm text-ink"
+              >
+                上传 .txt
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".txt,.md,text/plain"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  e.target.value = ''
+                  if (f) onPickFile(f)
+                }}
+              />
+              <button type="button" onClick={startReading} className="btn-primary rounded-xl px-5 py-2 text-sm">
+                加入书架并阅读
+              </button>
+            </div>
+            <p className="text-[11px] text-muted">书只存在你本机，不上传、不进仓库。</p>
           </div>
-          <p className="text-[11px] text-muted">书只存在你本机，不上传、不进仓库。</p>
-        </div>
+        )}
 
+        {/* 书架列表 */}
+        {books.length > 0 && (
+          <div className="space-y-2">
+            {books.map((b) => (
+              <div
+                key={b.id}
+                onClick={() => openBook(b.id)}
+                className="glass flex items-center gap-3 rounded-2xl p-4 transition active:scale-[0.99]"
+              >
+                <div className="flex h-12 w-9 shrink-0 items-center justify-center rounded-md bg-accent/15 text-lg">
+                  📖
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-ink">{b.title}</div>
+                  <div className="text-[11px] text-muted">
+                    {b.page > 0 ? `读到第 ${b.page + 1} 页` : '还没开始'}
+                    {b.messages.length > 0 ? ` · ${b.messages.length} 条讨论` : ''}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (window.confirm(`从书架删除《${b.title}》？（正文和讨论都会清掉）`)) deleteBook(b.id)
+                  }}
+                  aria-label="删除"
+                  className="text-[12px] text-muted hover:text-accent"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 怎么导入 */}
         <details className="glass rounded-2xl p-4 text-[12px] text-ink">
           <summary className="cursor-pointer text-sm font-medium">怎么弄到书的文字？📥</summary>
           <div className="mt-2 space-y-2 leading-relaxed text-muted">
             <p>
-              <b className="text-ink">最简单：复制粘贴。</b>{' '}
-              在浏览器/看书 App 里选中小说文字 → 复制 → 回到这里长按输入框「粘贴」。一次贴一章也行。
+              <b className="text-ink">最简单：复制粘贴。</b> 在浏览器/看书 App 选中文字 → 复制 → 回这里长按输入框「粘贴」，一次贴一章也行。
             </p>
             <p>
-              <b className="text-ink">下载 txt 文件：</b>{' '}
-              很多免费书站能下 .txt（搜「书名 txt 下载」）。iPhone 上下好后会进「文件」App，
-              回这里点「上传 .txt」→ 在「文件」里选它。
+              <b className="text-ink">下载 txt：</b> AO3 有 Download→TXT 按钮；下到 iPhone「文件」App 后，点「上传 .txt」选它。
             </p>
-            <p>
-              公版老书（鲁迅、四大名著、外国名著等）可在「古登堡计划 / 中国哲学书电子化计划」等站免费拿全文。
-            </p>
-            <p>太长也没事：每次只把你正在读的「这一页」发给 TA，不会一下子烧很多 token。</p>
+            <p>太长也没事：每次只把你正在读的「这一页」发给 TA，不会一下烧很多 token。</p>
           </div>
         </details>
       </div>
@@ -297,24 +335,18 @@ export default function ReadingRoom() {
     <div className="relative flex h-full flex-col">
       {/* 顶栏 */}
       <div className="flex flex-none items-center justify-between gap-2 pb-2">
-        <Link to="/" className="text-[12px] text-muted hover:text-accent">
-          ← 主页
-        </Link>
+        <button type="button" onClick={closeBook} className="text-[12px] text-muted hover:text-accent">
+          ← 书架
+        </button>
         <button type="button" onClick={jumpPage} className="min-w-0 text-center">
-          <div className="headline truncate text-lg leading-none text-ink">{book.title}</div>
+          <div className="headline truncate text-lg leading-none text-ink">{activeBook.title}</div>
           <div className="mt-0.5 text-[10px] text-muted">
             第 {cur + 1} / {total} 页 · 点这里跳页
           </div>
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm('换一本书？当前的阅读进度和讨论会清空。')) clearBook()
-          }}
-          className="text-[12px] text-muted hover:text-accent"
-        >
-          重选
-        </button>
+        <Link to="/" className="text-[12px] text-muted hover:text-accent">
+          主页
+        </Link>
       </div>
 
       {/* 进度条 */}
@@ -400,9 +432,7 @@ export default function ReadingRoom() {
                   <div
                     className={[
                       'inline-block max-w-[85%] rounded-2xl px-3 py-2 text-sm [overflow-wrap:anywhere]',
-                      m.role === 'me'
-                        ? 'btn-primary rounded-br-md'
-                        : 'glass rounded-bl-md text-ink',
+                      m.role === 'me' ? 'btn-primary rounded-br-md' : 'glass rounded-bl-md text-ink',
                     ].join(' ')}
                   >
                     <span className="whitespace-pre-wrap">{m.text}</span>
