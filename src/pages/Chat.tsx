@@ -24,7 +24,7 @@ import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, SendIcon } from '
 import { renderRichText, stripLinks } from '@/lib/richText'
 import { usePeriodStore } from '@/store/periodStore'
 import { periodChatNote } from '@/lib/period'
-import { useTaskStore, parseTasks } from '@/store/taskStore'
+import { parseTasks } from '@/store/taskStore'
 import {
   ImageIcon,
   FileIcon,
@@ -85,10 +85,6 @@ export default function Chat() {
   const flat = useChatPrefsStore((s) => s.chatStyle) === 'flat'
   const showLinks = useChatPrefsStore((s) => s.showLinks)
   const allowTasks = useChatPrefsStore((s) => s.allowTasks)
-  const tasks = useTaskStore((s) => s.tasks)
-  const addTask = useTaskStore((s) => s.addTask)
-  const completeTask = useTaskStore((s) => s.complete)
-  const cancelTask = useTaskStore((s) => s.cancel)
   const [nowTs, setNowTs] = useState(Date.now())
   const addMemory = useMemoryStore((s) => s.addMemory)
   const memoriesRef = useMemoryStore((s) => s.memories)
@@ -186,12 +182,29 @@ export default function Chat() {
   }, [messages, sending])
 
   // 有进行中的任务时每秒刷新倒计时
-  const hasActiveTask = tasks.some((t) => t.status === 'active')
+  const hasActiveTask = messages.some((m) => m.task?.status === 'active')
   useEffect(() => {
     if (!hasActiveTask) return
     const id = setInterval(() => setNowTs(Date.now()), 1000)
     return () => clearInterval(id)
   }, [hasActiveTask])
+
+  function completeTask(id: string) {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === id && m.task
+          ? { ...m, task: { ...m.task, status: 'done', doneAt: Date.now() } }
+          : m,
+      ),
+    )
+  }
+  function cancelTask(id: string) {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === id && m.task ? { ...m, task: { ...m.task, status: 'cancelled' } } : m,
+      ),
+    )
+  }
 
   function copyText(id: string, text: string) {
     navigator.clipboard?.writeText(text).then(
@@ -476,9 +489,22 @@ export default function Chat() {
   /** 用当前历史调用模型并把回复加入对话（图片按 vision 格式发送） */
   async function respond(history: Msg[]) {
     const apiMsgs: ChatApiMessage[] = history
-      .filter((m) => m.text.trim() || m.image || m.file)
+      .filter((m) => m.text.trim() || m.image || m.file || m.task)
       .map((m) => {
         const role = m.role === 'me' ? ('user' as const) : ('assistant' as const)
+        // 任务消息 → 给模型一段可读说明，让它知道任务状态并能接话
+        if (m.task) {
+          const tk = m.task
+          let note = `［你给对方下的任务：${tk.text}，限时${tk.minutes}分钟］`
+          if (tk.status === 'done' && tk.doneAt) {
+            const used = Math.round((tk.doneAt - tk.startedAt) / 1000)
+            const diff = Math.round((tk.deadline - tk.doneAt) / 1000)
+            note = `［任务「${tk.text}」已完成，用时${used}秒，${diff >= 0 ? `提前${diff}秒` : `超时${-diff}秒`}］`
+          } else if (tk.status === 'cancelled') {
+            note = `［任务「${tk.text}」被对方取消了］`
+          }
+          return { role, content: note }
+        }
         // 文本（含文件信息：文本文件带内容，二进制只附说明）
         let textPart = m.text.trim()
         if (m.file) {
@@ -574,24 +600,49 @@ export default function Chat() {
           maxTokens: persona.maxTokens,
         })
       }
-      // 解析 TA 下的任务标记 → 生成倒计时任务卡，并从正文移除标记
+      // 解析 TA 下的任务标记 → 生成对话内倒计时任务卡，并从正文移除标记
+      const taskMsgs: Msg[] = []
       if (allowTasks && reply) {
         const { tasks: parsed, clean } = parseTasks(reply)
         if (parsed.length) {
-          parsed.forEach((t) => addTask(t.text, t.minutes))
           reply = clean
+          for (const t of parsed) {
+            const mins = Math.max(1, Math.min(180, Math.round(t.minutes) || 5))
+            const startedAt = Date.now()
+            taskMsgs.push({
+              id: newId(),
+              role: 'companion',
+              text: '',
+              at: now(),
+              task: {
+                text: t.text,
+                minutes: mins,
+                startedAt,
+                deadline: startedAt + mins * 60000,
+                status: 'active',
+              },
+            })
+          }
         }
       }
       setMessages((prev) => [
         ...prev,
-        {
-          id: newId(),
-          role: 'companion',
-          text: reply || '……',
-          at: now(),
-          ...(tokens ? { tokens } : {}),
-          ...(reasoning ? { reasoning } : {}),
-        },
+        ...(reply
+          ? [
+              {
+                id: newId(),
+                role: 'companion' as const,
+                text: reply,
+                at: now(),
+                ...(tokens ? { tokens } : {}),
+                ...(reasoning ? { reasoning } : {}),
+              },
+            ]
+          : []),
+        ...taskMsgs,
+        ...(!reply && !taskMsgs.length
+          ? [{ id: newId(), role: 'companion' as const, text: '……', at: now() }]
+          : []),
       ])
       // 自动沉淀记忆：开了开关每轮判断；或用户明确说「记一下」时必存
       const lastUser = [...history].reverse().find((m) => m.role === 'me')
@@ -709,6 +760,92 @@ export default function Chat() {
         {messages.map((m) => {
           const me = m.role === 'me'
           const picked = selectMode && selected.has(m.id)
+
+          // 任务卡（嵌在对话里；完成后保留为记录）
+          if (m.task) {
+            const tk = m.task
+            const fmt = (s: number) =>
+              `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+            const totalSec = tk.minutes * 60
+            const remain = Math.max(0, tk.deadline - nowTs)
+            const over = remain <= 0
+            const pct = Math.max(0, Math.min(100, (remain / (totalSec * 1000)) * 100))
+            const startStr = new Date(tk.startedAt).toLocaleTimeString('zh-CN', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+            const usedSec = tk.doneAt ? Math.round((tk.doneAt - tk.startedAt) / 1000) : 0
+            const diffSec = tk.doneAt ? Math.round((tk.deadline - tk.doneAt) / 1000) : 0
+            return (
+              <div
+                key={m.id}
+                onClick={selectMode ? () => toggleSelect(m.id) : undefined}
+                className={[
+                  'flex',
+                  selectMode ? 'cursor-pointer rounded-2xl p-1' : '',
+                  picked ? 'bg-white/25 ring-2 ring-accent' : '',
+                ].join(' ')}
+              >
+                <div className="glass w-full max-w-[88%] rounded-2xl p-3.5">
+                  <div className="flex items-center gap-1.5 text-[11px] text-accent">
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                    指令
+                  </div>
+                  <div className="mt-1.5 text-[15px] leading-snug text-ink [overflow-wrap:anywhere]">
+                    {tk.text}
+                  </div>
+                  {tk.status === 'active' ? (
+                    <>
+                      <div className="mt-2 flex items-baseline gap-2">
+                        <span className="headline text-3xl not-italic text-ink">
+                          {over ? '时间到' : fmt(Math.ceil(remain / 1000))}
+                        </span>
+                        <span className="text-[11px] text-muted">{over ? '⏰' : '还剩'}</span>
+                      </div>
+                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/40">
+                        <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
+                      </div>
+                      <div className="mt-2.5 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            completeTask(m.id)
+                          }}
+                          className="btn-primary flex-1 rounded-xl py-2 text-sm"
+                        >
+                          完成
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            cancelTask(m.id)
+                          }}
+                          className="glass rounded-xl px-5 py-2 text-sm text-ink"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    </>
+                  ) : tk.status === 'done' ? (
+                    <div className="mt-2 text-sm">
+                      <span className="font-medium text-green-600">✓ 已完成</span>{' '}
+                      <span className="text-muted">
+                        用时 {fmt(usedSec)} · {diffSec >= 0 ? `提前 ${diffSec}″` : `超时 ${-diffSec}″`}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-sm text-muted">已取消</div>
+                  )}
+                  <div className="mt-2 text-[10px] text-muted">
+                    {startStr} 起 · 限时 {fmt(totalSec)}
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
           return (
             <div
               key={m.id}
@@ -932,50 +1069,6 @@ export default function Chat() {
       {/* 输入栏 + 模型条（钉在底部，不滚） */}
       {!selectMode && (
       <div className="flex-none px-4 pt-2">
-        {/* TA 下的任务卡（倒计时） */}
-        {tasks
-          .filter((t) => t.status === 'active')
-          .map((t) => {
-            const remain = Math.max(0, t.deadline - nowTs)
-            const mm = String(Math.floor(remain / 60000)).padStart(2, '0')
-            const ss = String(Math.floor((remain % 60000) / 1000)).padStart(2, '0')
-            const pct = Math.max(0, Math.min(100, (remain / (t.minutes * 60000)) * 100))
-            const over = remain <= 0
-            return (
-              <div key={t.id} className="glass-strong mb-2 rounded-2xl p-3">
-                <div className="flex items-center gap-1.5 text-[11px] text-accent">
-                  <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                  指令
-                </div>
-                <div className="mt-1 text-sm text-ink [overflow-wrap:anywhere]">{t.text}</div>
-                <div className="mt-1 flex items-baseline gap-2">
-                  <span className="headline text-2xl not-italic text-ink">
-                    {over ? '时间到 ⏰' : `${mm}:${ss}`}
-                  </span>
-                  {!over && <span className="text-[11px] text-muted">还剩</span>}
-                </div>
-                <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/40">
-                  <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
-                </div>
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => completeTask(t.id)}
-                    className="btn-primary flex-1 rounded-xl py-2 text-sm"
-                  >
-                    完成
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => cancelTask(t.id)}
-                    className="glass rounded-xl px-5 py-2 text-sm text-ink"
-                  >
-                    取消
-                  </button>
-                </div>
-              </div>
-            )
-          })}
         {ttsError && (
           <div className="mb-1 px-2 text-center text-[11px] text-red-500">
             朗读失败：{ttsError}

@@ -27,6 +27,18 @@ export interface ChatMsg {
     /** 文本类文件的内容（会一起发给模型；二进制文件不存） */
     text?: string
   }
+  /** TA 下的任务（带倒计时，嵌在对话里） */
+  task?: {
+    text: string
+    minutes: number
+    /** 起始时间戳 ms */
+    startedAt: number
+    /** 截止时间戳 ms */
+    deadline: number
+    status: 'active' | 'done' | 'cancelled'
+    /** 完成时间戳 ms */
+    doneAt?: number
+  }
 }
 
 export interface ChatSession {
