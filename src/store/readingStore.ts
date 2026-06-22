@@ -168,7 +168,9 @@ export const useReadingStore = create<ReadingState>((set, get) => ({
   setMessages: (m) => {
     const cur = get().books.find((b) => b.id === get().activeId)
     if (!cur) return
-    const messages = typeof m === 'function' ? m(cur.messages) : m
+    let messages = typeof m === 'function' ? m(cur.messages) : m
+    // 自动封顶，只保留最近 120 条，避免越积越多卡顿/占空间
+    if (messages.length > 120) messages = messages.slice(-120)
     const books = get().books.map((b) => (b.id === get().activeId ? { ...b, messages } : b))
     persist(books, get().activeId, get().autoComment)
     set({ books })
