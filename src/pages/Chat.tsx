@@ -578,7 +578,7 @@ export default function Chat() {
   const modelLabel = activeChannel?.model || config.chatModel || (connected ? '默认' : '未连接')
 
   return (
-    <div className="relative flex h-full flex-col px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+    <div className="relative flex h-full flex-col px-4 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       {/* 聊天背景图 + 变暗层（在内容之下） */}
       {chatBg && (
         <>
@@ -597,9 +597,11 @@ export default function Chat() {
           />
         </>
       )}
-      {/* 角色头部（钉在顶部，不滚） */}
+      {/* 滚动区：顶栏 sticky 贴顶，消息从其下方滚过（毛玻璃透出内容） */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+      {/* 角色头部（sticky 贴顶） */}
       {selectMode ? (
-        <div className="flex flex-none items-center justify-between gap-2 pb-2">
+        <div className="glass-bar sticky top-0 z-20 -mx-4 flex items-center justify-between gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <button
             type="button"
             onClick={exitSelect}
@@ -618,7 +620,7 @@ export default function Chat() {
           </button>
         </div>
       ) : (
-        <div className="glass-bar -mx-4 -mt-[max(0.75rem,env(safe-area-inset-top))] flex flex-none items-center justify-between gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <div className="glass-bar sticky top-0 z-20 -mx-4 flex items-center justify-between gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <div className="flex flex-none items-center gap-3">
             <Link to="/" className="text-[12px] text-muted hover:text-accent">
               ← Back
@@ -668,8 +670,8 @@ export default function Chat() {
         </div>
       )}
 
-      {/* 消息列表（仅此区域滚动） */}
-      <div className="mt-2 min-h-0 flex-1 space-y-4 overflow-y-auto pb-2">
+      {/* 消息列表 */}
+      <div className="space-y-4 pb-2 pt-3">
         {messages.map((m) => {
           const me = m.role === 'me'
           const picked = selectMode && selected.has(m.id)
@@ -856,6 +858,7 @@ export default function Chat() {
           </div>
         )}
         <div ref={endRef} />
+        </div>
       </div>
 
       {/* 选择模式底部提示 */}

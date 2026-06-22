@@ -211,7 +211,7 @@ export default function MemoryLibrary() {
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="max-h-[55vh] space-y-3 overflow-y-auto rounded-2xl px-0.5 py-1">
           {list.map((m) => (
             <MemoryCard
               key={m.id}
