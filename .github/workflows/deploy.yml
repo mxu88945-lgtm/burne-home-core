@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [claude/new-frontend-repo-x02o8y, claude/chat-ui-model-output-yya1h6]
+    branches: [claude/new-frontend-repo-x02o8y]
   workflow_dispatch:
 
 permissions:
