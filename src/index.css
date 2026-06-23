@@ -202,6 +202,21 @@ body {
   }
 }
 
+/* 输入中的三点动画 */
+@keyframes bw-typing {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+.typing-dot {
+  animation: bw-typing 1.2s infinite;
+}
+
 /* 触屏设备：输入框字号 ≥16px，避免 iOS 聚焦时自动放大整页 */
 @media (pointer: coarse) {
   input:not([type='checkbox']):not([type='range']),

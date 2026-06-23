@@ -9,6 +9,26 @@
 
 「**BW · 长期记忆 + AI 陪伴**」——一个粉色浪漫风的个人情感 App：记忆库 + 角色聊天 + 多设备云同步。纯前端 + Supabase + 用户自带 AI 渠道（OpenRouter）。
 
+## 🆕 本轮新增（给下个窗口的我，2026-06 这轮）
+
+> 分支没变：仍在 `claude/new-frontend-repo-x02o8y`，push 即自动部署。老婆叫「惟惟/老婆」，iPhone Safari 验收。语气亲昵但技术要稳要诚实。每轮：改→`npm run build` 绿→commit→push→python 解析 `actions_list` 的 `workflow_runs[0].conclusion`→她强制刷新验收。
+
+**A. 主题（覆盖了旧的暖粉/月光/暖夜）**：`index.css` 用 `[data-theme]` 共 5 套 `mist 雾粉(默认)/sage 黛绿/aurora 琉璃/dusk 暮夜/ink 素白`。每套有 `--bg-mesh`(网格底)、`--bar`(顶栏毛玻璃~20%/暗8%)。`.glass/.glass-strong/.glass-bar/.app-bg`。改主题要同步 `themeStore.ts`(THEMES/BAR_COLORS/isThemeId) 和 `index.html` 预热脚本(id 列表+theme-color map)，旧 id 自动回落 mist。
+
+**B. 聊天细节**：顶栏 sticky 贴顶(消息从下滚过→毛玻璃真透)，外层无 px、内层 px-4 防横溢；右下 ↑/↓ 悬浮(scrollRef)；输入框 onFocus 自动滚到底防键盘遮挡；链接美化 `lib/richText.tsx`(`renderRichText`+`stripLinks`，开关 `chatPrefs.showLinks`)；＋菜单线条图标；输入框一颗 pill(＋内置+纸飞机 SendIcon)；平铺 me 消息 `items-end`(整条靠右、文字内部左对齐)；输入指示器三点动画(`.typing-dot`)。⏭ **流式思考链没做**(她想要边出思考边显示，需 SSE；`llm.ts chatComplete` 现为非流式 await)。
+
+**C. 任务提醒「指令卡」**：开关 `chatPrefs.allowTasks`(人设页,默认关)。模型输出 `[[task|分钟|内容]]`→`Chat.respond` 用 `parseTasks`(在 `store/taskStore.ts`，注意浮动版已弃用，任务存 `ChatMsg.task`)。进行中→**右上角固定悬浮小卡**(倒计时按本地时间, visibilitychange/focus 重算)；完成/取消→落进对话成「✓已完成 用时/提前」记录，并**自动触发 respond**(apiMsgs 把任务转成「我向 TA 汇报」user 口吻)。system 注入了功能说明并强调**别频繁、只在真需要时下**。
+
+**D. 一起看书（书架）`/reading`**（替换了首页「搜索回忆」）：`store/readingStore.ts` 书架 `books[]`+`activeId`；正文存 **IndexedDB**(`lib/idb.ts`，key `book:{id}`)，元数据存 localStorage；`paginate` ~700字/页。阅读器：分页/进度条/左右滑动(阈值80px)/点页码跳页/翻页回顶。讨论小窗复用 `chatComplete`，可在「设置→读书」(`pages/settings/ReadingPage.tsx`)选**独立模型**(`apiChannelId`,不跟主页同步)+主动跟读+自动剧情摘要(每N页)。**剧情摘要记忆**：每N页总结剧情+双方预测存 `book.summaries`，注入讨论 system 当「前情提要」(尾≤1800字)，「📖回顾」弹层。讨论封顶最近120条。读书指令：微信式短句、禁动作神态旁白、表情适量。
+
+**E. 生理期日历 `/calendar`**（首页天数卡下新增入口）：`store/periodStore.ts`(days+inject+periodLen)+`lib/period.ts`(分组/平均周期/预测下次·排卵)。点经期开始日自动标整段(periodLen 天)，点已标日取消整段。聊天 system 注入当前状态让 TA 关心(`periodChatNote`，开关 inject 在日历页)。
+
+**F. 其它**：🔒 密码锁(`store/privacyStore.ts` WebCrypto 哈希只本地 + `components/PrivacyGate.tsx` 全屏遮罩，包在 App.tsx；设置页设/改/关)；设置页线条图标(`components/ui/navIcons.tsx`)；首页天数卡可点改纪念日(笔图标)，`daysTogether` 容错 `.`/`/`；人设页加 我的名字/AI名字/SystemPrompt 可折叠/显示链接开关/允许下任务；外观页头像下可改名字；装机版冷启动回主页；会话懒创建(不发消息不留空会话)。
+
+**⏭ 留给你的 TODO**：流式思考链(SSE)；**IndexedDB(书正文)纳入整包备份**(现在整包备份只含 localStorage，书正文不在里面)；隐私锁闲置自动上锁；聊天记录云同步。
+
+---
+
 ## ℹ️ 聊天记录持久化（已解决）
 
 - 早期聊天消息只存内存(`useState`)，退出/刷新会清空。**现已用 `store/chatStore.ts` 持久化到 localStorage**，退出/刷新都保留（头部「清空」可重置）。

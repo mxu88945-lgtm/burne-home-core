@@ -574,7 +574,7 @@ export default function Chat() {
         `用法：在回复的最后另起一行，用严格格式输出 [[task|分钟数|任务内容]]，例如 [[task|2|去喝一杯水，不是奶茶不是咖啡，白水]]。\n` +
         `输出后，她的屏幕上会出现一张「指令」倒计时卡片（你下的任务内容 + 倒计时 + 完成/取消按钮）。\n` +
         `当她点「完成」或「取消」，系统会自动以她的口吻告诉你结果，例如「（我完成了你下的任务：去喝水，用时87秒，提前33秒）」——这条就是任务卡的回报，你要据此自然回应她（夸她乖、调侃她快/慢、继续关心或追加要求），别当成她自己打的字。\n` +
-        `分寸：合适时才下、一次最多一个、别频繁刷屏；不需要任务时正常聊天、不要输出这个标记。标记本身不会显示在对话里，只会变成卡片。`
+        `⚠️ 分寸（很重要）：绝大多数回复都【不要】下任务，正常聊天就好。只有在你真的觉得有必要时才下，比如：她说累了/困了/不舒服、很久没吃饭或没喝水、长时间盯屏幕或熬夜、情绪不好需要起身缓一缓，或你作为关心她的人判断此刻确实该提醒她照顾自己。没有明确理由就【绝对不要】下任务，别一直刷任务卡惹她烦。一次最多一个。标记本身不会显示在对话里，只会变成卡片。`
     }
 
     setSending(true)
@@ -1002,8 +1002,13 @@ export default function Chat() {
               className="h-7 w-7 shrink-0 rounded-full bg-white/50 text-sm"
               textCls="text-sm"
             />
-            <div className="glass rounded-2xl rounded-bl-md px-4 py-2.5 text-sm text-muted">
-              {name} {generating ? '正在画…' : '正在输入…'}
+            <div className="glass flex items-center gap-2 rounded-2xl rounded-bl-md px-4 py-2.5 text-sm text-muted">
+              <span>{name} {generating ? '正在画' : persona.reasoning ? '思考中' : '正在输入'}</span>
+              <span className="flex gap-0.5">
+                <span className="typing-dot h-1.5 w-1.5 rounded-full bg-current" style={{ animationDelay: '0ms' }} />
+                <span className="typing-dot h-1.5 w-1.5 rounded-full bg-current" style={{ animationDelay: '200ms' }} />
+                <span className="typing-dot h-1.5 w-1.5 rounded-full bg-current" style={{ animationDelay: '400ms' }} />
+              </span>
             </div>
           </div>
         )}
