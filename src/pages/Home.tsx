@@ -127,18 +127,16 @@ export default function Home() {
         </div>
       </button>
 
-      {/* 生理期日历卡 */}
+      {/* 生理期日历卡（两块居中靠拢，不疏远） */}
       <Link
         to="/calendar"
-        className="glass flex items-center justify-between rounded-3xl px-6 py-5 transition active:scale-[0.99]"
+        className="glass flex items-center justify-center gap-5 rounded-3xl px-6 py-5 transition active:scale-[0.99]"
       >
-        <div>
+        <div className="text-right">
           <div className="label">生理期 🌸</div>
           <div className="mt-1 text-[11px] text-muted">{pSub}</div>
         </div>
-        <div className="text-right">
-          <div className="text-2xl font-semibold text-accent">{pMain}</div>
-        </div>
+        <div className="text-2xl font-semibold text-accent">{pMain}</div>
       </Link>
 
       {/* 快捷入口 */}
