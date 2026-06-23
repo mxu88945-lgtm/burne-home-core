@@ -139,16 +139,16 @@ body {
       inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
-  /* 主页：卡片更透视、更朦胧（壁纸透出更多，仍保证文字可读） */
+  /* 主页：卡片更薄更透视（壁纸透出更多；靠大模糊保证文字仍清楚） */
   .home-glassy .glass {
-    background: rgba(255, 255, 255, 0.2);
-    backdrop-filter: blur(22px) saturate(1.4);
-    -webkit-backdrop-filter: blur(22px) saturate(1.4);
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(24px) saturate(1.35);
+    -webkit-backdrop-filter: blur(24px) saturate(1.35);
   }
   .home-glassy .glass-strong {
-    background: rgba(255, 255, 255, 0.28);
-    backdrop-filter: blur(24px) saturate(1.5);
-    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    background: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(26px) saturate(1.45);
+    -webkit-backdrop-filter: blur(26px) saturate(1.45);
   }
 
   /* 顶栏毛玻璃条（半透明，可透出下方内容） */

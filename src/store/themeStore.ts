@@ -37,8 +37,8 @@ const DEFAULT_THEME: ThemeId = 'aurora'
 /** 各主题的顶部条颜色（状态栏 / theme-color）。
  *  黛绿/琉璃取壁纸顶部叠白后的真实色，让状态栏那条和壁纸接得上、不露浅色缝。 */
 export const BAR_COLORS: Record<ThemeId, string> = {
-  sage: '#dce6df',
-  aurora: '#dcd5f3',
+  sage: '#e5ebf1',
+  aurora: '#dbddf0',
   ink: '#f2f3f4',
 }
 

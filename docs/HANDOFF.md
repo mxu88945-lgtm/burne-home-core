@@ -66,7 +66,9 @@
 - **顶栏色贴壁纸**：状态栏只能纯色，琉璃旧 `#eceaf4` 比壁纸顶部更白 → 有缝。用 PIL 采样壁纸顶部叠白后的真实色，`BAR_COLORS` 改 aurora `#dcd5f3`/sage `#dce6df`（index.html 预热 bar map + 静态 meta 同步）。装机版换主题后退出重开即读到贴合色。
 - **🪟 主页卡片更透视**：Home 根 div 加 `home-glassy` 类，`index.css` 里 `.home-glassy .glass{background:rgba(255,255,255,.2);blur(22px)}`、`.glass-strong{.28;blur(24px)}`——只作用主页，壁纸透出更多更朦胧，其它页玻璃不变。
 
----
+**第五批（同日）· 换老婆自制渐变顶壁纸 + 卡片再调薄**：
+- **换壁纸**：老婆把两张壁纸顶部做成平滑浅色渐变（贴状态栏更顺）。替换 `src/assets/themes/{sage-bg,aurora-bg}.jpg`，重采样顶部叠白真实色：`BAR_COLORS` sage `#e5ebf1`/aurora `#dbddf0`（index.html 预热 + 静态 meta 同步）。生理期卡两块改 `justify-center gap-5` 居中靠拢。
+- **主页卡片再调薄**：`.home-glassy .glass` 背景 .2→**.12**、`.glass-strong` .28→**.18**，模糊提到 24/26 px 保可读。
 
 ## ℹ️ 聊天记录持久化（已解决）
 
