@@ -26,25 +26,25 @@
   --on-accent: #fff;
 }
 
-/* 🫧 琉璃 Aurora（默认）—— 高级裸粉 + 黛霜灰（纯渐变，顶部一条均匀浅奶色，状态栏自然融、无不对称白边） */
+/* 🫧 琉璃 Aurora（默认）—— 清浅少女粉（纯渐变，顶部一条均匀奶白，状态栏自然融） */
 :root,
 [data-theme='aurora'] {
-  --bg-to: #f5ece8;
-  /* 顶部用纵向 linear 打底→横向均匀（状态栏好融）；裸粉/黛霜的彩色光晕都压在画面下半部 */
+  --bg-to: #f9f1f4;
+  /* 顶部纵向 linear 打底→横向均匀；干净的浅少女粉光晕压在画面下半部，整体淡而透 */
   --bg-mesh:
-    radial-gradient(120% 82% at 50% 126%, #cdd8cf 0%, transparent 58%),
-    radial-gradient(85% 62% at 8% 74%, #ecd6d1 0%, transparent 55%),
-    radial-gradient(85% 62% at 92% 82%, #e6c8c3 0%, transparent 55%),
-    linear-gradient(180deg, #f6efec 0%, #f2e7e3 40%, #ecdbd6 100%);
-  --text: #5b4d49;
-  --text-soft: #a78f8a;
-  --label: #c0a8a2;
-  --accent: #c3958b;
-  --accent-2: #dcbdb4;
+    radial-gradient(115% 78% at 50% 124%, #f8dbe7 0%, transparent 60%),
+    radial-gradient(82% 60% at 10% 72%, #fce3ee 0%, transparent 55%),
+    radial-gradient(82% 60% at 90% 80%, #f7d8e6 0%, transparent 55%),
+    linear-gradient(180deg, #faf2f4 0%, #faebf1 42%, #f8dde9 100%);
+  --text: #6a5560;
+  --text-soft: #ad95a1;
+  --label: #c6abb6;
+  --accent: #d27ba0;
+  --accent-2: #ecaecb;
   --card: rgba(255, 255, 255, 0.32);
   --card-strong: rgba(255, 255, 255, 0.46);
-  --card-border: rgba(255, 255, 255, 0.7);
-  --shadow: rgba(150, 120, 115, 0.18);
+  --card-border: rgba(255, 255, 255, 0.72);
+  --shadow: rgba(170, 120, 145, 0.16);
   --on-accent: #fff;
   /* 顶栏毛玻璃条底色（~20%） */
   --bar: rgba(255, 255, 255, 0.2);

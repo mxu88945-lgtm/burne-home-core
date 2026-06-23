@@ -776,7 +776,11 @@ export default function Chat() {
       />
       <div
         className="pointer-events-none absolute inset-0 -z-10"
-        style={{ background: 'rgba(255, 255, 255, 0.3)' }}
+        style={{
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          background: 'rgba(255, 255, 255, 0.36)',
+        }}
       />
       {/* 自定义聊天背景图 + 变暗层（用户上传时盖在小猫之上） */}
       {chatBg && (

@@ -27,7 +27,7 @@ export interface ThemeMeta {
 
 export const THEMES: ThemeMeta[] = [
   { id: 'sage', name: '黛绿', emoji: '🍃', desc: '薄荷流光 · 玻璃泡泡', swatches: ['#E5E9F2', '#D7E8D5', '#C8D5DD', '#AFC7B4', '#96B3A2'], bgImage: sageBg },
-  { id: 'aurora', name: '琉璃', emoji: '🫧', desc: '高级裸粉 · 一缕黛霜', swatches: ['#F2F4F1', '#EBD5D0', '#E4C5C1', '#CED8CF', '#CCCCC0'] },
+  { id: 'aurora', name: '琉璃', emoji: '🫧', desc: '清浅少女粉 · 柔光', swatches: ['#FCEFF4', '#FCE3EE', '#F7D8E6', '#F1C9DC', '#E7B7CE'] },
   { id: 'ink', name: '素白', emoji: '🤍', desc: '极简中性白 · 墨黑', swatches: ['#FFFFFF', '#F2F3F4', '#E7E9EA', '#C6C9CB', '#383A3C'] },
 ]
 

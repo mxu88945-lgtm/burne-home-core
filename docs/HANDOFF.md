@@ -78,6 +78,10 @@
 - 痛点：状态栏 `theme-color` 全局只一个 + iOS 装机版不实时刷新 → 从琉璃(粉顶)切到黛绿，顶栏还留着粉 = 串色（拆东墙补西墙）。
 - 解法（老婆出的好主意）：**所有主题顶部统一一片「奶白 `#f4f1ec`」**。`.app-bg`（含 sage 壁纸规则）背景最上层加一条 `linear-gradient(180deg,#f4f1ec 0%, transparent 15%)`；`BAR_COLORS` 三套全改 `#f4f1ec`、index.html 预热 bar map + 静态 meta 同步。于是不管哪个主题，状态栏和页面顶部都是同一片奶白 → **切主题永不串色，也不用纠结 iOS 是否重绘**。奶白值取自老婆给的奶白参考图顶部（偏暖的柔白）。
 
+**第八批（同日）· 琉璃改少女粉 + 猫猫更朦胧**：
+- **琉璃从「裸粉」改清浅「少女粉」**（嫌之前粉太浓）：`[data-theme='aurora']` 的 `--bg-mesh` 换成干净浅粉（#f8dbe7/#fce3ee/#f7d8e6 + linear #faf2f4→#f8dde9），`--accent` 改玫粉 `#d27ba0`、text 调暖灰紫；`--bg-to`/swatches 同步。顶部奶白条不变。
+- **聊天猫猫更朦胧**：`chat-cat.jpg` 源头先做 GaussianBlur(r6) 烤进图里（更稳、更小 ~30KB），Chat 柔白层再加 `backdrop-blur(12px)` + 白 .36。双重柔化，肉垫还隐约可见。
+
 ## ℹ️ 聊天记录持久化（已解决）
 
 - 早期聊天消息只存内存(`useState`)，退出/刷新会清空。**现已用 `store/chatStore.ts` 持久化到 localStorage**，退出/刷新都保留（头部「清空」可重置）。
