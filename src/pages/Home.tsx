@@ -3,6 +3,7 @@ import { useProfileStore, daysTogether } from '@/store/profileStore'
 import { useChatStore } from '@/store/chatStore'
 import { usePeriodStore } from '@/store/periodStore'
 import { computeStat } from '@/lib/period'
+import { EditIcon } from '@/components/ui/icons'
 import Avatar from '@/components/ui/Avatar'
 
 const avatarStyle = {
@@ -120,7 +121,10 @@ export default function Home() {
       >
         <div className="text-5xl font-semibold text-accent">{days}</div>
         <div className="label mt-1">一起的 {days} 天</div>
-        <div className="mt-1 text-[11px] text-muted">Since {profile.anniversary} · 点这里改</div>
+        <div className="mt-1 flex items-center justify-center gap-1 text-[11px] text-muted">
+          Since {profile.anniversary}
+          <EditIcon className="h-3 w-3" />
+        </div>
       </button>
 
       {/* 生理期日历卡 */}

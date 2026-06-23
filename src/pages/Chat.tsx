@@ -1231,6 +1231,13 @@ export default function Chat() {
             <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
+              onFocus={() => {
+                // 点输入框/弹键盘时，滚到最新消息，避免被键盘遮住
+                setTimeout(
+                  () => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }),
+                  300,
+                )
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') send()
               }}
