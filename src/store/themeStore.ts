@@ -11,7 +11,6 @@ import { create } from 'zustand'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
 import sageBg from '@/assets/themes/sage-bg.jpg'
-import auroraBg from '@/assets/themes/aurora-bg.jpg'
 
 export type ThemeId = 'sage' | 'aurora' | 'ink'
 
@@ -28,7 +27,7 @@ export interface ThemeMeta {
 
 export const THEMES: ThemeMeta[] = [
   { id: 'sage', name: '黛绿', emoji: '🍃', desc: '薄荷流光 · 玻璃泡泡', swatches: ['#E5E9F2', '#D7E8D5', '#C8D5DD', '#AFC7B4', '#96B3A2'], bgImage: sageBg },
-  { id: 'aurora', name: '琉璃', emoji: '🫧', desc: '全息流光 · 粉紫绸缎', swatches: ['#E9D9F3', '#D4E8EE', '#F0DCE8', '#DFE6F5', '#B7A6E4'], bgImage: auroraBg },
+  { id: 'aurora', name: '琉璃', emoji: '🫧', desc: '高级裸粉 · 一缕黛霜', swatches: ['#F2F4F1', '#EBD5D0', '#E4C5C1', '#CED8CF', '#CCCCC0'] },
   { id: 'ink', name: '素白', emoji: '🤍', desc: '极简中性白 · 墨黑', swatches: ['#FFFFFF', '#F2F3F4', '#E7E9EA', '#C6C9CB', '#383A3C'] },
 ]
 
@@ -38,7 +37,7 @@ const DEFAULT_THEME: ThemeId = 'aurora'
  *  黛绿/琉璃取壁纸顶部叠白后的真实色，让状态栏那条和壁纸接得上、不露浅色缝。 */
 export const BAR_COLORS: Record<ThemeId, string> = {
   sage: '#e5ebf1',
-  aurora: '#dbddf0',
+  aurora: '#f6efec',
   ink: '#f2f3f4',
 }
 

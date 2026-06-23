@@ -70,6 +70,10 @@
 - **换壁纸**：老婆把两张壁纸顶部做成平滑浅色渐变（贴状态栏更顺）。替换 `src/assets/themes/{sage-bg,aurora-bg}.jpg`，重采样顶部叠白真实色：`BAR_COLORS` sage `#e5ebf1`/aurora `#dbddf0`（index.html 预热 + 静态 meta 同步）。生理期卡两块改 `justify-center gap-5` 居中靠拢。
 - **主页卡片再调薄**：`.home-glassy .glass` 背景 .2→**.12**、`.glass-strong` .28→**.18**，模糊提到 24/26 px 保可读。
 
+**第六批（同日）· 琉璃改纯渐变 + 猫咪当聊天背景**：
+- **照片壁纸顶部不对称白边的根因**：照片顶部不是均匀色（左紫右浅），而状态栏只能一个纯色 → 永远对不齐。**琉璃改回纯渐变主题**（参考老婆给的「高级裸粉+黛霜灰」配色卡 #EBD5D0/#E4C5C1/#CED8CF/#CCCCC0/#F2F4F1）：`--bg-mesh` 用**纵向 linear 打底**让顶部一条横向均匀浅奶色 `#f6efec`，彩色光晕全压到画面下半部；`BAR_COLORS.aurora`/index.html 同步 `#f6efec`→状态栏完美融、无白边。删了 `aurora-bg.jpg` + 其 import + `.app-bg` 的 aurora url 规则；`THEMES` 的 aurora 去掉 bgImage、swatches 换成配色卡、desc「高级裸粉·一缕黛霜」。**黛绿仍是照片壁纸**（顶部够均匀，没问题）。
+- **猫咪当聊天页背景**：`src/assets/themes/chat-cat.jpg`（老婆给的雾玻璃后粉猫+肉垫，裁掉小红书水印、压到 ~80KB）。Chat 根容器底层换成 `bg-cover` 猫咪图 + `rgba(255,255,255,.3)` 柔白（猫本身就朦胧，不再加 backdrop-blur）。自定义 chatBg 仍盖其上。**全主题通用**（不跟主题切换）。
+
 ## ℹ️ 聊天记录持久化（已解决）
 
 - 早期聊天消息只存内存(`useState`)，退出/刷新会清空。**现已用 `store/chatStore.ts` 持久化到 localStorage**，退出/刷新都保留（头部「清空」可重置）。

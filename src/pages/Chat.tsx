@@ -11,6 +11,7 @@ import { useTtsStore } from '@/store/ttsStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import { useAppearanceStore } from '@/store/appearanceStore'
 import { useChatStore, type ChatMsg as Msg } from '@/store/chatStore'
+import chatCat from '@/assets/themes/chat-cat.jpg'
 import { fileToDataUrl } from '@/lib/image'
 import { isTextFile, readAsDataUrl, readAsText, humanSize } from '@/lib/file'
 import { useImageGenStore } from '@/store/imageGenStore'
@@ -767,17 +768,17 @@ export default function Chat() {
 
   return (
     <div className="relative flex h-full flex-col pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      {/* 主题壁纸雾化层：把整屏壁纸模糊提亮（约 60% 可见），聊天时背景柔和不抢戏。
-          在最底层；若设了自定义聊天背景图，会盖在这层之上（仍由变暗滑块控制）。 */}
+      {/* 聊天页默认背景：雾化玻璃后的小猫（盖住主题底）+ 一层柔白让消息清楚。
+          这只猫本身就是隔着雾玻璃的朦胧感，不再额外加模糊。 */}
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-center"
+        style={{ backgroundImage: `url(${chatCat})` }}
+      />
       <div
         className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          background: 'rgba(255, 255, 255, 0.4)',
-        }}
+        style={{ background: 'rgba(255, 255, 255, 0.3)' }}
       />
-      {/* 聊天背景图 + 变暗层（在内容之下） */}
+      {/* 自定义聊天背景图 + 变暗层（用户上传时盖在小猫之上） */}
       {chatBg && (
         <>
           <div

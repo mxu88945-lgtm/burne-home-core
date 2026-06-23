@@ -26,25 +26,25 @@
   --on-accent: #fff;
 }
 
-/* 🫧 琉璃 Aurora（默认）—— 全息流光玻璃，整屏壁纸见 .app-bg */
+/* 🫧 琉璃 Aurora（默认）—— 高级裸粉 + 黛霜灰（纯渐变，顶部一条均匀浅奶色，状态栏自然融、无不对称白边） */
 :root,
 [data-theme='aurora'] {
-  --bg-to: #e6eef0;
+  --bg-to: #f5ece8;
+  /* 顶部用纵向 linear 打底→横向均匀（状态栏好融）；裸粉/黛霜的彩色光晕都压在画面下半部 */
   --bg-mesh:
-    radial-gradient(90% 70% at 8% 8%, #e9d9f3 0%, transparent 55%),
-    radial-gradient(90% 70% at 92% 14%, #d4e8ee 0%, transparent 55%),
-    radial-gradient(100% 80% at 50% 100%, #f0dce8 0%, transparent 60%),
-    radial-gradient(80% 65% at 82% 92%, #dfe6f5 0%, transparent 55%),
-    linear-gradient(160deg, #eceaf4, #e6eef0);
-  --text: #4a4660;
-  --text-soft: #918caa;
-  --label: #a9a3c0;
-  --accent: #9385cf;
-  --accent-2: #b7a6e4;
+    radial-gradient(120% 82% at 50% 126%, #cdd8cf 0%, transparent 58%),
+    radial-gradient(85% 62% at 8% 74%, #ecd6d1 0%, transparent 55%),
+    radial-gradient(85% 62% at 92% 82%, #e6c8c3 0%, transparent 55%),
+    linear-gradient(180deg, #f6efec 0%, #f2e7e3 40%, #ecdbd6 100%);
+  --text: #5b4d49;
+  --text-soft: #a78f8a;
+  --label: #c0a8a2;
+  --accent: #c3958b;
+  --accent-2: #dcbdb4;
   --card: rgba(255, 255, 255, 0.32);
   --card-strong: rgba(255, 255, 255, 0.46);
-  --card-border: rgba(255, 255, 255, 0.72);
-  --shadow: rgba(130, 120, 170, 0.2);
+  --card-border: rgba(255, 255, 255, 0.7);
+  --shadow: rgba(150, 120, 115, 0.18);
   --on-accent: #fff;
   /* 顶栏毛玻璃条底色（~20%） */
   --bar: rgba(255, 255, 255, 0.2);
@@ -107,16 +107,11 @@ body {
     background-position: center;
     background-repeat: no-repeat;
   }
-  /* 黛绿 / 琉璃：整屏壁纸背景（叠一层很淡的白，保证文字/卡片可读） */
+  /* 黛绿：整屏壁纸背景（叠一层很淡的白，保证文字/卡片可读）。琉璃改纯渐变、不用壁纸。 */
   [data-theme='sage'] .app-bg {
     background-image:
       linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16)),
       url('./assets/themes/sage-bg.jpg');
-  }
-  [data-theme='aurora'] .app-bg {
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.14)),
-      url('./assets/themes/aurora-bg.jpg');
   }
 
   /* 毛玻璃卡片：半透明 + 背景模糊 + 顶部高光（玻璃光泽） */
