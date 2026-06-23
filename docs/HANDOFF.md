@@ -47,6 +47,12 @@
 
 **⏭ 留给你的 TODO**：流式思考链(SSE)；**IndexedDB(书正文)纳入整包备份**(现在整包备份只含 localStorage，书正文不在里面)；隐私锁闲置自动上锁；聊天记录云同步。
 
+### 🆕 2026-06-23 这轮（分支 `claude/chat-ui-model-output-yya1h6`，三个手机验收的小修，都在 `src/pages/Chat.tsx`）
+
+1. **右下角 ↑/↓ 悬浮键平时隐藏**：`showScrollBtns` state + 监听 `scrollRef` 的 `scroll` 事件，滚动时淡入、停 1.2s 后淡出（`transition-opacity`，隐藏时同步关 `pointer-events`，不挡点击）。
+2. **后台中断不再「回复断掉」**：iOS 切后台会冻结 JS、掐断在途网络连接，`chatComplete`（非流式 `await`）会失败、回复丢。`respond()` 把 API 调用包进**重试循环**：监听本次请求期间有没有切过后台（`visibilitychange`），失败且错误像「连接被掐断」(`looksBackgrounded()`：load failed/network/connection/aborted/timeout…) 就 `waitUntilVisible()` 等回前台再重试（最多 4 次）。typing 三点一直显示，回前台后回复自然补全。⚠️ 取舍：极端情况下服务端已收到、连接才断，重试会重发一次（多花一次 token，但保住回复）。⏭ 真正根治还是上 SSE 流式。
+3. **回车键可换行**：输入框从单行 `<input>` 改成自增高 `<textarea>`（`autoGrow()` 1~120px，发送后回一行）。`isTouch`（`matchMedia('(pointer:coarse)')`）判断：**手机回车=换行、靠纸飞机发送**；桌面回车发送、Shift+回车换行。输入条改 `items-end rounded-3xl` 适配多行。
+
 ---
 
 ## ℹ️ 聊天记录持久化（已解决）

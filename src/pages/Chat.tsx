@@ -36,6 +36,29 @@ import {
 type PendingFile = NonNullable<Msg['file']>
 const MAX_FILE = 1.5 * 1024 * 1024 // 1.5MB（dataURL 存 localStorage，避免超额）
 
+/** 等页面回到前台再继续（已在前台立即返回）。iOS 切后台会冻结 JS、掐断网络，靠它在回前台后重试 */
+function waitUntilVisible(): Promise<void> {
+  if (typeof document === 'undefined' || !document.hidden) return Promise.resolve()
+  return new Promise((resolve) => {
+    const on = () => {
+      if (!document.hidden) {
+        document.removeEventListener('visibilitychange', on)
+        window.removeEventListener('focus', on)
+        resolve()
+      }
+    }
+    document.addEventListener('visibilitychange', on)
+    window.addEventListener('focus', on)
+  })
+}
+
+/** 看起来是「切后台导致连接被系统掐断」的错误（而非真正的 API 报错），这类应该回前台后自动重试 */
+function looksBackgrounded(msg: string): boolean {
+  return /load failed|networkerror|network error|failed to fetch|connection|aborted|abort|timed out|timeout|cancell?ed/i.test(
+    msg,
+  )
+}
+
 /** 给 Promise 加超时，避免某些环境下 PDF worker 卡住拖死发送 */
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -124,6 +147,13 @@ export default function Chat() {
   const [editDraft, setEditDraft] = useState('')
   const [copiedId, setCopiedId] = useState('')
   const [openReasoning, setOpenReasoning] = useState<Set<string>>(new Set())
+  // 右下角 ↑/↓ 悬浮键：平时隐藏，滚动时淡入，停 1.2s 后淡出
+  const [showScrollBtns, setShowScrollBtns] = useState(false)
+  // 触屏设备（手机）：回车键=换行，靠发送按钮发送；桌面：回车发送、Shift+回车换行
+  const isTouch =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(pointer: coarse)').matches
 
   function toggleReasoning(id: string) {
     setOpenReasoning((prev) => {
@@ -138,6 +168,35 @@ export default function Chat() {
   const endRef = useRef<HTMLDivElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const scrollHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  /** 输入框随内容自动增高（1~约 4 行），发送后会回到一行 */
+  function autoGrow() {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`
+  }
+  useEffect(() => {
+    autoGrow()
+  }, [draft])
+
+  // 滚动时显示右下角 ↑/↓ 悬浮键，停下 1.2s 后淡出
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const onScroll = () => {
+      setShowScrollBtns(true)
+      if (scrollHideTimer.current) clearTimeout(scrollHideTimer.current)
+      scrollHideTimer.current = setTimeout(() => setShowScrollBtns(false), 1200)
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      if (scrollHideTimer.current) clearTimeout(scrollHideTimer.current)
+    }
+  }, [])
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -582,40 +641,67 @@ export default function Chat() {
       let reply = ''
       let tokens: number | undefined
       let reasoning: string | undefined
-      if (channel) {
-        const r = await chatComplete(channel, apiMsgs, system, {
-          workerUrl,
-          syncKey: config.syncKey,
-          temperature: persona.temperature,
-          maxTokens: persona.maxTokens,
-          reasoning: persona.reasoning,
-          webSearch,
-        })
-        reply = r.text
-        reasoning = r.reasoning
-        if (r.usage) {
-          tokens = r.usage.totalTokens
-          addUsage({
-            at: new Date().toISOString(),
-            provider: channel.provider,
-            model: r.usage.model,
-            promptTokens: r.usage.promptTokens,
-            completionTokens: r.usage.completionTokens,
-            totalTokens: r.usage.totalTokens,
-            cost: r.usage.cost,
-          })
+
+      // 后台中断自动重试：iOS 切后台会冻结 JS、掐断网络连接，导致这次请求失败、回复「断掉」。
+      // 监听这次请求期间有没有切过后台，若失败且像是被系统掐断，就等回到前台再重试（最多 4 次），别丢回复。
+      let attempt = 0
+      while (true) {
+        let hiddenDuringReq = typeof document !== 'undefined' && document.hidden
+        const markHidden = () => {
+          if (typeof document !== 'undefined' && document.hidden) hiddenDuringReq = true
         }
-      } else {
-        reply = await sendChat({
-          workerUrl: workerUrl!,
-          syncKey: config.syncKey,
-          messages: apiMsgs,
-          system,
-          provider: config.chatProvider || undefined,
-          model: config.chatModel || undefined,
-          temperature: persona.temperature,
-          maxTokens: persona.maxTokens,
-        })
+        document.addEventListener('visibilitychange', markHidden)
+        try {
+          if (channel) {
+            const r = await chatComplete(channel, apiMsgs, system, {
+              workerUrl,
+              syncKey: config.syncKey,
+              temperature: persona.temperature,
+              maxTokens: persona.maxTokens,
+              reasoning: persona.reasoning,
+              webSearch,
+            })
+            reply = r.text
+            reasoning = r.reasoning
+            if (r.usage) {
+              tokens = r.usage.totalTokens
+              addUsage({
+                at: new Date().toISOString(),
+                provider: channel.provider,
+                model: r.usage.model,
+                promptTokens: r.usage.promptTokens,
+                completionTokens: r.usage.completionTokens,
+                totalTokens: r.usage.totalTokens,
+                cost: r.usage.cost,
+              })
+            }
+          } else {
+            reply = await sendChat({
+              workerUrl: workerUrl!,
+              syncKey: config.syncKey,
+              messages: apiMsgs,
+              system,
+              provider: config.chatProvider || undefined,
+              model: config.chatModel || undefined,
+              temperature: persona.temperature,
+              maxTokens: persona.maxTokens,
+            })
+          }
+          break // 成功
+        } catch (err) {
+          const m = (err as Error).message || ''
+          const interrupted =
+            (hiddenDuringReq || (typeof document !== 'undefined' && document.hidden)) &&
+            looksBackgrounded(m)
+          if (interrupted && attempt < 4) {
+            attempt++
+            await waitUntilVisible() // 回到前台再重试
+            continue
+          }
+          throw err
+        } finally {
+          document.removeEventListener('visibilitychange', markHidden)
+        }
       }
       // 解析 TA 下的任务标记 → 生成对话内倒计时任务卡，并从正文移除标记
       const taskMsgs: Msg[] = []
@@ -1069,14 +1155,22 @@ export default function Chat() {
         </div>
       )}
 
-      {/* 回顶部 / 回底部 悬浮按钮 */}
+      {/* 回顶部 / 回底部 悬浮按钮（平时隐藏，滚动时淡入） */}
       {!selectMode && (
-        <div className="pointer-events-none absolute bottom-24 right-3 z-10 flex flex-col gap-1.5">
+        <div
+          className={[
+            'pointer-events-none absolute bottom-24 right-3 z-10 flex flex-col gap-1.5 transition-opacity duration-300',
+            showScrollBtns ? 'opacity-100' : 'opacity-0',
+          ].join(' ')}
+        >
           <button
             type="button"
             onClick={() => scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
             aria-label="回到顶部"
-            className="glass-strong pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full text-sm text-ink"
+            className={[
+              'glass-strong flex h-9 w-9 items-center justify-center rounded-full text-sm text-ink',
+              showScrollBtns ? 'pointer-events-auto' : 'pointer-events-none',
+            ].join(' ')}
           >
             ↑
           </button>
@@ -1089,7 +1183,10 @@ export default function Chat() {
               })
             }
             aria-label="回到底部"
-            className="glass-strong pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full text-sm text-ink"
+            className={[
+              'glass-strong flex h-9 w-9 items-center justify-center rounded-full text-sm text-ink',
+              showScrollBtns ? 'pointer-events-auto' : 'pointer-events-none',
+            ].join(' ')}
           >
             ↓
           </button>
@@ -1230,7 +1327,7 @@ export default function Chat() {
               </div>
             </>
           )}
-          <div className="glass-strong flex flex-1 items-center gap-1 rounded-full py-1.5 pl-2 pr-1.5">
+          <div className="glass-strong flex flex-1 items-end gap-1 rounded-3xl py-1 pl-2 pr-1.5">
             <button
               type="button"
               onClick={() => setPlusOpen((o) => !o)}
@@ -1239,8 +1336,10 @@ export default function Chat() {
             >
               ＋
             </button>
-            <input
+            <textarea
+              ref={inputRef}
               value={draft}
+              rows={1}
               onChange={(e) => setDraft(e.target.value)}
               onFocus={() => {
                 // 点输入框/弹键盘时，滚到最新消息，避免被键盘遮住
@@ -1250,10 +1349,14 @@ export default function Chat() {
                 )
               }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') send()
+                // 手机：回车键=换行（用发送按钮发）；桌面：回车发送、Shift+回车换行
+                if (e.key === 'Enter' && !e.shiftKey && !isTouch) {
+                  e.preventDefault()
+                  send()
+                }
               }}
               placeholder={`say something to ${name}…`}
-              className="headline min-w-0 flex-1 bg-transparent text-sm not-italic text-ink outline-none placeholder:italic placeholder:text-muted"
+              className="headline min-h-[36px] max-h-[120px] min-w-0 flex-1 resize-none self-center bg-transparent py-1.5 text-sm not-italic leading-snug text-ink outline-none placeholder:italic placeholder:text-muted"
             />
             <button
               type="button"
