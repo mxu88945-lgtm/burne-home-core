@@ -34,11 +34,12 @@ export const THEMES: ThemeMeta[] = [
 const DEFAULT_THEME: ThemeId = 'aurora'
 
 /** 各主题的顶部条颜色（状态栏 / theme-color）。
- *  黛绿/琉璃取壁纸顶部叠白后的真实色，让状态栏那条和壁纸接得上、不露浅色缝。 */
+ *  三套统一成同一片「奶白」——和 .app-bg 顶部那条奶白渐变一致，
+ *  这样切主题时状态栏永远不串色（iOS 装机版不实时刷新也无所谓）。 */
 export const BAR_COLORS: Record<ThemeId, string> = {
-  sage: '#e5ebf1',
-  aurora: '#f6efec',
-  ink: '#f2f3f4',
+  sage: '#f4f1ec',
+  aurora: '#f4f1ec',
+  ink: '#f4f1ec',
 }
 
 function isThemeId(v: unknown): v is ThemeId {

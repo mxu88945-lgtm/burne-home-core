@@ -100,16 +100,21 @@ body {
    ============================================================ */
 @layer components {
   /* 页面背景：玻璃拟态的彩色网格底（让上层卡片有透视感可“透”） */
+  /* 顶部统一一条「奶白→透明」渐变（所有主题共用）：状态栏色也用这个奶白，
+     于是不管在哪个主题、顶栏与页面顶部都是同一片奶白 → 切主题永不串色、不用纠结 iOS 刷新。 */
   .app-bg {
     background-color: var(--bg-to);
-    background-image: var(--bg-mesh);
+    background-image:
+      linear-gradient(180deg, #f4f1ec 0%, rgba(244, 241, 236, 0) 15%),
+      var(--bg-mesh);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
   }
-  /* 黛绿：整屏壁纸背景（叠一层很淡的白，保证文字/卡片可读）。琉璃改纯渐变、不用壁纸。 */
+  /* 黛绿：整屏壁纸背景（顶部同样叠奶白条；再叠一层很淡的白保证可读）。琉璃改纯渐变、不用壁纸。 */
   [data-theme='sage'] .app-bg {
     background-image:
+      linear-gradient(180deg, #f4f1ec 0%, rgba(244, 241, 236, 0) 15%),
       linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16)),
       url('./assets/themes/sage-bg.jpg');
   }
