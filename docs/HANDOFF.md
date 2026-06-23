@@ -53,6 +53,10 @@
 2. **后台中断不再「回复断掉」**：iOS 切后台会冻结 JS、掐断在途网络连接，`chatComplete`（非流式 `await`）会失败、回复丢。`respond()` 把 API 调用包进**重试循环**：监听本次请求期间有没有切过后台（`visibilitychange`），失败且错误像「连接被掐断」(`looksBackgrounded()`：load failed/network/connection/aborted/timeout…) 就 `waitUntilVisible()` 等回前台再重试（最多 4 次）。typing 三点一直显示，回前台后回复自然补全。⚠️ 取舍：极端情况下服务端已收到、连接才断，重试会重发一次（多花一次 token，但保住回复）。⏭ 真正根治还是上 SSE 流式。
 3. **回车键可换行**：输入框从单行 `<input>` 改成自增高 `<textarea>`（`autoGrow()` 1~120px，发送后回一行）。`isTouch`（`matchMedia('(pointer:coarse)')`）判断：**手机回车=换行、靠纸飞机发送**；桌面回车发送、Shift+回车换行。输入条改 `items-end rounded-3xl` 适配多行。
 
+**第二批（同日）· 主题精简 + 壁纸背景**：
+- **删了雾粉(mist)/暮夜(dusk)两套主题**，只留 **黛绿(sage)/琉璃(aurora)/素白(ink)** 三套。`ThemeId` 收成这三个；默认主题 mist→**aurora**；`themeStore.ts`(THEMES/BAR_COLORS/isThemeId)、`index.css`（删 mist/dusk 两块，`:root` 并入 aurora 当默认、把 `--bar` 挪到这里，删 dusk 的 `color-scheme:dark`）、`index.html` 预热脚本（默认/合法 id 列表/bar map 三处 + 静态 theme-color 改 `#eceaf4`）全同步。旧 id（含已删的 mist/dusk）`readStoredTheme` 自动回落 aurora。
+- **黛绿/琉璃换成整屏壁纸背景**：图存 `src/assets/themes/{sage-bg,aurora-bg}.jpg`（老婆发的薄荷泡泡 / 粉紫流光，已压到 941px·约 50/78KB）。`.app-bg` 改长手写法 + `background-size:cover`（去掉 `attachment:fixed`，外壳本就 `position:fixed` 不滚，避免 iOS fixed 背景图缩放 bug），`[data-theme='sage'/'aurora'] .app-bg` 用 `url(...)` 叠一层很淡的白(.14~.16)保可读。CSS 里 `url('./assets/themes/..')` 由 Vite 自动指纹化（产物 `./sage-bg-xxx.jpg` 紧挨 CSS，子路径 OK）。`ThemeMeta.bgImage` 让 ThemePage 预览也直接显示壁纸。换壁纸=替换这两张图重新构建。
+
 ---
 
 ## ℹ️ 聊天记录持久化（已解决）

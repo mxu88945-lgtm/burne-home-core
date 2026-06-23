@@ -9,16 +9,16 @@
     <meta name="description" content="伯恩主屋版 · 长期记忆系统" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="theme-color" content="#f6ebe8" />
+    <meta name="theme-color" content="#eceaf4" />
     <script>
       // 首帧前预热：按上次主题设好 data-theme 与 theme-color，避免顶部白闪
       (function () {
         try {
           var raw = localStorage.getItem('burne-home-core:theme')
-          var id = raw ? JSON.parse(raw).id : 'mist'
-          if (['mist', 'sage', 'aurora', 'dusk', 'ink'].indexOf(id) < 0) id = 'mist'
+          var id = raw ? JSON.parse(raw).id : 'aurora'
+          if (['sage', 'aurora', 'ink'].indexOf(id) < 0) id = 'aurora'
           document.documentElement.dataset.theme = id
-          var bar = { mist: '#f6ebe8', sage: '#e9f0ec', aurora: '#eceaf4', dusk: '#2c2724', ink: '#f2f3f4' }[id]
+          var bar = { sage: '#e9f0ec', aurora: '#eceaf4', ink: '#f2f3f4' }[id]
           var m = document.querySelector('meta[name="theme-color"]')
           if (m) m.setAttribute('content', bar)
         } catch (e) {}
