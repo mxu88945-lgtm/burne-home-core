@@ -87,6 +87,9 @@
 - **琉璃再调淡**：`--bg-mesh` 整体提亮到「白里透粉」（#fbe5ef/#fdeef4/#fce4ef + linear #fdf7f9→#fbe9f1），`--bg-to`/swatches 同步，accent 微调 `#d585a6`。
 - ⚠️ 部署已改回**只监听 new-frontend-repo 分支**（避免双分支并发互相取消）。本窗口习惯：每次还是 push 到两个分支（dev=chat-ui-model-output 备份、deploy=new-frontend-repo 触发部署），但只有 deploy 分支会跑 Pages。
 
+**第十批（同日）· 启动闪屏（治冷启动白屏）**：
+- 装机版冷启动从网络拉主程序(~170KB)、无 SW 离线缓存 → 网络慢时先卡纯白页。`index.html` 在 `#root` 内放一个 `#bw-splash`（奶白底 #f4f1ec + 呼吸动画的「BW♡」），React `createRoot` 首次渲染会清空 #root → 闪屏自动消失。纯前端、零风险。⏭ 想要「秒开/离线」可加 Service Worker 缓存 app shell，但会和老婆「频繁更新 + 强制刷新」的流程冲突（易看不到新版），暂不做。
+
 ## ℹ️ 聊天记录持久化（已解决）
 
 - 早期聊天消息只存内存(`useState`)，退出/刷新会清空。**现已用 `store/chatStore.ts` 持久化到 localStorage**，退出/刷新都保留（头部「清空」可重置）。

@@ -43,9 +43,36 @@
       rel="stylesheet"
     />
     <title>伯恩主屋 · 长期记忆</title>
+    <style>
+      /* 启动闪屏：冷启动从网络加载主程序时，先显示这片奶白 + 呼吸的 BW♡，
+         避免一片空白「像没打开」；React 挂载后会替换 #root 内容自动消失。 */
+      #bw-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f4f1ec;
+      }
+      #bw-splash .bw-mark {
+        font-family: 'Playfair Display', Georgia, serif;
+        font-style: italic;
+        font-size: 34px;
+        letter-spacing: 0.02em;
+        color: #cf8aa6;
+        animation: bw-breathe 1.6s ease-in-out infinite;
+      }
+      @keyframes bw-breathe {
+        0%, 100% { opacity: 0.45; transform: scale(0.98); }
+        50% { opacity: 1; transform: scale(1); }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="bw-splash"><div class="bw-mark">BW ♡</div></div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
