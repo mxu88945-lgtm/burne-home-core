@@ -61,6 +61,11 @@
 - **顶部状态栏色**：iOS 装机版状态栏色是「启动时读一次 `theme-color`」，换主题后 JS 改它不会实时刷新（Safari 网页版会），老婆接受「换完退出重开读新色」。重开靠 `index.html` 预热脚本按 localStorage 补对色。`applyTheme` 改成**整个替换 meta 节点**（非只改属性）提高实时命中率。⚠️ 试过 `black-translucent` 让壁纸铺到状态栏底下→老婆反馈苹果硬伤是**底部 home 指示区会露白条**，修不好，故**保持 `default` 深色图标**，不动状态栏样式。
 - **聊天页壁纸雾化**：Chat 根容器最底加一层 `absolute inset-0 -z-10` 雾化层：`backdrop-filter:blur(16px)` + `rgba(255,255,255,.4)`（壁纸约 60% 可见、更柔），让消息更清楚。自定义聊天背景图(chatBg)仍盖在这层之上、由变暗滑块控制，不受影响。
 
+**第四批（同日）· 顶栏贴色 + 纪念日 bug + 主页更透**：
+- **🐛 纪念日天数恒为 0（已修）**：`profileStore.daysTogether` 原用 `new Date('2026-6-15T00:00:00')` 解析——**iOS Safari 对非补零 ISO 串判 Invalid Date**→NaN→恒 0。改成正则拆年月日 + 数字版 `new Date(y,m-1,d)`，按本地零点算整天差。老婆存的就是 `2026-6-15`（没补零），所以一直 0。
+- **顶栏色贴壁纸**：状态栏只能纯色，琉璃旧 `#eceaf4` 比壁纸顶部更白 → 有缝。用 PIL 采样壁纸顶部叠白后的真实色，`BAR_COLORS` 改 aurora `#dcd5f3`/sage `#dce6df`（index.html 预热 bar map + 静态 meta 同步）。装机版换主题后退出重开即读到贴合色。
+- **🪟 主页卡片更透视**：Home 根 div 加 `home-glassy` 类，`index.css` 里 `.home-glassy .glass{background:rgba(255,255,255,.2);blur(22px)}`、`.glass-strong{.28;blur(24px)}`——只作用主页，壁纸透出更多更朦胧，其它页玻璃不变。
+
 ---
 
 ## ℹ️ 聊天记录持久化（已解决）

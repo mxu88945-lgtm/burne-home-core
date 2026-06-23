@@ -80,7 +80,7 @@ export default function Home() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="home-glassy space-y-5">
       {/* 情侣主视觉 */}
       <section className="glass-strong rounded-3xl px-6 py-7 text-center">
         <div className="flex items-center justify-center gap-5">

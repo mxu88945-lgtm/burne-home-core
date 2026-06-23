@@ -34,10 +34,11 @@ export const THEMES: ThemeMeta[] = [
 
 const DEFAULT_THEME: ThemeId = 'aurora'
 
-/** 各主题的顶部条颜色（状态栏 / theme-color），取页面顶部色 */
+/** 各主题的顶部条颜色（状态栏 / theme-color）。
+ *  黛绿/琉璃取壁纸顶部叠白后的真实色，让状态栏那条和壁纸接得上、不露浅色缝。 */
 export const BAR_COLORS: Record<ThemeId, string> = {
-  sage: '#e9f0ec',
-  aurora: '#eceaf4',
+  sage: '#dce6df',
+  aurora: '#dcd5f3',
   ink: '#f2f3f4',
 }
 

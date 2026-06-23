@@ -45,12 +45,16 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
   },
 }))
 
-/** 计算在一起的天数（>= 0）。容错：支持 2025-05-01 / 2025.5.1 / 2025/5/1 */
+/** 计算在一起的天数（>= 0）。容错：支持 2025-05-01 / 2025.5.1 / 2025/5/1 / 2025-5-1
+ *  ⚠️ 不用 new Date('2025-5-1') 解析——iOS Safari 对非补零的 ISO 串会判为 Invalid Date（天数恒为 0），
+ *  改成手动拆出年月日、按本地零点算整天差。 */
 export function daysTogether(anniversary: string): number {
-  const norm = (anniversary || '').trim().replace(/[./]/g, '-')
-  const start = new Date(norm + 'T00:00:00')
+  const m = (anniversary || '').trim().replace(/[./]/g, '-').match(/^(\d{4})-(\d{1,2})-(\d{1,2})/)
+  if (!m) return 0
+  const start = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
   if (Number.isNaN(start.getTime())) return 0
   const today = new Date()
-  const diff = today.getTime() - start.getTime()
-  return Math.max(0, Math.floor(diff / 86400000))
+  const startMid = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime()
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime()
+  return Math.max(0, Math.round((todayMid - startMid) / 86400000))
 }
