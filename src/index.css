@@ -29,18 +29,18 @@
 /* 🫧 琉璃 Aurora（默认）—— 清浅少女粉（纯渐变，顶部一条均匀奶白，状态栏自然融） */
 :root,
 [data-theme='aurora'] {
-  --bg-to: #f9f1f4;
-  /* 顶部纵向 linear 打底→横向均匀；干净的浅少女粉光晕压在画面下半部，整体淡而透 */
+  --bg-to: #fcf5f8;
+  /* 顶部纵向 linear 打底→横向均匀；更淡更透的少女粉光晕压在画面下半部，几乎是白里透粉 */
   --bg-mesh:
-    radial-gradient(115% 78% at 50% 124%, #f8dbe7 0%, transparent 60%),
-    radial-gradient(82% 60% at 10% 72%, #fce3ee 0%, transparent 55%),
-    radial-gradient(82% 60% at 90% 80%, #f7d8e6 0%, transparent 55%),
-    linear-gradient(180deg, #faf2f4 0%, #faebf1 42%, #f8dde9 100%);
+    radial-gradient(115% 78% at 50% 124%, #fbe5ef 0%, transparent 62%),
+    radial-gradient(82% 60% at 10% 72%, #fdeef4 0%, transparent 55%),
+    radial-gradient(82% 60% at 90% 80%, #fce4ef 0%, transparent 55%),
+    linear-gradient(180deg, #fdf7f9 0%, #fcf2f6 45%, #fbe9f1 100%);
   --text: #6a5560;
   --text-soft: #ad95a1;
   --label: #c6abb6;
-  --accent: #d27ba0;
-  --accent-2: #ecaecb;
+  --accent: #d585a6;
+  --accent-2: #f0bcd4;
   --card: rgba(255, 255, 255, 0.32);
   --card-strong: rgba(255, 255, 255, 0.46);
   --card-border: rgba(255, 255, 255, 0.72);

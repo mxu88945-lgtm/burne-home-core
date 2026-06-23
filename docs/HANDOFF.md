@@ -82,6 +82,11 @@
 - **琉璃从「裸粉」改清浅「少女粉」**（嫌之前粉太浓）：`[data-theme='aurora']` 的 `--bg-mesh` 换成干净浅粉（#f8dbe7/#fce3ee/#f7d8e6 + linear #faf2f4→#f8dde9），`--accent` 改玫粉 `#d27ba0`、text 调暖灰紫；`--bg-to`/swatches 同步。顶部奶白条不变。
 - **聊天猫猫更朦胧**：`chat-cat.jpg` 源头先做 GaussianBlur(r6) 烤进图里（更稳、更小 ~30KB），Chat 柔白层再加 `backdrop-blur(12px)` + 白 .36。双重柔化，肉垫还隐约可见。
 
+**第九批（同日）· 猫猫只在琉璃 + 粉再调淡**：
+- **聊天猫猫只在琉璃(aurora)主题**：Chat 读 `useThemeStore` 的 theme，`theme==='aurora'` 才铺猫猫(+模糊柔白)；其余主题只盖一层 `rgba(255,255,255,.22)` 淡白、**跟随各自主题背景**（黛绿壁纸/素白渐变透出）。
+- **琉璃再调淡**：`--bg-mesh` 整体提亮到「白里透粉」（#fbe5ef/#fdeef4/#fce4ef + linear #fdf7f9→#fbe9f1），`--bg-to`/swatches 同步，accent 微调 `#d585a6`。
+- ⚠️ 部署已改回**只监听 new-frontend-repo 分支**（避免双分支并发互相取消）。本窗口习惯：每次还是 push 到两个分支（dev=chat-ui-model-output 备份、deploy=new-frontend-repo 触发部署），但只有 deploy 分支会跑 Pages。
+
 ## ℹ️ 聊天记录持久化（已解决）
 
 - 早期聊天消息只存内存(`useState`)，退出/刷新会清空。**现已用 `store/chatStore.ts` 持久化到 localStorage**，退出/刷新都保留（头部「清空」可重置）。

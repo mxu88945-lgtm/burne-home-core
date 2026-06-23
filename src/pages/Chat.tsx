@@ -26,6 +26,7 @@ import { renderRichText, stripLinks } from '@/lib/richText'
 import { usePeriodStore } from '@/store/periodStore'
 import { periodChatNote } from '@/lib/period'
 import { parseTasks } from '@/store/taskStore'
+import { useThemeStore } from '@/store/themeStore'
 import {
   ImageIcon,
   FileIcon,
@@ -109,6 +110,7 @@ export default function Chat() {
   const flat = useChatPrefsStore((s) => s.chatStyle) === 'flat'
   const showLinks = useChatPrefsStore((s) => s.showLinks)
   const allowTasks = useChatPrefsStore((s) => s.allowTasks)
+  const theme = useThemeStore((s) => s.theme)
   const [nowTs, setNowTs] = useState(Date.now())
   const addMemory = useMemoryStore((s) => s.addMemory)
   const memoriesRef = useMemoryStore((s) => s.memories)
@@ -768,20 +770,28 @@ export default function Chat() {
 
   return (
     <div className="relative flex h-full flex-col pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      {/* 聊天页默认背景：雾化玻璃后的小猫（盖住主题底）+ 一层柔白让消息清楚。
-          这只猫本身就是隔着雾玻璃的朦胧感，不再额外加模糊。 */}
-      <div
-        className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-center"
-        style={{ backgroundImage: `url(${chatCat})` }}
-      />
-      <div
-        className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
-          background: 'rgba(255, 255, 255, 0.36)',
-        }}
-      />
+      {/* 聊天页背景：只有「琉璃(粉)」主题用雾化小猫；其余主题跟随各自主题背景（淡淡一层白保证消息清楚）。 */}
+      {theme === 'aurora' ? (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-center"
+            style={{ backgroundImage: `url(${chatCat})` }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0 -z-10"
+            style={{
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              background: 'rgba(255, 255, 255, 0.36)',
+            }}
+          />
+        </>
+      ) : (
+        <div
+          className="pointer-events-none absolute inset-0 -z-10"
+          style={{ background: 'rgba(255, 255, 255, 0.22)' }}
+        />
+      )}
       {/* 自定义聊天背景图 + 变暗层（用户上传时盖在小猫之上） */}
       {chatBg && (
         <>
