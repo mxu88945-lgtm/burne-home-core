@@ -767,6 +767,16 @@ export default function Chat() {
 
   return (
     <div className="relative flex h-full flex-col pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      {/* 主题壁纸雾化层：把整屏壁纸模糊提亮（约 60% 可见），聊天时背景柔和不抢戏。
+          在最底层；若设了自定义聊天背景图，会盖在这层之上（仍由变暗滑块控制）。 */}
+      <div
+        className="pointer-events-none absolute inset-0 -z-10"
+        style={{
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          background: 'rgba(255, 255, 255, 0.4)',
+        }}
+      />
       {/* 聊天背景图 + 变暗层（在内容之下） */}
       {chatBg && (
         <>

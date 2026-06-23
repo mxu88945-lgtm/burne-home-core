@@ -45,11 +45,18 @@ function isThemeId(v: unknown): v is ThemeId {
   return v === 'sage' || v === 'aurora' || v === 'ink'
 }
 
-/** 把主题写到 <html> 上，并同步 theme-color meta —— 启动时也会调用，避免闪烁 */
+/** 把主题写到 <html> 上，并同步 theme-color meta —— 启动时也会调用，避免闪烁。
+ *  顶部状态栏色：装机版 iOS 是启动时读一次，换主题后退出重开即读到新色（index.html 预热脚本也按本地存储补一遍）。
+ *  这里把 meta 节点整个换新（而非只改属性），尽量提高浏览器/部分 iOS 实时刷新的命中率。 */
 export function applyTheme(id: ThemeId) {
   document.documentElement.dataset.theme = id
-  const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.setAttribute('content', BAR_COLORS[id])
+  const color = BAR_COLORS[id]
+  const old = document.querySelector('meta[name="theme-color"]')
+  const meta = document.createElement('meta')
+  meta.setAttribute('name', 'theme-color')
+  meta.setAttribute('content', color)
+  if (old) old.replaceWith(meta)
+  else document.head.appendChild(meta)
 }
 
 export function readStoredTheme(): ThemeId {

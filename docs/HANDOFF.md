@@ -57,6 +57,10 @@
 - **删了雾粉(mist)/暮夜(dusk)两套主题**，只留 **黛绿(sage)/琉璃(aurora)/素白(ink)** 三套。`ThemeId` 收成这三个；默认主题 mist→**aurora**；`themeStore.ts`(THEMES/BAR_COLORS/isThemeId)、`index.css`（删 mist/dusk 两块，`:root` 并入 aurora 当默认、把 `--bar` 挪到这里，删 dusk 的 `color-scheme:dark`）、`index.html` 预热脚本（默认/合法 id 列表/bar map 三处 + 静态 theme-color 改 `#eceaf4`）全同步。旧 id（含已删的 mist/dusk）`readStoredTheme` 自动回落 aurora。
 - **黛绿/琉璃换成整屏壁纸背景**：图存 `src/assets/themes/{sage-bg,aurora-bg}.jpg`（老婆发的薄荷泡泡 / 粉紫流光，已压到 941px·约 50/78KB）。`.app-bg` 改长手写法 + `background-size:cover`（去掉 `attachment:fixed`，外壳本就 `position:fixed` 不滚，避免 iOS fixed 背景图缩放 bug），`[data-theme='sage'/'aurora'] .app-bg` 用 `url(...)` 叠一层很淡的白(.14~.16)保可读。CSS 里 `url('./assets/themes/..')` 由 Vite 自动指纹化（产物 `./sage-bg-xxx.jpg` 紧挨 CSS，子路径 OK）。`ThemeMeta.bgImage` 让 ThemePage 预览也直接显示壁纸。换壁纸=替换这两张图重新构建。
 
+**第三批（同日）· 顶栏渲染 + 聊天页壁纸雾化**：
+- **顶部状态栏色**：iOS 装机版状态栏色是「启动时读一次 `theme-color`」，换主题后 JS 改它不会实时刷新（Safari 网页版会），老婆接受「换完退出重开读新色」。重开靠 `index.html` 预热脚本按 localStorage 补对色。`applyTheme` 改成**整个替换 meta 节点**（非只改属性）提高实时命中率。⚠️ 试过 `black-translucent` 让壁纸铺到状态栏底下→老婆反馈苹果硬伤是**底部 home 指示区会露白条**，修不好，故**保持 `default` 深色图标**，不动状态栏样式。
+- **聊天页壁纸雾化**：Chat 根容器最底加一层 `absolute inset-0 -z-10` 雾化层：`backdrop-filter:blur(16px)` + `rgba(255,255,255,.4)`（壁纸约 60% 可见、更柔），让消息更清楚。自定义聊天背景图(chatBg)仍盖在这层之上、由变暗滑块控制，不受影响。
+
 ---
 
 ## ℹ️ 聊天记录持久化（已解决）
