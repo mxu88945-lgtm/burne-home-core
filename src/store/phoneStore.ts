@@ -59,6 +59,8 @@ export interface PhonePersona {
   meColor?: string
   /** TA 气泡颜色（hex，默认浅灰） */
   taColor?: string
+  /** 自定义聊天背景图（dataURL，不填用默认：琉璃猫咪 / 其余跟随主题） */
+  bgImg?: string
 }
 
 const DEFAULT_PERSONA: PhonePersona = {

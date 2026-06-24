@@ -125,6 +125,7 @@ export default function PhonePage() {
   const avatarRef = useRef<HTMLInputElement>(null)
   const picRef = useRef<HTMLInputElement>(null)
   const stickerFileRef = useRef<HTMLInputElement>(null)
+  const bgFileRef = useRef<HTMLInputElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const isTouch =
     typeof window !== 'undefined' &&
@@ -228,6 +229,14 @@ export default function PhonePage() {
     const history = [...messages, mine]
     setMessages(history)
     if (connected) await respond(history)
+  }
+  async function pickBg(file: File) {
+    setErr('')
+    try {
+      setPersona({ bgImg: await fileToDataUrl(file, 1280, 0.82) })
+    } catch (e) {
+      setErr((e as Error).message)
+    }
   }
   async function addStickerImage(file: File) {
     setErr('')
@@ -491,8 +500,25 @@ export default function PhonePage() {
 
   return (
     <div className="relative flex h-full flex-col pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      {/* 干净一点的「小手机」底：在主题背景上盖一层柔白，更像一块手机屏 */}
-      <div className="pointer-events-none absolute inset-0 -z-10" style={{ background: 'rgba(255,255,255,0.5)' }} />
+      {/* 小手机背景：自定义图优先（铺满+柔白让消息清楚）；否则在主题背景上盖柔白，像一块手机屏 */}
+      {persona.bgImg ? (
+        <>
+          <div
+            className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-center"
+            style={{ backgroundImage: `url(${persona.bgImg})` }}
+          />
+          <div
+            className="pointer-events-none absolute inset-0 -z-10"
+            style={{
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              background: 'rgba(255, 255, 255, 0.28)',
+            }}
+          />
+        </>
+      ) : (
+        <div className="pointer-events-none absolute inset-0 -z-10" style={{ background: 'rgba(255,255,255,0.5)' }} />
+      )}
 
       {/* 顶部：头像 + 名字 + 个性签名 + 菜单 */}
       <div className="glass-bar sticky top-0 z-20 flex items-center gap-3 px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
@@ -505,6 +531,17 @@ export default function PhonePage() {
             const f = e.target.files?.[0]
             e.target.value = ''
             if (f) pickAvatar(f)
+          }}
+        />
+        <input
+          ref={bgFileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (f) pickBg(f)
           }}
         />
         <button
@@ -657,6 +694,28 @@ export default function PhonePage() {
                     className="h-6 w-9 rounded border-0 bg-transparent p-0"
                   />
                 </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    bgFileRef.current?.click()
+                  }}
+                  className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                >
+                  更换聊天背景图
+                </button>
+                {persona.bgImg && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setPersona({ bgImg: undefined })
+                    }}
+                    className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                  >
+                    恢复默认背景
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {

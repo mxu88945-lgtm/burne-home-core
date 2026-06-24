@@ -139,16 +139,13 @@ export default function Home() {
         <div className="text-2xl font-semibold text-accent">{pMain}</div>
       </Link>
 
-      {/* 小手机：像发消息一样和 TA 聊（独立角色，共用记忆库）。图标+文字居中靠拢，不分散两边 */}
+      {/* 小手机：像发消息一样和 TA 聊（独立角色，共用记忆库）。文字居中 */}
       <Link
         to="/phone"
-        className="glass flex items-center justify-center gap-3 rounded-3xl px-6 py-5 transition active:scale-[0.99]"
+        className="glass flex flex-col items-center justify-center rounded-3xl px-6 py-5 text-center transition active:scale-[0.99]"
       >
-        <span className="text-2xl">💬</span>
-        <div className="text-center">
-          <div className="label">小手机 📱</div>
-          <div className="mt-1 text-[11px] text-muted">像发消息一样和 TA 聊 · 短句</div>
-        </div>
+        <div className="label">小手机 📱</div>
+        <div className="mt-1 text-[11px] text-muted">像发消息一样和 TA 聊 · 短句</div>
       </Link>
 
       {/* 快捷入口 */}
