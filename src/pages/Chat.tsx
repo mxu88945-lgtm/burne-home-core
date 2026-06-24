@@ -789,7 +789,11 @@ export default function Chat() {
       ) : (
         <div
           className="pointer-events-none absolute inset-0 -z-10"
-          style={{ background: 'rgba(255, 255, 255, 0.22)' }}
+          style={{
+            backdropFilter: 'blur(18px)',
+            WebkitBackdropFilter: 'blur(18px)',
+            background: 'rgba(255, 255, 255, 0.3)',
+          }}
         />
       )}
       {/* 自定义聊天背景图 + 变暗层（用户上传时盖在小猫之上） */}
@@ -835,9 +839,6 @@ export default function Chat() {
       ) : (
         <div className="glass-bar sticky top-0 z-20 flex items-center justify-between gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <div className="flex flex-none items-center gap-3">
-            <Link to="/" className="text-[12px] text-muted hover:text-accent">
-              ← Back
-            </Link>
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -855,7 +856,7 @@ export default function Chat() {
             <button
               type="button"
               onClick={() => setModelOpen((o) => !o)}
-              className="flex max-w-[110px] items-center gap-1 rounded-full bg-white/40 px-2.5 py-1 text-[10px] text-muted"
+              className="flex max-w-[46vw] items-center gap-1 rounded-full bg-white/40 px-2.5 py-1 text-[10px] text-muted"
             >
               <span className="truncate">{modelLabel}</span>
               <span className="shrink-0">▾</span>
@@ -1415,6 +1416,13 @@ export default function Chat() {
             className="glass-strong flex h-full w-72 max-w-[80%] flex-col gap-2 p-3 pt-[max(1rem,env(safe-area-inset-top))]"
             onClick={(e) => e.stopPropagation()}
           >
+            <Link
+              to="/"
+              onClick={() => setDrawerOpen(false)}
+              className="mb-1 inline-flex items-center gap-1 px-1 text-[12px] text-muted hover:text-accent"
+            >
+              ← 主页
+            </Link>
             <div className="flex items-center justify-between px-1">
               <span className="headline text-base text-ink">对话</span>
               <button
