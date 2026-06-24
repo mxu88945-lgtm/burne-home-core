@@ -28,6 +28,10 @@ export interface PhonePersona {
   signature: string
   /** 灵魂设定（system prompt），留空用默认 */
   systemPrompt: string
+  /** 单独的聊天渠道 id（不填则用主聊天激活的渠道） */
+  apiChannelId?: string
+  /** 是否自动把重要内容写进共用记忆库（默认开，高门槛） */
+  autoMemory?: boolean
 }
 
 const DEFAULT_PERSONA: PhonePersona = {
@@ -35,6 +39,7 @@ const DEFAULT_PERSONA: PhonePersona = {
   avatar: '🐶',
   signature: '在线 · 随时找我聊天',
   systemPrompt: '',
+  autoMemory: true,
 }
 
 interface Saved {

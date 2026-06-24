@@ -89,7 +89,8 @@
 
 **第十一批 · 聊天小修 + 「小手机」短句聊天角色**：
 - 聊天头部：去掉 `← Back`（主页入口移进 ☰ 抽屉顶部「← 主页」）；模型名宽度 `max-w-[110px]`→`max-w-[46vw]` 自适应；非琉璃主题聊天背景加 `backdrop-blur(18px)`。
-- **🆕 小手机（`/phone`，`pages/PhonePage.tsx` + `store/phoneStore.ts`）**：独立「像发微信」短句聊天角色。自己的名字/头像(emoji 或上传图)/个性签名/灵魂设定（存 `STORAGE_KEYS.phone`）+ 独立单线对话记录；**共用同一个记忆库**（`memoryNote()` 注入 memoryStore 的 overview+长期记忆到 system，只读共享）。回复按「换行/句末标点」切成多条短气泡（`splitBubbles`，不用 lookbehind 兼容老 Safari）。复用 active API 渠道 + chatComplete/sendChat + usageStore。AppLayout 把 `/phone` 也当沉浸式(isChat)。Home 加「小手机 📱」卡入口。⏭ 可加：独立模型选择、自动写记忆、多会话、TTS/发图。
+- **🆕 小手机（`/phone`，`pages/PhonePage.tsx` + `store/phoneStore.ts`）**：独立「像发微信」短句聊天角色。自己的名字/头像(emoji 或上传图)/个性签名/灵魂设定（存 `STORAGE_KEYS.phone`）+ 独立单线对话记录；**共用同一个记忆库**（`memoryNote()` 注入 memoryStore 的 overview+长期记忆到 system，只读共享）。回复按「换行/句末标点」切成多条短气泡（`splitBubbles`，不用 lookbehind 兼容老 Safari）。复用 active API 渠道 + chatComplete/sendChat + usageStore。AppLayout 把 `/phone` 也当沉浸式(isChat)。Home 加「小手机 📱」卡入口。
+  - **第二批增强**：TA 气泡改浅灰 `rgba(120,120,128,.14)`（用户气泡仍主题色）；连发多条只第一条显示头像（其余 7×7 占位对齐）；① 顶部模型 chip 可给小手机单独选渠道(`persona.apiChannelId`，不填跟随主聊天)；② 共用记忆库**写**：`extractMemories` 同主聊天逻辑，开关 `persona.autoMemory`(⚙菜单,默认开,高门槛)+「记一下」关键词强制；③ 语音：开了 TTS 时点 TA 气泡朗读(复用 useTtsPlayback)。⏭ 仍可加：发图、多会话、表情包(需贴纸素材库+模型选贴纸)。
 
 **第十批（同日）· 启动闪屏（治冷启动白屏）**：
 - 装机版冷启动从网络拉主程序(~170KB)、无 SW 离线缓存 → 网络慢时先卡纯白页。`index.html` 在 `#root` 内放一个 `#bw-splash`（奶白底 #f4f1ec + 呼吸动画的「BW♡」），React `createRoot` 首次渲染会清空 #root → 闪屏自动消失。纯前端、零风险。⏭ 想要「秒开/离线」可加 Service Worker 缓存 app shell，但会和老婆「频繁更新 + 强制刷新」的流程冲突（易看不到新版），暂不做。
