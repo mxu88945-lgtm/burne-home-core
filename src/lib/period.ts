@@ -101,6 +101,29 @@ export function isPredictedPeriod(date: string, stat: PeriodStat): boolean {
   return d >= 0 && d < stat.avgLen
 }
 
+export interface CycleRecord {
+  /** 这次经期开始日 */
+  start: string
+  /** 这次经期结束日 */
+  end: string
+  /** 持续天数 */
+  len: number
+  /** 距上一次经期开始的间隔（周期天数）；最早一条为 null */
+  cycle: number | null
+}
+
+/** 最近 n 次经期记录（最新在前），含每次持续天数与周期间隔 */
+export function recentCycles(days: string[], n = 4): CycleRecord[] {
+  const g = groupPeriods(days)
+  const recs: CycleRecord[] = g.map((grp, i) => ({
+    start: grp[0],
+    end: grp[grp.length - 1],
+    len: grp.length,
+    cycle: i > 0 ? diffDays(grp[0], g[i - 1][0]) : null,
+  }))
+  return recs.reverse().slice(0, n)
+}
+
 /** 给聊天注入的生理期关心提示（无则空串） */
 export function periodChatNote(days: string[], name: string, periodLen?: number): string {
   const st = computeStat(days, periodLen)

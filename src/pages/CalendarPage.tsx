@@ -4,6 +4,7 @@ import { usePeriodStore } from '@/store/periodStore'
 import {
   computeStat,
   isPredictedPeriod,
+  recentCycles,
   toStr,
   todayStr,
 } from '@/lib/period'
@@ -22,6 +23,7 @@ export default function CalendarPage() {
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() }) // m: 0-11
 
   const stat = useMemo(() => computeStat(days, periodLen), [days, periodLen])
+  const cycles = useMemo(() => recentCycles(days, 4), [days])
   const periodSet = useMemo(() => new Set(days), [days])
   const today = todayStr()
 
@@ -102,6 +104,34 @@ export default function CalendarPage() {
           <p className="text-muted">还没有记录～点下面日历里你来例假的那几天就行。</p>
         )}
       </div>
+
+      {/* 历史周期记录（近几次） */}
+      {cycles.length > 0 && (
+        <div className="glass rounded-2xl p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-medium text-ink">历史周期记录</span>
+            <span className="text-[11px] text-muted">近 {cycles.length} 次</span>
+          </div>
+          <div className="space-y-1.5">
+            {cycles.map((c) => (
+              <div
+                key={c.start}
+                className="flex items-center justify-between rounded-xl bg-white/30 px-3 py-2 text-[13px] text-ink"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-accent" />
+                  {c.start.slice(5).replace('-', '/')}
+                  <span className="text-muted">起 · {c.len} 天</span>
+                </span>
+                <span className="text-[12px] text-muted">
+                  {c.cycle != null ? `周期 ${c.cycle} 天` : '最早一次'}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-2 text-[11px] text-muted">距上次经期开始的间隔为「周期」</p>
+        </div>
+      )}
 
       {/* 月份导航 */}
       <div className="flex items-center justify-between px-1">
