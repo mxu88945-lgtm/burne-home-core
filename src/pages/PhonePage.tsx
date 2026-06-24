@@ -29,6 +29,15 @@ function hexToRgba(hex: string, a: number): string {
 }
 const ME_COLOR_DEFAULT = '#d98caa'
 const TA_COLOR_DEFAULT = '#86868c'
+/** 按气泡底色亮度自动选字色：浅底用深字、深底用白字（避免浅粉上白字发虚） */
+function textOn(hex: string): 'text-white' | 'text-ink' {
+  let h = (hex || '').replace('#', '')
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('')
+  if (h.length !== 6) return 'text-ink'
+  const n = parseInt(h, 16)
+  const lum = (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255
+  return lum > 0.62 ? 'text-ink' : 'text-white'
+}
 function now() {
   return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
@@ -108,6 +117,7 @@ export default function PhonePage() {
   const userName = profile.nameA || '我'
   const meBg = hexToRgba(persona.meColor || ME_COLOR_DEFAULT, 0.82)
   const taBg = hexToRgba(persona.taColor || TA_COLOR_DEFAULT, 0.16)
+  const meText = textOn(persona.meColor || ME_COLOR_DEFAULT)
 
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -830,7 +840,7 @@ export default function PhonePage() {
                       onClick={canSpeak ? () => play(m.id, m.text) : undefined}
                       className={[
                         'max-w-full whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed shadow-sm [overflow-wrap:anywhere]',
-                        me ? 'rounded-br-md text-white' : 'rounded-bl-md text-ink',
+                        me ? `rounded-br-md ${meText}` : 'rounded-bl-md text-ink',
                         canSpeak ? 'cursor-pointer' : '',
                       ].join(' ')}
                       style={{
