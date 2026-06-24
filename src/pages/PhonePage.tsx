@@ -90,9 +90,12 @@ export default function PhonePage() {
   const [sending, setSending] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [err, setErr] = useState('')
+  const [pendingImage, setPendingImage] = useState('')
+  const [lightbox, setLightbox] = useState('')
   const endRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const avatarRef = useRef<HTMLInputElement>(null)
+  const picRef = useRef<HTMLInputElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const isTouch =
     typeof window !== 'undefined' &&
@@ -139,14 +142,29 @@ export default function PhonePage() {
       setErr((e as Error).message)
     }
   }
+  async function pickImage(file: File) {
+    setErr('')
+    try {
+      setPendingImage(await fileToDataUrl(file, 1280, 0.8))
+    } catch (e) {
+      setErr((e as Error).message)
+    }
+  }
 
   async function send() {
     const text = draft.trim()
-    if (!text || sending) return
-    const mine: PhoneMsg = { id: newId(), role: 'me', text, at: now() }
+    if ((!text && !pendingImage) || sending) return
+    const mine: PhoneMsg = {
+      id: newId(),
+      role: 'me',
+      text,
+      at: now(),
+      ...(pendingImage ? { image: pendingImage } : {}),
+    }
     const history = [...messages, mine]
     setMessages(history)
     setDraft('')
+    setPendingImage('')
     if (!connected) {
       setMessages((p) => [
         ...p,
@@ -216,8 +234,17 @@ export default function PhonePage() {
 
   async function respond(history: PhoneMsg[]) {
     const apiMsgs: ChatApiMessage[] = history
-      .filter((m) => m.text.trim())
-      .map((m) => ({ role: m.role === 'me' ? ('user' as const) : ('assistant' as const), content: m.text }))
+      .filter((m) => m.text.trim() || m.image)
+      .map((m) => {
+        const role = m.role === 'me' ? ('user' as const) : ('assistant' as const)
+        if (m.image) {
+          const parts: Exclude<ChatApiMessage['content'], string> = []
+          if (m.text.trim()) parts.push({ type: 'text', text: m.text.trim() })
+          parts.push({ type: 'image_url', image_url: { url: m.image } })
+          return { role, content: parts }
+        }
+        return { role, content: m.text }
+      })
     while (apiMsgs.length && apiMsgs[0].role !== 'user') apiMsgs.shift()
 
     const base =
@@ -404,6 +431,16 @@ export default function PhonePage() {
                 ))}
                 <button
                   type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    avatarRef.current?.click()
+                  }}
+                  className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                >
+                  上传头像图片
+                </button>
+                <button
+                  type="button"
                   onClick={() => setPersona({ autoMemory: persona.autoMemory === false })}
                   className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left hover:bg-white/40"
                 >
@@ -461,19 +498,31 @@ export default function PhonePage() {
                   ) : (
                     <div className="h-7 w-7 flex-none" aria-hidden />
                   ))}
-                <div
-                  onClick={canSpeak ? () => play(m.id, m.text) : undefined}
-                  className={[
-                    'max-w-[74%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed [overflow-wrap:anywhere]',
-                    me ? 'btn-primary rounded-br-md' : 'rounded-bl-md text-ink shadow-sm',
-                    canSpeak ? 'cursor-pointer' : '',
-                  ].join(' ')}
-                  style={me ? undefined : { background: 'rgba(120,120,128,0.14)' }}
-                >
-                  {!me && (loadingId === m.id || playingId === m.id) && (
-                    <span className="mr-1 text-[12px]">{loadingId === m.id ? '⏳' : '🔊'}</span>
+                <div className={`flex max-w-[74%] flex-col gap-1 ${me ? 'items-end' : 'items-start'}`}>
+                  {m.image && (
+                    <img
+                      src={m.image}
+                      alt="图片"
+                      onClick={() => setLightbox(m.image!)}
+                      className="max-h-56 max-w-full cursor-pointer rounded-2xl object-cover"
+                    />
                   )}
-                  {m.text}
+                  {m.text.trim() && (
+                    <div
+                      onClick={canSpeak ? () => play(m.id, m.text) : undefined}
+                      className={[
+                        'max-w-full whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed [overflow-wrap:anywhere]',
+                        me ? 'btn-primary rounded-br-md' : 'rounded-bl-md text-ink shadow-sm',
+                        canSpeak ? 'cursor-pointer' : '',
+                      ].join(' ')}
+                      style={me ? undefined : { background: 'rgba(120,120,128,0.14)' }}
+                    >
+                      {!me && (loadingId === m.id || playingId === m.id) && (
+                        <span className="mr-1 text-[12px]">{loadingId === m.id ? '⏳' : '🔊'}</span>
+                      )}
+                      {m.text}
+                    </div>
+                  )}
                 </div>
               </div>
             )
@@ -507,7 +556,42 @@ export default function PhonePage() {
       {/* 输入栏 */}
       <div className="flex-none px-3 pb-1 pt-2">
         {err && <div className="mb-1 px-2 text-center text-[11px] text-red-500">{err}</div>}
-        <div className="glass-strong flex items-end gap-1 rounded-3xl py-1 pl-3 pr-1.5">
+        {pendingImage && (
+          <div className="mb-2 flex items-center gap-2 px-2">
+            <div className="relative">
+              <img src={pendingImage} alt="待发送" className="h-16 w-16 rounded-xl object-cover" />
+              <button
+                type="button"
+                onClick={() => setPendingImage('')}
+                aria-label="移除图片"
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[11px] text-white"
+              >
+                ✕
+              </button>
+            </div>
+            <span className="text-[11px] text-muted">图片已就绪，可一起发文字</span>
+          </div>
+        )}
+        <input
+          ref={picRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (f) pickImage(f)
+          }}
+        />
+        <div className="glass-strong flex items-end gap-1 rounded-3xl py-1 pl-2 pr-1.5">
+          <button
+            type="button"
+            onClick={() => picRef.current?.click()}
+            aria-label="发图片"
+            className="mb-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full text-xl text-muted hover:bg-white/40 hover:text-ink"
+          >
+            ＋
+          </button>
           <textarea
             ref={inputRef}
             value={draft}
@@ -536,6 +620,17 @@ export default function PhonePage() {
           </button>
         </div>
       </div>
+
+      {/* 图片大图预览 */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/80 p-4"
+          onClick={() => setLightbox('')}
+        >
+          <img src={lightbox} alt="大图" className="max-h-[85%] max-w-full rounded-xl" />
+          <span className="text-[12px] text-white/80">长按图片可保存 · 点击空白关闭</span>
+        </div>
+      )}
     </div>
   )
 }

@@ -15,6 +15,8 @@ export interface PhoneMsg {
   role: 'me' | 'ta'
   text: string
   at: string
+  /** 图片消息（dataURL，可选） */
+  image?: string
 }
 
 export interface PhonePersona {
