@@ -4,8 +4,8 @@ import AppHeader from './AppHeader'
 export default function AppLayout() {
   const { pathname } = useLocation()
   const isHome = pathname === '/'
-  // 聊天页自管头部与内边距（沉浸式）；首页用全局顶栏；其余页自带返回头
-  const isChat = pathname === '/chat'
+  // 聊天页 / 小手机自管头部与内边距（沉浸式）；首页用全局顶栏；其余页自带返回头
+  const isChat = pathname === '/chat' || pathname === '/phone'
 
   return (
     // 滚动锁：固定壳 + 可视视口尺寸/位移，键盘弹出时整体贴住键盘上方

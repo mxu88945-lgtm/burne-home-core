@@ -139,6 +139,18 @@ export default function Home() {
         <div className="text-2xl font-semibold text-accent">{pMain}</div>
       </Link>
 
+      {/* 小手机：像发消息一样和 TA 聊（独立角色，共用记忆库） */}
+      <Link
+        to="/phone"
+        className="glass flex items-center justify-between rounded-3xl px-6 py-5 transition active:scale-[0.99]"
+      >
+        <div>
+          <div className="label">小手机 📱</div>
+          <div className="mt-1 text-[11px] text-muted">像发消息一样和 TA 聊 · 短句</div>
+        </div>
+        <div className="text-2xl">💬</div>
+      </Link>
+
       {/* 快捷入口 */}
       <section className="grid grid-cols-2 gap-3">
         <QuickEntry
