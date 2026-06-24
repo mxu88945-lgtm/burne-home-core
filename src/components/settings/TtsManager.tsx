@@ -1,6 +1,8 @@
+import { useRef, useState } from 'react'
 import { useTtsStore, VOICE_PRESETS } from '@/store/ttsStore'
 import { useSyncStore } from '@/store/syncStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
+import { cloneFromFile } from '@/api/voiceClone'
 import PasswordInput from '@/components/ui/PasswordInput'
 
 const inputCls =
@@ -14,6 +16,33 @@ export default function TtsManager() {
   const presetMatch = VOICE_PRESETS.some((v) => v.id === config.voiceId)
   const tryingId = 'tts-preview'
   const trying = playingId === tryingId || loadingId === tryingId
+
+  // 声音克隆
+  const cloneRef = useRef<HTMLInputElement>(null)
+  const [cloning, setCloning] = useState(false)
+  const [cloneMsg, setCloneMsg] = useState('')
+  const [cloneErr, setCloneErr] = useState('')
+
+  async function doClone(file: File) {
+    setCloneErr('')
+    setCloneMsg('')
+    if (!config.apiKey.trim() || !config.groupId.trim()) {
+      setCloneErr('请先在上面填好 API Key 和 GroupId')
+      return
+    }
+    setCloning(true)
+    try {
+      const voiceId = await cloneFromFile(config, file)
+      update({ voiceId })
+      setCloneMsg(`克隆成功！音色 ID 已自动填好：${voiceId}（点下面「试听一句」听听～）`)
+    } catch (e) {
+      setCloneErr(
+        `${(e as Error).message}。若是跨域/CORS 报错，多半要走 Worker 中转或在能联网的环境里试。`,
+      )
+    } finally {
+      setCloning(false)
+    }
+  }
 
   return (
     <div className="space-y-3">
@@ -96,6 +125,39 @@ export default function TtsManager() {
             className="flex-1 accent-accent"
           />
         </label>
+      </div>
+
+      {/* 声音克隆（一键） */}
+      <div className="glass rounded-2xl p-4 space-y-2">
+        <div className="label">🎙 克隆我的音色（一键）</div>
+        <p className="text-[11px] leading-relaxed text-muted">
+          上传一段<b>清晰人声录音</b>（建议 10 秒以上、安静无杂音，mp3 / m4a / wav），
+          App 会自动上传到海螺、完成克隆，并把音色 ID 填好给你直接用——不用去官网写代码。
+        </p>
+        <input
+          ref={cloneRef}
+          type="file"
+          accept="audio/*,.mp3,.m4a,.wav"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (f) doClone(f)
+          }}
+        />
+        <button
+          type="button"
+          disabled={cloning}
+          onClick={() => cloneRef.current?.click()}
+          className="btn-primary w-full rounded-xl py-2.5 text-sm disabled:opacity-50"
+        >
+          {cloning ? '克隆中…（上传+克隆约十几秒）' : '＋ 上传录音，克隆音色'}
+        </button>
+        {cloneMsg && <div className="text-[11px] leading-relaxed text-green-600">{cloneMsg}</div>}
+        {cloneErr && <div className="text-[11px] leading-relaxed text-red-500">{cloneErr}</div>}
+        <p className="text-[10px] leading-relaxed text-muted">
+          ⚠️ 海螺克隆通常需要账号已实名、且该功能可能要单独开通/计费；克隆失败时报错会显示原因。
+        </p>
       </div>
 
       {/* Worker 中转 */}
