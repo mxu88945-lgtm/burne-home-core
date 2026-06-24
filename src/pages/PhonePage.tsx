@@ -10,6 +10,7 @@ import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import { usePhoneStore, type PhoneMsg } from '@/store/phoneStore'
 import { useStickerStore, type Sticker } from '@/store/stickerStore'
 import { parseTasks } from '@/store/taskStore'
+import { cleanReply } from '@/lib/cleanReply'
 import { chatComplete } from '@/api/llm'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { fileToDataUrl } from '@/lib/image'
@@ -117,6 +118,13 @@ export default function PhonePage() {
   const [lightbox, setLightbox] = useState('')
   const [stickerOpen, setStickerOpen] = useState(false)
   const [nowTs, setNowTs] = useState(Date.now())
+  const [memToast, setMemToast] = useState('')
+  const memToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function showMemToast(msg: string) {
+    setMemToast(msg)
+    if (memToastTimer.current) clearTimeout(memToastTimer.current)
+    memToastTimer.current = setTimeout(() => setMemToast(''), 2600)
+  }
   const stickers = useStickerStore((s) => s.stickers)
   const addSticker = useStickerStore((s) => s.add)
   const removeSticker = useStickerStore((s) => s.remove)
@@ -279,13 +287,14 @@ export default function PhonePage() {
     if (!phoneChannel && !workerUrl) return
     const transcript = history
       .slice(-8)
-      .map((m) => `${m.role === 'me' ? '用户' : 'TA'}：${m.text}`)
+      .map((m) => `${m.role === 'me' ? userName : name}：${m.text}`)
       .join('\n')
     const sys = '你是记忆管理助手，只输出 JSON，不要任何多余文字。'
     const ask =
-      `判断下面对话里有没有【值得长期记住】的重要信息：用户或角色的设定、背景、关键事实、偏好、承诺、重要事件等。` +
-      `严格标准、宁缺毋滥：忽略寒暄、日常闲聊、临时情绪、一次性内容。` +
-      (force ? '用户已明确要求记住，请务必提取其指向的内容。' : '') +
+      `判断下面对话里有没有【真正值得长期记住】的重要信息：${userName} 或角色的人物设定、重要背景、关键事实、长期偏好、郑重承诺、重大事件等。` +
+      `⚠️ 极高门槛、宁缺毋滥：日常闲聊、寒暄、一时情绪、临时小事、普通互动一律【不要记】；只有那种特别、有长期意义、以后还想被记得的事才记。多数情况下应返回空。` +
+      (force ? ` ${userName} 已明确要求记住，请务必提取其指向的内容。` : '') +
+      `\n记忆内容里称呼她就用「${userName}」，不要写「用户」。` +
       `\n只输出 JSON：{"items":[{"title":"简短标题","content":"要记住的内容"}]}，没有就 {"items":[]}。\n\n对话：\n${transcript}`
     try {
       let text = ''
@@ -320,12 +329,7 @@ export default function PhonePage() {
         addMemory({ title: title || content.slice(0, 16), content, kind: 'long', source: 'auto' })
         added++
       }
-      if (added > 0) {
-        setMessages((p) => [
-          ...p,
-          { id: newId(), role: 'ta', text: `🧠 已记到记忆库（${added} 条）`, at: now() },
-        ])
-      }
+      if (added > 0) showMemToast(`🧠 已记到记忆库（${added} 条）`)
     } catch {
       // 静默失败，不打扰对话
     }
@@ -367,7 +371,8 @@ export default function PhonePage() {
     const texting =
       `\n\n【发消息风格 · 很重要】你在用手机和 ${userName} 发消息聊天。像真人发微信那样：` +
       `每条消息简短、口语、自然；一次可以连发好几条短消息——用换行把每条分开。` +
-      `不要写长段落，不要括号里的动作/神态/旁白，表情符号适量就好。`
+      `不要写长段落，不要括号里的动作/神态/旁白，表情符号适量就好。` +
+      `⚠️ 只发你要对她说的话本身；绝不要输出你的思考过程、计划、自我提示、英文标签或任何代码/XML 标记。`
     const stickerNames = stickers.map((s) => s.name).filter(Boolean)
     const stickerNote = stickerNames.length
       ? `\n\n【表情贴纸 · 可选】聊到合适的时候你可以发一个表情贴纸表达情绪——发贴纸【必须】在回复里【单独一行】输出严格格式 [[sticker|名字]]（名字只能从这个清单里选：${stickerNames.join('、')}）。⚠️ 绝不要用文字描述自己在发表情（比如不要直接写「(发了一个表情贴纸：xx)」），那样不会显示成贴纸。别每条都发，偶尔点缀就好。`
@@ -417,11 +422,8 @@ export default function PhonePage() {
           maxTokens: 1024,
         })
       }
-      // 清掉思考模型漏出来的 <think>…</think> 标签
-      reply = reply
-        .replace(/<think>[\s\S]*?<\/think>/gi, '')
-        .replace(/<\/?think>/gi, '')
-        .trim()
+      // 清掉思考/工具调用模型漏出来的标签（<think>/<arg_value> 等）
+      reply = cleanReply(reply)
       // 解析 TA 下的倒计时指令卡 [[task|分钟|内容]]
       const taskMsgs: PhoneMsg[] = []
       if (persona.allowTasks && reply) {
@@ -738,6 +740,15 @@ export default function PhonePage() {
           )}
         </div>
       </div>
+
+      {/* 记忆提示（不进对话正文，飘一下就消失） */}
+      {memToast && (
+        <div className="pointer-events-none absolute inset-x-0 top-16 z-30 flex justify-center px-4">
+          <div className="glass-strong rounded-full px-3.5 py-1.5 text-[12px] text-ink shadow">
+            {memToast}
+          </div>
+        </div>
+      )}
 
       {/* 消息列表 */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">

@@ -23,6 +23,7 @@ import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
 import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, SendIcon } from '@/components/ui/icons'
 import { renderRichText, stripLinks } from '@/lib/richText'
+import { cleanReply } from '@/lib/cleanReply'
 import { usePeriodStore } from '@/store/periodStore'
 import { periodChatNote } from '@/lib/period'
 import { parseTasks } from '@/store/taskStore'
@@ -150,6 +151,14 @@ export default function Chat() {
   const [editDraft, setEditDraft] = useState('')
   const [copiedId, setCopiedId] = useState('')
   const [openReasoning, setOpenReasoning] = useState<Set<string>>(new Set())
+  // 记忆提示（飘一下就消失，不进对话正文）
+  const [memToast, setMemToast] = useState('')
+  const memToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function showMemToast(msg: string) {
+    setMemToast(msg)
+    if (memToastTimer.current) clearTimeout(memToastTimer.current)
+    memToastTimer.current = setTimeout(() => setMemToast(''), 2600)
+  }
   // 右下角 ↑/↓ 悬浮键：平时隐藏，滚动时淡入，停 1.2s 后淡出
   const [showScrollBtns, setShowScrollBtns] = useState(false)
   // 触屏设备（手机）：回车键=换行，靠发送按钮发送；桌面：回车发送、Shift+回车换行
@@ -505,15 +514,17 @@ export default function Chat() {
   /** 自动沉淀记忆：让 AI 判断有没有值得长期记住的，存进记忆库（高门槛 / 或用户明确要求时必存） */
   async function extractMemories(history: Msg[], force: boolean) {
     if (!activeChannel && !workerUrl) return
+    const memName = profile.nameA || '她'
     const recent = history.slice(-8)
     const transcript = recent
-      .map((m) => `${m.role === 'me' ? '用户' : 'AI'}：${m.text}${m.image ? '［图片］' : ''}`)
+      .map((m) => `${m.role === 'me' ? memName : name}：${m.text}${m.image ? '［图片］' : ''}`)
       .join('\n')
     const sys = '你是记忆管理助手，只输出 JSON，不要任何多余文字。'
     const ask =
-      `判断下面对话里有没有【值得长期记住】的重要信息：用户或角色的设定、背景资料、关键事实、数据、偏好、承诺、重要事件等。` +
-      `严格标准、宁缺毋滥：忽略寒暄、日常闲聊、临时情绪、一次性内容，别因为几句话就存。` +
-      (force ? '用户已明确要求记住，请务必提取其指向的内容。' : '') +
+      `判断下面对话里有没有【真正值得长期记住】的重要信息：${memName} 或角色的人物设定、重要背景、关键事实、长期偏好、郑重承诺、重大事件等。` +
+      `⚠️ 极高门槛、宁缺毋滥：日常闲聊、寒暄、一时情绪、临时小事、普通互动一律【不要记】；只有那种特别、有长期意义、以后还想被记得的事才记。多数情况下应返回空。` +
+      (force ? ` ${memName} 已明确要求记住，请务必提取其指向的内容。` : '') +
+      `\n记忆内容里称呼她就用「${memName}」，不要写「用户」。` +
       `\n只输出 JSON：{"items":[{"title":"简短标题","content":"要记住的内容"}]}，没有就 {"items":[]}。\n\n对话：\n${transcript}`
     try {
       let text = ''
@@ -548,12 +559,7 @@ export default function Chat() {
         addMemory({ title: title || content.slice(0, 16), content, kind: 'long', source: 'auto' })
         added++
       }
-      if (added > 0) {
-        setMessages((prev) => [
-          ...prev,
-          { id: newId(), role: 'companion', text: `🧠 已记到记忆库（${added} 条）`, at: now() },
-        ])
-      }
+      if (added > 0) showMemToast(`🧠 已记到记忆库（${added} 条）`)
     } catch {
       // 静默失败，不打扰对话
     }
@@ -706,11 +712,8 @@ export default function Chat() {
           document.removeEventListener('visibilitychange', markHidden)
         }
       }
-      // 清掉思考模型偶尔漏出来的 <think>…</think> 标签
-      reply = reply
-        .replace(/<think>[\s\S]*?<\/think>/gi, '')
-        .replace(/<\/?think>/gi, '')
-        .trim()
+      // 清掉思考/工具调用模型漏出来的标签（<think>/<arg_value> 等）
+      reply = cleanReply(reply)
       // 解析 TA 下的任务标记 → 生成对话内倒计时任务卡，并从正文移除标记
       const taskMsgs: Msg[] = []
       if (allowTasks && reply) {
@@ -775,8 +778,27 @@ export default function Chat() {
 
   return (
     <div className="relative flex h-full flex-col pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-      {/* 聊天页背景：只有「琉璃(粉)」主题用雾化小猫；其余主题跟随各自主题背景（淡淡一层白保证消息清楚）。 */}
-      {theme === 'aurora' ? (
+      {/* 聊天页背景：① 设了自定义背景图就只显示它(+变暗滑块)，不叠别的层(避免毛玻璃打架糊成灰)；
+          ② 否则琉璃(粉)用雾化小猫；③ 其余主题跟随主题背景 + 一层柔白。 */}
+      {chatBg ? (
+        <>
+          <div
+            className="pointer-events-none absolute -inset-3 -z-10 bg-center bg-no-repeat"
+            style={{
+              backgroundImage: `url(${chatBg})`,
+              backgroundSize: chatBgFit === 'contain' ? 'contain' : 'cover',
+              opacity: chatBgOpacity,
+              filter: chatBgBlur ? `blur(${chatBgBlur}px)` : undefined,
+            }}
+          />
+          {chatBgDim > 0 && (
+            <div
+              className="pointer-events-none absolute inset-0 -z-10 bg-black"
+              style={{ opacity: chatBgDim }}
+            />
+          )}
+        </>
+      ) : theme === 'aurora' ? (
         <>
           <div
             className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-center"
@@ -801,23 +823,13 @@ export default function Chat() {
           }}
         />
       )}
-      {/* 自定义聊天背景图 + 变暗层（用户上传时盖在小猫之上） */}
-      {chatBg && (
-        <>
-          <div
-            className="pointer-events-none absolute -inset-3 -z-10 bg-center bg-no-repeat"
-            style={{
-              backgroundImage: `url(${chatBg})`,
-              backgroundSize: chatBgFit === 'contain' ? 'contain' : 'cover',
-              opacity: chatBgOpacity,
-              filter: chatBgBlur ? `blur(${chatBgBlur}px)` : undefined,
-            }}
-          />
-          <div
-            className="pointer-events-none absolute inset-0 -z-10 bg-black"
-            style={{ opacity: chatBgDim }}
-          />
-        </>
+      {/* 记忆提示（不进对话正文，飘一下就消失） */}
+      {memToast && (
+        <div className="pointer-events-none absolute inset-x-0 top-16 z-30 flex justify-center px-4">
+          <div className="glass-strong rounded-full px-3.5 py-1.5 text-[12px] text-ink shadow">
+            {memToast}
+          </div>
+        </div>
       )}
       {/* 滚动区：顶栏 sticky 贴顶，消息从其下方滚过（毛玻璃透出内容） */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
