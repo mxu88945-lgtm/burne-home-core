@@ -20,6 +20,15 @@ export interface PhoneMsg {
   image?: string
   /** 表情贴纸消息（emoji 或图片 dataURL） */
   sticker?: { emoji?: string; img?: string; name?: string }
+  /** 倒计时指令卡 */
+  task?: {
+    text: string
+    minutes: number
+    startedAt: number
+    deadline: number
+    status: 'active' | 'done' | 'cancelled'
+    doneAt?: number
+  }
 }
 
 export interface PhoneSession {
@@ -44,6 +53,8 @@ export interface PhonePersona {
   apiChannelId?: string
   /** 是否自动把重要内容写进共用记忆库（默认开，高门槛） */
   autoMemory?: boolean
+  /** 是否允许 TA 下「倒计时指令卡」（默认关） */
+  allowTasks?: boolean
 }
 
 const DEFAULT_PERSONA: PhonePersona = {

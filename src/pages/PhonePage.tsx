@@ -9,6 +9,7 @@ import { useTtsStore } from '@/store/ttsStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import { usePhoneStore, type PhoneMsg } from '@/store/phoneStore'
 import { useStickerStore, type Sticker } from '@/store/stickerStore'
+import { parseTasks } from '@/store/taskStore'
 import { chatComplete } from '@/api/llm'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { fileToDataUrl } from '@/lib/image'
@@ -103,6 +104,7 @@ export default function PhonePage() {
   const [pendingImage, setPendingImage] = useState('')
   const [lightbox, setLightbox] = useState('')
   const [stickerOpen, setStickerOpen] = useState(false)
+  const [nowTs, setNowTs] = useState(Date.now())
   const stickers = useStickerStore((s) => s.stickers)
   const addSticker = useStickerStore((s) => s.add)
   const removeSticker = useStickerStore((s) => s.remove)
@@ -130,6 +132,42 @@ export default function PhonePage() {
   useEffect(() => {
     autoGrow()
   }, [draft])
+
+  // 有进行中的指令卡时每秒刷新倒计时；切回前台立刻按本地真实时间同步
+  const hasActiveTask = messages.some((m) => m.task?.status === 'active')
+  useEffect(() => {
+    if (!hasActiveTask) return
+    const sync = () => setNowTs(Date.now())
+    sync()
+    const id = setInterval(sync, 1000)
+    document.addEventListener('visibilitychange', sync)
+    window.addEventListener('focus', sync)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', sync)
+      window.removeEventListener('focus', sync)
+    }
+  }, [hasActiveTask])
+
+  const mmss = (s: number) =>
+    `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+
+  function completeTask(id: string) {
+    const updated = messages.map((m) =>
+      m.id === id && m.task
+        ? { ...m, task: { ...m.task, status: 'done' as const, doneAt: Date.now() } }
+        : m,
+    )
+    setMessages(updated)
+    if (connected && !sending) void respond(updated)
+  }
+  function cancelTask(id: string) {
+    const updated = messages.map((m) =>
+      m.id === id && m.task ? { ...m, task: { ...m.task, status: 'cancelled' as const } } : m,
+    )
+    setMessages(updated)
+    if (connected && !sending) void respond(updated)
+  }
 
   function editName() {
     const v = window.prompt('TA 的名字', persona.name)
@@ -274,9 +312,21 @@ export default function PhonePage() {
 
   async function respond(history: PhoneMsg[]) {
     const apiMsgs: ChatApiMessage[] = history
-      .filter((m) => m.text.trim() || m.image || m.sticker)
+      .filter((m) => m.text.trim() || m.image || m.sticker || m.task)
       .map((m) => {
         const role = m.role === 'me' ? ('user' as const) : ('assistant' as const)
+        if (m.task) {
+          const tk = m.task
+          let note = `（你给我下了任务：${tk.text}，限时${tk.minutes}分钟，我还在进行。）`
+          if (tk.status === 'done' && tk.doneAt) {
+            const used = Math.round((tk.doneAt - tk.startedAt) / 1000)
+            const diff = Math.round((tk.deadline - tk.doneAt) / 1000)
+            note = `（我完成了你下的任务：${tk.text}，用时${used}秒，${diff >= 0 ? `提前${diff}秒` : `超时${-diff}秒`}。）`
+          } else if (tk.status === 'cancelled') {
+            note = `（我取消了你下的任务：${tk.text}。）`
+          }
+          return { role: 'user' as const, content: note }
+        }
         if (m.image) {
           const parts: Exclude<ChatApiMessage['content'], string> = []
           if (m.text.trim()) parts.push({ type: 'text', text: m.text.trim() })
@@ -301,6 +351,9 @@ export default function PhonePage() {
     const stickerNote = stickerNames.length
       ? `\n\n【表情贴纸 · 可选】聊到合适的时候你可以发一个表情贴纸表达情绪——在回复里【单独一行】输出 [[sticker|名字]]，名字只能从这个清单里选：${stickerNames.join('、')}。别每条都发，偶尔点缀就好。`
       : ''
+    const taskNote = persona.allowTasks
+      ? `\n\n【倒计时指令卡 · 可选】你可以给 ${userName} 下带倒计时的小任务来关心/督促她（喝水、起身、早点睡、按时吃饭等）。用法：回复最后【另起一行】输出 [[task|分钟数|任务内容]]，例如 [[task|2|去倒杯温水喝]]。她屏幕上会出现一张倒计时卡，她点完成/取消后系统会以她的口吻告诉你结果，你据此自然回应。⚠️ 分寸：绝大多数回复都不要下任务，只在真有必要时下，别刷屏，一次最多一个。`
+      : ''
     const localTime = new Date().toLocaleString('zh-CN', {
       month: 'long',
       day: 'numeric',
@@ -308,7 +361,7 @@ export default function PhonePage() {
       hour: '2-digit',
       minute: '2-digit',
     })
-    const system = `${base}${texting}${memoryNote()}${stickerNote}\n\n（当前时间：${localTime}，可自然参考。）`
+    const system = `${base}${texting}${memoryNote()}${stickerNote}${taskNote}\n\n（当前时间：${localTime}，可自然参考。）`
 
     setSending(true)
     setErr('')
@@ -343,6 +396,31 @@ export default function PhonePage() {
           maxTokens: 1024,
         })
       }
+      // 解析 TA 下的倒计时指令卡 [[task|分钟|内容]]
+      const taskMsgs: PhoneMsg[] = []
+      if (persona.allowTasks && reply) {
+        const { tasks: parsed, clean } = parseTasks(reply)
+        if (parsed.length) {
+          reply = clean
+          for (const t of parsed) {
+            const mins = Math.max(1, Math.min(180, Math.round(t.minutes) || 5))
+            const startedAt = Date.now()
+            taskMsgs.push({
+              id: newId(),
+              role: 'ta',
+              text: '',
+              at: now(),
+              task: {
+                text: t.text,
+                minutes: mins,
+                startedAt,
+                deadline: startedAt + mins * 60000,
+                status: 'active',
+              },
+            })
+          }
+        }
+      }
       // 解析 TA 挑的表情贴纸 [[sticker|名字]]，从正文移除标记
       const picked: string[] = []
       reply = reply.replace(/\[\[sticker\|([^\]|]+)\]\]/g, (_m, n) => {
@@ -365,10 +443,14 @@ export default function PhonePage() {
         }
       }
       const bubbles = splitBubbles(reply)
-      const taMsgs: PhoneMsg[] = (bubbles.length ? bubbles : stickerMsgs.length ? [] : ['……']).map(
-        (t) => ({ id: newId(), role: 'ta' as const, text: t, at: now() }),
-      )
-      setMessages((p) => [...p, ...taMsgs, ...stickerMsgs])
+      const emptyFallback = stickerMsgs.length || taskMsgs.length ? [] : ['……']
+      const taMsgs: PhoneMsg[] = (bubbles.length ? bubbles : emptyFallback).map((t) => ({
+        id: newId(),
+        role: 'ta' as const,
+        text: t,
+        at: now(),
+      }))
+      setMessages((p) => [...p, ...taMsgs, ...stickerMsgs, ...taskMsgs])
       // 往共用记忆库写：开了自动记忆每轮判断；或用户明确说「记一下」时必存
       const lastUser = [...history].reverse().find((m) => m.role === 'me')
       const force = !!lastUser && /记住|记一下|记下来|记下|记录|存一下|帮我记|记到/.test(lastUser.text)
@@ -524,6 +606,16 @@ export default function PhonePage() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setPersona({ allowTasks: !persona.allowTasks })}
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                >
+                  <span>允许下倒计时任务</span>
+                  <span className={persona.allowTasks ? 'text-accent' : 'text-muted'}>
+                    {persona.allowTasks ? '开' : '关'}
+                  </span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     setMenuOpen(false)
                     if (window.confirm('清空和 TA 的聊天记录？')) clear()
@@ -555,22 +647,51 @@ export default function PhonePage() {
         <div className="space-y-2">
           {messages.map((m, i) => {
             const me = m.role === 'me'
-            // 连发多条只在「这一串的第一条」显示头像，其余用占位对齐
-            const firstOfRun = !me && (i === 0 || messages[i - 1].role !== 'ta')
+            // 进行中的指令卡在右上角悬浮显示；完成/取消后落进对话成记录
+            if (m.task) {
+              const tk = m.task
+              if (tk.status === 'active') return null
+              const usedSec = tk.doneAt ? Math.round((tk.doneAt - tk.startedAt) / 1000) : 0
+              const diffSec = tk.doneAt ? Math.round((tk.deadline - tk.doneAt) / 1000) : 0
+              return (
+                <div key={m.id} className="flex">
+                  <div className="glass w-full max-w-[88%] rounded-2xl p-3.5">
+                    <div className="flex items-center gap-1.5 text-[11px] text-accent">
+                      <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                      指令
+                    </div>
+                    <div className="mt-1.5 text-[15px] leading-snug text-ink [overflow-wrap:anywhere]">
+                      {tk.text}
+                    </div>
+                    {tk.status === 'done' ? (
+                      <div className="mt-2 text-sm">
+                        <span className="font-medium text-green-600">✓ 已完成</span>{' '}
+                        <span className="text-muted">
+                          用时 {mmss(usedSec)} · {diffSec >= 0 ? `提前 ${diffSec}″` : `超时 ${-diffSec}″`}
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-sm text-muted">已取消</div>
+                    )}
+                  </div>
+                </div>
+              )
+            }
+            // 连发多条只在「这一串的第一条」显示头像，其余用占位对齐（两边都有头像）
+            const firstOfRun = i === 0 || messages[i - 1].role !== m.role || !!messages[i - 1].task
             const canSpeak = !me && ttsEnabled && m.text.trim()
             return (
               <div key={m.id} className={`flex items-end gap-2 ${me ? 'flex-row-reverse' : ''}`}>
-                {!me &&
-                  (firstOfRun ? (
-                    <Avatar
-                      img={persona.avatarImg}
-                      emoji={persona.avatar}
-                      className="h-7 w-7 flex-none rounded-full bg-white/60 text-sm"
-                      textCls="text-sm"
-                    />
-                  ) : (
-                    <div className="h-7 w-7 flex-none" aria-hidden />
-                  ))}
+                {firstOfRun ? (
+                  <Avatar
+                    img={me ? profile.avatarAImg : persona.avatarImg}
+                    emoji={me ? profile.avatarA || '🙂' : persona.avatar}
+                    className="h-7 w-7 flex-none rounded-full bg-white/60 text-sm"
+                    textCls="text-sm"
+                  />
+                ) : (
+                  <div className="h-7 w-7 flex-none" aria-hidden />
+                )}
                 <div className={`flex max-w-[74%] flex-col gap-1 ${me ? 'items-end' : 'items-start'}`}>
                   {m.sticker &&
                     (m.sticker.img ? (
@@ -636,6 +757,59 @@ export default function PhonePage() {
           <div ref={endRef} />
         </div>
       </div>
+
+      {/* 进行中的指令卡：固定右上角小窗 */}
+      {messages.some((m) => m.task?.status === 'active') && (
+        <div
+          className="absolute right-2 z-20 w-52 max-w-[64%] space-y-2"
+          style={{ top: 'calc(env(safe-area-inset-top) + 3.8rem)' }}
+        >
+          {messages
+            .filter((m) => m.task?.status === 'active')
+            .map((m) => {
+              const tk = m.task!
+              const remain = Math.max(0, tk.deadline - nowTs)
+              const over = remain <= 0
+              const pct = Math.max(0, Math.min(100, (remain / (tk.minutes * 60000)) * 100))
+              return (
+                <div key={m.id} className="glass-strong rounded-2xl p-2.5 shadow-lg">
+                  <div className="flex items-center gap-1 text-[10px] text-accent">
+                    <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                    指令
+                  </div>
+                  <div className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-ink [overflow-wrap:anywhere]">
+                    {tk.text}
+                  </div>
+                  <div className="mt-0.5 flex items-baseline gap-1">
+                    <span className="headline text-xl not-italic text-ink">
+                      {over ? '时间到' : mmss(Math.ceil(remain / 1000))}
+                    </span>
+                    {!over && <span className="text-[10px] text-muted">还剩</span>}
+                  </div>
+                  <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/40">
+                    <div className="h-full bg-accent transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="mt-1.5 flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => completeTask(m.id)}
+                      className="btn-primary flex-1 rounded-lg py-1 text-[12px]"
+                    >
+                      完成
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => cancelTask(m.id)}
+                      className="glass rounded-lg px-2.5 py-1 text-[12px] text-ink"
+                    >
+                      取消
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+        </div>
+      )}
 
       {/* 输入栏 */}
       <div className="flex-none px-3 pb-1 pt-2">
