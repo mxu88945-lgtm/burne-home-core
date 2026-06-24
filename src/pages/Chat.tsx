@@ -706,6 +706,11 @@ export default function Chat() {
           document.removeEventListener('visibilitychange', markHidden)
         }
       }
+      // 清掉思考模型偶尔漏出来的 <think>…</think> 标签
+      reply = reply
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .replace(/<\/?think>/gi, '')
+        .trim()
       // 解析 TA 下的任务标记 → 生成对话内倒计时任务卡，并从正文移除标记
       const taskMsgs: Msg[] = []
       if (allowTasks && reply) {
@@ -837,8 +842,8 @@ export default function Chat() {
           </button>
         </div>
       ) : (
-        <div className="glass-bar sticky top-0 z-20 flex items-center justify-between gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
-          <div className="flex flex-none items-center gap-3">
+        <div className="glass-bar sticky top-0 z-20 flex items-center gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
@@ -848,15 +853,15 @@ export default function Chat() {
               ☰
             </button>
           </div>
-          <div className="min-w-0 text-center">
+          <div className="min-w-0 max-w-[50%] text-center">
             <div className="headline truncate text-lg leading-none text-ink">{name}</div>
             <div className="mt-0.5 truncate text-[10px] text-muted">{active?.title ?? '新对话'}</div>
           </div>
-          <div className="relative flex-none">
+          <div className="relative flex min-w-0 flex-1 justify-end">
             <button
               type="button"
               onClick={() => setModelOpen((o) => !o)}
-              className="flex max-w-[46vw] items-center gap-1 rounded-full bg-white/40 px-2.5 py-1 text-[10px] text-muted"
+              className="flex max-w-full items-center gap-1 rounded-full bg-white/40 px-2.5 py-1 text-[10px] text-muted"
             >
               <span className="truncate">{modelLabel}</span>
               <span className="shrink-0">▾</span>

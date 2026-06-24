@@ -55,6 +55,10 @@ export interface PhonePersona {
   autoMemory?: boolean
   /** 是否允许 TA 下「倒计时指令卡」（默认关） */
   allowTasks?: boolean
+  /** 我的气泡颜色（hex，默认玫粉） */
+  meColor?: string
+  /** TA 气泡颜色（hex，默认浅灰） */
+  taColor?: string
 }
 
 const DEFAULT_PERSONA: PhonePersona = {

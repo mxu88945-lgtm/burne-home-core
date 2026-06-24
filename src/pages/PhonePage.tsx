@@ -18,6 +18,16 @@ import Avatar from '@/components/ui/Avatar'
 function newId() {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `pm-${Date.now()}-${Math.random()}`
 }
+/** hex(#rgb/#rrggbb) → rgba，给气泡上半透明色（透视感） */
+function hexToRgba(hex: string, a: number): string {
+  let h = (hex || '').replace('#', '')
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('')
+  if (h.length !== 6) return `rgba(140,140,148,${a})`
+  const n = parseInt(h, 16)
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`
+}
+const ME_COLOR_DEFAULT = '#d98caa'
+const TA_COLOR_DEFAULT = '#86868c'
 function now() {
   return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
@@ -95,6 +105,8 @@ export default function PhonePage() {
   const connected = Boolean(phoneChannel || workerUrl)
   const name = persona.name || 'TA'
   const userName = profile.nameA || '我'
+  const meBg = hexToRgba(persona.meColor || ME_COLOR_DEFAULT, 0.82)
+  const taBg = hexToRgba(persona.taColor || TA_COLOR_DEFAULT, 0.16)
 
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
@@ -349,7 +361,7 @@ export default function PhonePage() {
       `不要写长段落，不要括号里的动作/神态/旁白，表情符号适量就好。`
     const stickerNames = stickers.map((s) => s.name).filter(Boolean)
     const stickerNote = stickerNames.length
-      ? `\n\n【表情贴纸 · 可选】聊到合适的时候你可以发一个表情贴纸表达情绪——在回复里【单独一行】输出 [[sticker|名字]]，名字只能从这个清单里选：${stickerNames.join('、')}。别每条都发，偶尔点缀就好。`
+      ? `\n\n【表情贴纸 · 可选】聊到合适的时候你可以发一个表情贴纸表达情绪——发贴纸【必须】在回复里【单独一行】输出严格格式 [[sticker|名字]]（名字只能从这个清单里选：${stickerNames.join('、')}）。⚠️ 绝不要用文字描述自己在发表情（比如不要直接写「(发了一个表情贴纸：xx)」），那样不会显示成贴纸。别每条都发，偶尔点缀就好。`
       : ''
     const taskNote = persona.allowTasks
       ? `\n\n【倒计时指令卡 · 可选】你可以给 ${userName} 下带倒计时的小任务来关心/督促她（喝水、起身、早点睡、按时吃饭等）。用法：回复最后【另起一行】输出 [[task|分钟数|任务内容]]，例如 [[task|2|去倒杯温水喝]]。她屏幕上会出现一张倒计时卡，她点完成/取消后系统会以她的口吻告诉你结果，你据此自然回应。⚠️ 分寸：绝大多数回复都不要下任务，只在真有必要时下，别刷屏，一次最多一个。`
@@ -396,6 +408,11 @@ export default function PhonePage() {
           maxTokens: 1024,
         })
       }
+      // 清掉思考模型漏出来的 <think>…</think> 标签
+      reply = reply
+        .replace(/<think>[\s\S]*?<\/think>/gi, '')
+        .replace(/<\/?think>/gi, '')
+        .trim()
       // 解析 TA 下的倒计时指令卡 [[task|分钟|内容]]
       const taskMsgs: PhoneMsg[] = []
       if (persona.allowTasks && reply) {
@@ -427,6 +444,14 @@ export default function PhonePage() {
         picked.push(String(n).trim())
         return '\n'
       })
+      // 兜底：有的模型会照搬「（发了一个表情贴纸：X）」当文字，也转成真贴纸
+      reply = reply.replace(
+        /[（(]\s*发了?[一]?[张个]?表情贴纸[:：]\s*([^）)]+?)\s*[）)]/g,
+        (_m, n) => {
+          picked.push(String(n).trim())
+          return '\n'
+        },
+      )
       const stickerMsgs: PhoneMsg[] = []
       for (const nm of picked) {
         const s =
@@ -614,6 +639,24 @@ export default function PhonePage() {
                     {persona.allowTasks ? '开' : '关'}
                   </span>
                 </button>
+                <div className="flex items-center justify-between rounded-xl px-3 py-2">
+                  <span>我的气泡颜色</span>
+                  <input
+                    type="color"
+                    value={persona.meColor || ME_COLOR_DEFAULT}
+                    onChange={(e) => setPersona({ meColor: e.target.value })}
+                    className="h-6 w-9 rounded border-0 bg-transparent p-0"
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-xl px-3 py-2">
+                  <span>TA 气泡颜色</span>
+                  <input
+                    type="color"
+                    value={persona.taColor || TA_COLOR_DEFAULT}
+                    onChange={(e) => setPersona({ taColor: e.target.value })}
+                    className="h-6 w-9 rounded border-0 bg-transparent p-0"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => {
@@ -716,11 +759,15 @@ export default function PhonePage() {
                     <div
                       onClick={canSpeak ? () => play(m.id, m.text) : undefined}
                       className={[
-                        'max-w-full whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed [overflow-wrap:anywhere]',
-                        me ? 'btn-primary rounded-br-md' : 'rounded-bl-md text-ink shadow-sm',
+                        'max-w-full whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed shadow-sm [overflow-wrap:anywhere]',
+                        me ? 'rounded-br-md text-white' : 'rounded-bl-md text-ink',
                         canSpeak ? 'cursor-pointer' : '',
                       ].join(' ')}
-                      style={me ? undefined : { background: 'rgba(120,120,128,0.14)' }}
+                      style={{
+                        background: me ? meBg : taBg,
+                        backdropFilter: 'blur(6px)',
+                        WebkitBackdropFilter: 'blur(6px)',
+                      }}
                     >
                       {!me && (loadingId === m.id || playingId === m.id) && (
                         <span className="mr-1 text-[12px]">{loadingId === m.id ? '⏳' : '🔊'}</span>
@@ -746,7 +793,7 @@ export default function PhonePage() {
               )}
               <div
                 className="flex items-center gap-1 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm"
-                style={{ background: 'rgba(120,120,128,0.14)' }}
+                style={{ background: taBg }}
               >
                 <span className="typing-dot h-1.5 w-1.5 rounded-full bg-current text-muted" style={{ animationDelay: '0ms' }} />
                 <span className="typing-dot h-1.5 w-1.5 rounded-full bg-current text-muted" style={{ animationDelay: '200ms' }} />
