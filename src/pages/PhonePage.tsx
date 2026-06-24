@@ -71,10 +71,18 @@ export default function PhonePage() {
   const ttsEnabled = useTtsStore((s) => s.config.enabled)
   const { play, playingId, loadingId } = useTtsPlayback()
   const persona = usePhoneStore((s) => s.persona)
-  const messages = usePhoneStore((s) => s.messages)
+  const sessions = usePhoneStore((s) => s.sessions)
+  const activeId = usePhoneStore((s) => s.activeId)
   const setMessages = usePhoneStore((s) => s.setMessages)
   const setPersona = usePhoneStore((s) => s.setPersona)
+  const createSession = usePhoneStore((s) => s.createSession)
+  const switchSession = usePhoneStore((s) => s.switchSession)
+  const removeSession = usePhoneStore((s) => s.removeSession)
+  const renameSession = usePhoneStore((s) => s.renameSession)
+  const autoTitle = usePhoneStore((s) => s.autoTitle)
   const clear = usePhoneStore((s) => s.clear)
+  const active = sessions.find((s) => s.id === activeId)
+  const messages = active?.messages ?? []
 
   // 小手机可以选自己的渠道；没选就用主聊天激活的
   const phoneChannel =
@@ -89,6 +97,7 @@ export default function PhonePage() {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [err, setErr] = useState('')
   const [pendingImage, setPendingImage] = useState('')
   const [lightbox, setLightbox] = useState('')
@@ -163,6 +172,7 @@ export default function PhonePage() {
     }
     const history = [...messages, mine]
     setMessages(history)
+    if (text) autoTitle(text)
     setDraft('')
     setPendingImage('')
     if (!connected) {
@@ -335,6 +345,14 @@ export default function PhonePage() {
             if (f) pickAvatar(f)
           }}
         />
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="对话列表"
+          className="flex-none text-base text-muted hover:text-accent"
+        >
+          ☰
+        </button>
         <button type="button" onClick={() => avatarRef.current?.click()} aria-label="换头像" className="flex-none">
           <Avatar
             img={persona.avatarImg}
@@ -620,6 +638,80 @@ export default function PhonePage() {
           </button>
         </div>
       </div>
+
+      {/* 会话侧栏（多对话） */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50 flex" onClick={() => setDrawerOpen(false)}>
+          <div
+            className="glass-strong flex h-full w-72 max-w-[80%] flex-col gap-2 p-3 pt-[max(1rem,env(safe-area-inset-top))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Link
+              to="/"
+              onClick={() => setDrawerOpen(false)}
+              className="mb-1 inline-flex items-center gap-1 px-1 text-[12px] text-muted hover:text-accent"
+            >
+              ← 主页
+            </Link>
+            <div className="flex items-center justify-between px-1">
+              <span className="headline text-base text-ink">{name} · 对话</span>
+              <button
+                type="button"
+                onClick={() => {
+                  createSession()
+                  setDrawerOpen(false)
+                }}
+                className="btn-primary rounded-full px-3 py-1 text-[12px]"
+              >
+                ＋ 新对话
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+              {sessions.map((s) => {
+                const on = s.id === activeId
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => {
+                      switchSession(s.id)
+                      setDrawerOpen(false)
+                    }}
+                    className={[
+                      'flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm',
+                      on ? 'bg-white/50 text-ink' : 'text-ink hover:bg-white/30',
+                    ].join(' ')}
+                  >
+                    <span className="flex-1 truncate">{s.title}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        const t = window.prompt('重命名对话', s.title)
+                        if (t) renameSession(s.id, t)
+                      }}
+                      aria-label="重命名"
+                      className="text-[12px] text-muted hover:text-accent"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (window.confirm(`删除对话「${s.title}」？`)) removeSession(s.id)
+                      }}
+                      aria-label="删除"
+                      className="text-[12px] text-muted hover:text-accent"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 图片大图预览 */}
       {lightbox && (
