@@ -93,10 +93,24 @@ function buildPayload(config: TtsConfig, text: string) {
   }
 }
 
+/** 把海螺的英文报错翻成更好懂的中文 */
+function friendlyMiniMax(msg: string): string {
+  const m = (msg || '').toLowerCase()
+  if (m.includes('insufficient balance') || m.includes('余额'))
+    return '海螺(MiniMax)账户余额不足——请去 MiniMax 后台充值后再用（克隆和朗读都会消耗余额）'
+  if (m.includes('invalid api key') || m.includes('unauthorized') || m.includes('authentication'))
+    return 'API Key 不对或没权限，请检查 Key / GroupId'
+  if (m.includes('rate limit') || m.includes('too many'))
+    return '请求太频繁，稍等几秒再试'
+  if (m.includes('voice') && (m.includes('not found') || m.includes('not exist')))
+    return '音色 ID 不存在（克隆未完成或填错）'
+  return msg
+}
+
 function parseMiniMax(data: MiniMaxResp): Blob {
   const code = data.base_resp?.status_code
   if (code && code !== 0)
-    throw new Error(data.base_resp?.status_msg || `MiniMax 错误 ${code}`)
+    throw new Error(friendlyMiniMax(data.base_resp?.status_msg || `MiniMax 错误 ${code}`))
   const hex = data.data?.audio
   if (!hex) throw new Error('返回里没有音频数据（检查 Key / GroupId / 音色）')
   return new Blob([hexToBytes(hex) as BlobPart], { type: 'audio/mpeg' })
