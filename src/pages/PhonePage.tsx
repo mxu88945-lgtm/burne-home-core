@@ -8,6 +8,7 @@ import { useMemoryStore } from '@/store/memoryStore'
 import { useTtsStore } from '@/store/ttsStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import { usePhoneStore, type PhoneMsg } from '@/store/phoneStore'
+import { useStickerStore, type Sticker } from '@/store/stickerStore'
 import { chatComplete } from '@/api/llm'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { fileToDataUrl } from '@/lib/image'
@@ -101,10 +102,15 @@ export default function PhonePage() {
   const [err, setErr] = useState('')
   const [pendingImage, setPendingImage] = useState('')
   const [lightbox, setLightbox] = useState('')
+  const [stickerOpen, setStickerOpen] = useState(false)
+  const stickers = useStickerStore((s) => s.stickers)
+  const addSticker = useStickerStore((s) => s.add)
+  const removeSticker = useStickerStore((s) => s.remove)
   const endRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const avatarRef = useRef<HTMLInputElement>(null)
   const picRef = useRef<HTMLInputElement>(null)
+  const stickerFileRef = useRef<HTMLInputElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const isTouch =
     typeof window !== 'undefined' &&
@@ -155,6 +161,30 @@ export default function PhonePage() {
     setErr('')
     try {
       setPendingImage(await fileToDataUrl(file, 1280, 0.8))
+    } catch (e) {
+      setErr((e as Error).message)
+    }
+  }
+  async function sendSticker(s: Sticker) {
+    if (sending) return
+    setStickerOpen(false)
+    const mine: PhoneMsg = {
+      id: newId(),
+      role: 'me',
+      text: '',
+      at: now(),
+      sticker: { emoji: s.emoji, img: s.img, name: s.name },
+    }
+    const history = [...messages, mine]
+    setMessages(history)
+    if (connected) await respond(history)
+  }
+  async function addStickerImage(file: File) {
+    setErr('')
+    try {
+      const url = await fileToDataUrl(file, 320, 0.85)
+      const nm = (window.prompt('给这个贴纸起个名字（TA 会按名字挑着发）', '贴纸') || '').trim()
+      addSticker({ name: nm || '贴纸', img: url })
     } catch (e) {
       setErr((e as Error).message)
     }
@@ -244,7 +274,7 @@ export default function PhonePage() {
 
   async function respond(history: PhoneMsg[]) {
     const apiMsgs: ChatApiMessage[] = history
-      .filter((m) => m.text.trim() || m.image)
+      .filter((m) => m.text.trim() || m.image || m.sticker)
       .map((m) => {
         const role = m.role === 'me' ? ('user' as const) : ('assistant' as const)
         if (m.image) {
@@ -252,6 +282,9 @@ export default function PhonePage() {
           if (m.text.trim()) parts.push({ type: 'text', text: m.text.trim() })
           parts.push({ type: 'image_url', image_url: { url: m.image } })
           return { role, content: parts }
+        }
+        if (m.sticker) {
+          return { role, content: `（发了一个表情贴纸：${m.sticker.name || m.sticker.emoji || '表情'}）` }
         }
         return { role, content: m.text }
       })
@@ -264,6 +297,10 @@ export default function PhonePage() {
       `\n\n【发消息风格 · 很重要】你在用手机和 ${userName} 发消息聊天。像真人发微信那样：` +
       `每条消息简短、口语、自然；一次可以连发好几条短消息——用换行把每条分开。` +
       `不要写长段落，不要括号里的动作/神态/旁白，表情符号适量就好。`
+    const stickerNames = stickers.map((s) => s.name).filter(Boolean)
+    const stickerNote = stickerNames.length
+      ? `\n\n【表情贴纸 · 可选】聊到合适的时候你可以发一个表情贴纸表达情绪——在回复里【单独一行】输出 [[sticker|名字]]，名字只能从这个清单里选：${stickerNames.join('、')}。别每条都发，偶尔点缀就好。`
+      : ''
     const localTime = new Date().toLocaleString('zh-CN', {
       month: 'long',
       day: 'numeric',
@@ -271,7 +308,7 @@ export default function PhonePage() {
       hour: '2-digit',
       minute: '2-digit',
     })
-    const system = `${base}${texting}${memoryNote()}\n\n（当前时间：${localTime}，可自然参考。）`
+    const system = `${base}${texting}${memoryNote()}${stickerNote}\n\n（当前时间：${localTime}，可自然参考。）`
 
     setSending(true)
     setErr('')
@@ -306,14 +343,32 @@ export default function PhonePage() {
           maxTokens: 1024,
         })
       }
+      // 解析 TA 挑的表情贴纸 [[sticker|名字]]，从正文移除标记
+      const picked: string[] = []
+      reply = reply.replace(/\[\[sticker\|([^\]|]+)\]\]/g, (_m, n) => {
+        picked.push(String(n).trim())
+        return '\n'
+      })
+      const stickerMsgs: PhoneMsg[] = []
+      for (const nm of picked) {
+        const s =
+          stickers.find((x) => x.name === nm) ||
+          stickers.find((x) => x.name && (nm.includes(x.name) || x.name.includes(nm)))
+        if (s) {
+          stickerMsgs.push({
+            id: newId(),
+            role: 'ta',
+            text: '',
+            at: now(),
+            sticker: { emoji: s.emoji, img: s.img, name: s.name },
+          })
+        }
+      }
       const bubbles = splitBubbles(reply)
-      const taMsgs: PhoneMsg[] = (bubbles.length ? bubbles : ['……']).map((t) => ({
-        id: newId(),
-        role: 'ta',
-        text: t,
-        at: now(),
-      }))
-      setMessages((p) => [...p, ...taMsgs])
+      const taMsgs: PhoneMsg[] = (bubbles.length ? bubbles : stickerMsgs.length ? [] : ['……']).map(
+        (t) => ({ id: newId(), role: 'ta' as const, text: t, at: now() }),
+      )
+      setMessages((p) => [...p, ...taMsgs, ...stickerMsgs])
       // 往共用记忆库写：开了自动记忆每轮判断；或用户明确说「记一下」时必存
       const lastUser = [...history].reverse().find((m) => m.role === 'me')
       const force = !!lastUser && /记住|记一下|记下来|记下|记录|存一下|帮我记|记到/.test(lastUser.text)
@@ -517,6 +572,17 @@ export default function PhonePage() {
                     <div className="h-7 w-7 flex-none" aria-hidden />
                   ))}
                 <div className={`flex max-w-[74%] flex-col gap-1 ${me ? 'items-end' : 'items-start'}`}>
+                  {m.sticker &&
+                    (m.sticker.img ? (
+                      <img
+                        src={m.sticker.img}
+                        alt={m.sticker.name || '贴纸'}
+                        onClick={() => setLightbox(m.sticker!.img!)}
+                        className="h-24 w-24 cursor-pointer object-contain"
+                      />
+                    ) : (
+                      <span className="text-[52px] leading-none">{m.sticker.emoji}</span>
+                    ))}
                   {m.image && (
                     <img
                       src={m.image}
@@ -601,6 +667,57 @@ export default function PhonePage() {
             if (f) pickImage(f)
           }}
         />
+        <input
+          ref={stickerFileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (f) addStickerImage(f)
+          }}
+        />
+        {/* 表情贴纸面板 */}
+        {stickerOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setStickerOpen(false)} />
+            <div className="glass-strong absolute inset-x-3 bottom-16 z-20 max-h-60 overflow-y-auto rounded-2xl p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[12px] text-muted">表情贴纸（点发送）</span>
+                <button
+                  type="button"
+                  onClick={() => stickerFileRef.current?.click()}
+                  className="rounded-full bg-white/50 px-2.5 py-1 text-[11px] text-ink"
+                >
+                  ＋ 上传贴纸
+                </button>
+              </div>
+              <div className="grid grid-cols-5 gap-2">
+                {stickers.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => sendSticker(s)}
+                    onContextMenu={(e) => {
+                      e.preventDefault()
+                      if (window.confirm(`删除贴纸「${s.name}」？`)) removeSticker(s.id)
+                    }}
+                    title={s.name}
+                    className="flex aspect-square items-center justify-center rounded-xl bg-white/40 active:scale-95"
+                  >
+                    {s.img ? (
+                      <img src={s.img} alt={s.name} className="h-full w-full rounded-xl object-contain p-0.5" />
+                    ) : (
+                      <span className="text-2xl">{s.emoji}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 text-center text-[10px] text-muted">长按贴纸可删除</div>
+            </div>
+          </>
+        )}
         <div className="glass-strong flex items-end gap-1 rounded-3xl py-1 pl-2 pr-1.5">
           <button
             type="button"
@@ -609,6 +726,14 @@ export default function PhonePage() {
             className="mb-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full text-xl text-muted hover:bg-white/40 hover:text-ink"
           >
             ＋
+          </button>
+          <button
+            type="button"
+            onClick={() => setStickerOpen((o) => !o)}
+            aria-label="表情贴纸"
+            className="mb-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full text-lg text-muted hover:bg-white/40 hover:text-ink"
+          >
+            😀
           </button>
           <textarea
             ref={inputRef}

@@ -18,6 +18,8 @@ export interface PhoneMsg {
   at: string
   /** 图片消息（dataURL，可选） */
   image?: string
+  /** 表情贴纸消息（emoji 或图片 dataURL） */
+  sticker?: { emoji?: string; img?: string; name?: string }
 }
 
 export interface PhoneSession {

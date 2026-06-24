@@ -92,7 +92,8 @@
 - **🆕 小手机（`/phone`，`pages/PhonePage.tsx` + `store/phoneStore.ts`）**：独立「像发微信」短句聊天角色。自己的名字/头像(emoji 或上传图)/个性签名/灵魂设定（存 `STORAGE_KEYS.phone`）+ 独立单线对话记录；**共用同一个记忆库**（`memoryNote()` 注入 memoryStore 的 overview+长期记忆到 system，只读共享）。回复按「换行/句末标点」切成多条短气泡（`splitBubbles`，不用 lookbehind 兼容老 Safari）。复用 active API 渠道 + chatComplete/sendChat + usageStore。AppLayout 把 `/phone` 也当沉浸式(isChat)。Home 加「小手机 📱」卡入口。
   - **第二批增强**：TA 气泡改浅灰 `rgba(120,120,128,.14)`（用户气泡仍主题色）；连发多条只第一条显示头像（其余 7×7 占位对齐）；① 顶部模型 chip 可给小手机单独选渠道(`persona.apiChannelId`，不填跟随主聊天)；② 共用记忆库**写**：`extractMemories` 同主聊天逻辑，开关 `persona.autoMemory`(⚙菜单,默认开,高门槛)+「记一下」关键词强制；③ 语音：开了 TTS 时点 TA 气泡朗读(复用 useTtsPlayback)。
   - **第三批增强**：① 发图片 ✅（输入栏 ＋ 选图→`PhoneMsg.image` dataURL，apiMsgs 走 vision `image_url`，气泡显缩略图、点开 lightbox；需模型支持识图）；头像上传更明显（⚙ 菜单加「上传头像图片」，仍可点头像传）。⏭ 待做（按顺序）：多会话、表情包(贴纸素材库+模型选贴纸)。
-  - **第四批增强**：② 多会话 ✅——phoneStore 重构成 `sessions[]+activeId`（旧单会话 messages 自动迁移进一个默认会话）；PhonePage 顶部加 ☰ 抽屉：新建/切换/删除/重命名 + ← 主页，首句 `autoTitle` 命名，「清空聊天」清当前会话。⏭ 只剩：表情包(贴纸素材库+模型选贴纸)。
+  - **第四批增强**：② 多会话 ✅——phoneStore 重构成 `sessions[]+activeId`（旧单会话 messages 自动迁移进一个默认会话）；PhonePage 顶部加 ☰ 抽屉：新建/切换/删除/重命名 + ← 主页，首句 `autoTitle` 命名，「清空聊天」清当前会话。
+  - **第五批增强**：③ 表情包 ✅——`store/stickerStore.ts`（内置 18 个 emoji 贴纸 + 用户可上传图片贴纸，存 `STORAGE_KEYS.stickers`）。`PhoneMsg.sticker={emoji?|img?|name?}`。输入栏 😀 开贴纸面板（点发送、＋上传、长按删）。TA 会发：system 注入贴纸名清单 + 指示「单独一行 `[[sticker|名字]]`」，respond 解析标记按名字匹配→贴纸气泡（无框，emoji 大字/图片 96px）。apiMsgs 把贴纸转成「（发了一个表情贴纸：名字）」让模型理解。**小手机六项全部完成**（单独模型/记忆写/语音/发图/多会话/表情包）。
 
 **第十批（同日）· 启动闪屏（治冷启动白屏）**：
 - 装机版冷启动从网络拉主程序(~170KB)、无 SW 离线缓存 → 网络慢时先卡纯白页。`index.html` 在 `#root` 内放一个 `#bw-splash`（奶白底 #f4f1ec + 呼吸动画的「BW♡」），React `createRoot` 首次渲染会清空 #root → 闪屏自动消失。纯前端、零风险。⏭ 想要「秒开/离线」可加 Service Worker 缓存 app shell，但会和老婆「频繁更新 + 强制刷新」的流程冲突（易看不到新版），暂不做。
