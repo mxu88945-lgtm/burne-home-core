@@ -24,6 +24,16 @@ export default function ApiManager() {
   const [busy, setBusy] = useState<string>('')
   const [addModels, setAddModels] = useState<string[]>([])
   const [addBusy, setAddBusy] = useState(false)
+  // 渠道卡折叠：默认全收起，点箭头展开（渠道多时更清爽）
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  function toggleExpand(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   function preset() {
     setName('OpenRouter')
@@ -107,6 +117,7 @@ export default function ApiManager() {
       ) : (
         channels.map((c) => {
           const active = c.id === activeId
+          const open = expanded.has(c.id)
           return (
             <div
               key={c.id}
@@ -118,7 +129,7 @@ export default function ApiManager() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setActive(c.id)}
-                  className="flex-1 text-left"
+                  className="min-w-0 flex-1 text-left"
                 >
                   <span className="text-sm font-medium text-ink">
                     {active ? '● ' : '○ '}
@@ -129,6 +140,14 @@ export default function ApiManager() {
                     {c.viaWorker ? ' · 经Worker' : ' · 直连'}
                   </span>
                 </button>
+                {/* 折叠/展开箭头 */}
+                <button
+                  onClick={() => toggleExpand(c.id)}
+                  aria-label={open ? '收起' : '展开'}
+                  className="px-1 text-sm text-muted hover:text-accent"
+                >
+                  {open ? '⌃' : '⌄'}
+                </button>
                 <button
                   onClick={() => removeChannel(c.id)}
                   className="text-[11px] text-muted hover:text-accent"
@@ -137,51 +156,55 @@ export default function ApiManager() {
                 </button>
               </div>
 
-              <div className="mt-2 space-y-2">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-muted">
-                    当前模型：
-                    <span className="text-ink">{c.model || '未设置'}</span>
-                  </span>
-                  <button
-                    onClick={() => fetchModels(c.id)}
-                    disabled={busy === c.id}
-                    className="glass rounded-lg px-3 py-1.5 text-ink disabled:opacity-60"
-                  >
-                    {busy === c.id ? '拉取中…' : '获取模型'}
-                  </button>
-                </div>
+              {/* 当前模型：收起时也显示，一眼能看到 */}
+              <div className="mt-1.5 text-[11px] text-muted">
+                当前模型：<span className="text-ink">{c.model || '未设置'}</span>
+              </div>
 
-                {/* 拉到模型后：选择 + 确认 两步 */}
-                {models[c.id] && models[c.id].length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={pending[c.id] ?? c.model}
-                      onChange={(e) =>
-                        setPending((p) => ({ ...p, [c.id]: e.target.value }))
-                      }
-                      className={inputCls + ' flex-1'}
-                    >
-                      {models[c.id].map((m) => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
-                      ))}
-                    </select>
+              {/* 展开才显示：获取模型 + 选择确认 */}
+              {open && (
+                <div className="mt-2 space-y-2">
+                  <div className="flex justify-end">
                     <button
-                      onClick={() => {
-                        const sel = pending[c.id] ?? c.model
-                        updateChannel(c.id, { model: sel })
-                        setMsg(`已确认模型：${sel}`)
-                      }}
-                      disabled={(pending[c.id] ?? c.model) === c.model}
-                      className="btn-primary shrink-0 rounded-xl px-4 py-2 text-xs disabled:opacity-50"
+                      onClick={() => fetchModels(c.id)}
+                      disabled={busy === c.id}
+                      className="glass rounded-lg px-3 py-1.5 text-[11px] text-ink disabled:opacity-60"
                     >
-                      确认模型
+                      {busy === c.id ? '拉取中…' : '获取模型'}
                     </button>
                   </div>
-                )}
-              </div>
+
+                  {/* 拉到模型后：选择 + 确认 两步 */}
+                  {models[c.id] && models[c.id].length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={pending[c.id] ?? c.model}
+                        onChange={(e) =>
+                          setPending((p) => ({ ...p, [c.id]: e.target.value }))
+                        }
+                        className={inputCls + ' flex-1'}
+                      >
+                        {models[c.id].map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => {
+                          const sel = pending[c.id] ?? c.model
+                          updateChannel(c.id, { model: sel })
+                          setMsg(`已确认模型：${sel}`)
+                        }}
+                        disabled={(pending[c.id] ?? c.model) === c.model}
+                        className="btn-primary shrink-0 rounded-xl px-4 py-2 text-xs disabled:opacity-50"
+                      >
+                        确认模型
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )
         })
