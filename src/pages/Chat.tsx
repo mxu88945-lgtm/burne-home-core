@@ -6,7 +6,7 @@ import { useSyncStore } from '@/store/syncStore'
 import { useApiStore } from '@/store/apiStore'
 import { useUsageStore } from '@/store/usageStore'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
-import { chatComplete } from '@/api/llm'
+import { chatComplete, chatCompleteStream, canStream } from '@/api/llm'
 import { useTtsStore } from '@/store/ttsStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import { useAppearanceStore } from '@/store/appearanceStore'
@@ -151,6 +151,10 @@ export default function Chat() {
   const [editDraft, setEditDraft] = useState('')
   const [copiedId, setCopiedId] = useState('')
   const [openReasoning, setOpenReasoning] = useState<Set<string>>(new Set())
+  // 正在流式输出（思考/正文边收边显示）的消息 id
+  const [streamingIds, setStreamingIds] = useState<Set<string>>(new Set())
+  // 各流式消息的思考起始时间戳（用于「深度思考 (x.xs)」实时计时）
+  const thinkStartRef = useRef<Record<string, number>>({})
   // 记忆提示（飘一下就消失，不进对话正文）
   const [memToast, setMemToast] = useState('')
   const memToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -267,6 +271,13 @@ export default function Chat() {
       window.removeEventListener('focus', sync)
     }
   }, [hasActiveTask])
+
+  // 流式思考期间每 100ms 刷新一次，让「深度思考 (x.xs)」计时跑起来
+  useEffect(() => {
+    if (streamingIds.size === 0) return
+    const id = setInterval(() => setNowTs(Date.now()), 100)
+    return () => clearInterval(id)
+  }, [streamingIds])
 
   const mmss = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
@@ -645,8 +656,213 @@ export default function Chat() {
         `⚠️ 分寸（很重要）：绝大多数回复都【不要】下任务，正常聊天就好。只有在你真的觉得有必要时才下，比如：她说累了/困了/不舒服、很久没吃饭或没喝水、长时间盯屏幕或熬夜、情绪不好需要起身缓一缓，或你作为关心她的人判断此刻确实该提醒她照顾自己。没有明确理由就【绝对不要】下任务，别一直刷任务卡惹她烦。一次最多一个。标记本身不会显示在对话里，只会变成卡片。`
     }
 
+    // 开了思考过程且渠道可流式（OpenAI 兼容直连）→ 走流式：思考链实时流动、思考完自动收起出正文
+    const useStream = !!channel && canStream(channel) && persona.reasoning
+
     setSending(true)
     try {
+      // ——— 流式分支：边收思考边显示，思考结束自动收起再流出正文 ———
+      if (useStream) {
+        const replyId = newId()
+        const startedAt = Date.now()
+        thinkStartRef.current[replyId] = startedAt
+        let gotContent = false
+        let anyDelta = false
+        let replyForMem = ''
+        // 先放占位气泡并展开思考框
+        setMessages((prev) => [
+          ...prev,
+          { id: replyId, role: 'companion' as const, text: '', at: now(), reasoning: '' },
+        ])
+        setOpenReasoning((prev) => new Set(prev).add(replyId))
+        setStreamingIds((prev) => new Set(prev).add(replyId))
+
+        const patch = (fn: (m: Msg) => Msg) =>
+          setMessages((prev) => prev.map((m) => (m.id === replyId ? fn(m) : m)))
+        const collapseThink = () => {
+          patch((m) => (m.thinkMs == null ? { ...m, thinkMs: Date.now() - startedAt } : m))
+          setOpenReasoning((prev) => {
+            const n = new Set(prev)
+            n.delete(replyId)
+            return n
+          })
+        }
+
+        let attempt = 0
+        while (true) {
+          let hiddenDuringReq = typeof document !== 'undefined' && document.hidden
+          const markHidden = () => {
+            if (typeof document !== 'undefined' && document.hidden) hiddenDuringReq = true
+          }
+          document.addEventListener('visibilitychange', markHidden)
+          try {
+            const r = await chatCompleteStream(
+              channel!,
+              apiMsgs,
+              system,
+              {
+                workerUrl,
+                syncKey: config.syncKey,
+                temperature: persona.temperature,
+                maxTokens: persona.maxTokens,
+                reasoning: persona.reasoning,
+                webSearch,
+              },
+              {
+                onReasoning: (d) => {
+                  anyDelta = true
+                  patch((m) => ({ ...m, reasoning: (m.reasoning || '') + d }))
+                },
+                onContent: (d) => {
+                  anyDelta = true
+                  if (!gotContent) {
+                    gotContent = true
+                    collapseThink() // 思考结束→出正文：记用时、自动收起思考框
+                  }
+                  patch((m) => ({ ...m, text: (m.text || '') + d }))
+                },
+              },
+            )
+            // 收尾：用量、清标签、解析任务标记
+            if (r.usage) {
+              addUsage({
+                at: new Date().toISOString(),
+                provider: channel!.provider,
+                model: r.usage.model,
+                promptTokens: r.usage.promptTokens,
+                completionTokens: r.usage.completionTokens,
+                totalTokens: r.usage.totalTokens,
+                cost: r.usage.cost,
+              })
+            }
+            collapseThink() // 万一没有正文增量也要确保收起
+            let finalText = cleanReply(r.text)
+            const taskMsgs: Msg[] = []
+            if (allowTasks && finalText) {
+              const { tasks: parsed, clean } = parseTasks(finalText)
+              if (parsed.length) {
+                finalText = clean
+                for (const t of parsed) {
+                  const mins = Math.max(1, Math.min(180, Math.round(t.minutes) || 5))
+                  const s = Date.now()
+                  taskMsgs.push({
+                    id: newId(),
+                    role: 'companion',
+                    text: '',
+                    at: now(),
+                    task: { text: t.text, minutes: mins, startedAt: s, deadline: s + mins * 60000, status: 'active' },
+                  })
+                }
+              }
+            }
+            replyForMem = finalText
+            const tokens = r.usage?.totalTokens
+            patch((m) => ({
+              ...m,
+              text: finalText || (taskMsgs.length ? '' : '……'),
+              ...(tokens ? { tokens } : {}),
+              ...(r.reasoning ? { reasoning: r.reasoning } : {}),
+            }))
+            if (taskMsgs.length) setMessages((prev) => [...prev, ...taskMsgs])
+            break // 成功
+          } catch (err) {
+            const msg = (err as Error).message || ''
+            const interrupted =
+              (hiddenDuringReq || (typeof document !== 'undefined' && document.hidden)) &&
+              looksBackgrounded(msg)
+            if (interrupted && attempt < 4) {
+              attempt++
+              gotContent = false
+              anyDelta = false
+              patch((m) => ({ ...m, text: '', reasoning: '', thinkMs: undefined }))
+              setOpenReasoning((prev) => new Set(prev).add(replyId))
+              await waitUntilVisible() // 回前台重新流式
+              continue
+            }
+            // 流式还没收到任何增量就失败 → 多半是端点不支持 SSE，回退非流式再试一次
+            if (!anyDelta) {
+              try {
+                const r = await chatComplete(channel!, apiMsgs, system, {
+                  workerUrl,
+                  syncKey: config.syncKey,
+                  temperature: persona.temperature,
+                  maxTokens: persona.maxTokens,
+                  reasoning: persona.reasoning,
+                  webSearch,
+                })
+                if (r.usage) {
+                  addUsage({
+                    at: new Date().toISOString(),
+                    provider: channel!.provider,
+                    model: r.usage.model,
+                    promptTokens: r.usage.promptTokens,
+                    completionTokens: r.usage.completionTokens,
+                    totalTokens: r.usage.totalTokens,
+                    cost: r.usage.cost,
+                  })
+                }
+                if (r.reasoning) patch((m) => ({ ...m, reasoning: r.reasoning }))
+                collapseThink()
+                let finalText = cleanReply(r.text)
+                const taskMsgs: Msg[] = []
+                if (allowTasks && finalText) {
+                  const { tasks: parsed, clean } = parseTasks(finalText)
+                  if (parsed.length) {
+                    finalText = clean
+                    for (const t of parsed) {
+                      const mins = Math.max(1, Math.min(180, Math.round(t.minutes) || 5))
+                      const s = Date.now()
+                      taskMsgs.push({
+                        id: newId(),
+                        role: 'companion',
+                        text: '',
+                        at: now(),
+                        task: { text: t.text, minutes: mins, startedAt: s, deadline: s + mins * 60000, status: 'active' },
+                      })
+                    }
+                  }
+                }
+                replyForMem = finalText
+                const tokens = r.usage?.totalTokens
+                patch((m) => ({
+                  ...m,
+                  text: finalText || (taskMsgs.length ? '' : '……'),
+                  ...(tokens ? { tokens } : {}),
+                }))
+                if (taskMsgs.length) setMessages((prev) => [...prev, ...taskMsgs])
+                break
+              } catch {
+                // 回退也失败，落到下面统一报错
+              }
+            }
+            patch((m) => ({ ...m, text: `（消息没送到：${msg}）`, reasoning: undefined }))
+            setOpenReasoning((prev) => {
+              const n = new Set(prev)
+              n.delete(replyId)
+              return n
+            })
+            break
+          } finally {
+            document.removeEventListener('visibilitychange', markHidden)
+          }
+        }
+
+        setStreamingIds((prev) => {
+          const n = new Set(prev)
+          n.delete(replyId)
+          return n
+        })
+        delete thinkStartRef.current[replyId]
+
+        // 自动沉淀记忆
+        const lastUser = [...history].reverse().find((m) => m.role === 'me')
+        const force = !!lastUser && /记住|记一下|记下来|记下|记录|存一下|帮我记|记到/.test(lastUser.text)
+        if (replyForMem && (autoMemory || force)) {
+          void extractMemories([...history, { id: 'tmp', role: 'companion', text: replyForMem, at: '' }], force)
+        }
+        return
+      }
+
       let reply = ''
       let tokens: number | undefined
       let reasoning: string | undefined
@@ -759,19 +975,6 @@ export default function Chat() {
           ? [{ id: newId(), role: 'companion' as const, text: '……', at: now() }]
           : []),
       ])
-      // 有思考链：先自动展开「思考过程」，停留一会后平滑收起（正文一直在下方，
-      // 只有一个柔和的收起动画，避免「先藏正文→再弹出」的二次跳动）
-      if (reply && reasoning) {
-        setOpenReasoning((prev) => new Set(prev).add(replyId))
-        const hold = Math.min(2200, 900 + reasoning.length * 4)
-        setTimeout(() => {
-          setOpenReasoning((prev) => {
-            const n = new Set(prev)
-            n.delete(replyId)
-            return n
-          })
-        }, hold)
-      }
       // 自动沉淀记忆：开了开关每轮判断；或用户明确说「记一下」时必存
       const lastUser = [...history].reverse().find((m) => m.role === 'me')
       const force = !!lastUser && /记住|记一下|记下来|记下|记录|存一下|帮我记|记到/.test(lastUser.text)
@@ -1029,7 +1232,7 @@ export default function Chat() {
                     </div>
                   </div>
                 ) : (
-                  (m.text || (!me && m.reasoning)) && (
+                  (m.text || (!me && (m.reasoning || streamingIds.has(m.id)))) && (
                     <div
                       className={[
                         'max-w-full overflow-hidden text-sm leading-relaxed [overflow-wrap:anywhere]',
@@ -1041,30 +1244,49 @@ export default function Chat() {
                             : 'glass rounded-2xl rounded-bl-md px-4 py-2.5 text-ink',
                       ].join(' ')}
                     >
-                      {!me && m.reasoning && (
-                        <div className={m.text ? 'mb-2 border-b border-line/60 pb-2' : ''}>
-                          <button
-                            type="button"
-                            onClick={() => toggleReasoning(m.id)}
-                            className="flex items-center gap-1 text-[11px] text-muted"
-                          >
-                            ☁️ 思考过程 {openReasoning.has(m.id) ? '⌃' : '⌄'}
-                          </button>
-                          <div className={`bw-collapse ${openReasoning.has(m.id) ? 'open' : ''}`}>
-                            <div>
-                              <div className="mt-1 max-h-52 overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-muted [overflow-wrap:anywhere]">
-                                {m.reasoning}
+                      {!me && (m.reasoning || streamingIds.has(m.id)) && (() => {
+                        const open = openReasoning.has(m.id)
+                        const thinking = streamingIds.has(m.id) && m.thinkMs == null
+                        const secs = thinking
+                          ? Math.max(0, (nowTs - (thinkStartRef.current[m.id] ?? nowTs)) / 1000)
+                          : m.thinkMs != null
+                            ? m.thinkMs / 1000
+                            : null
+                        return (
+                          <div className={m.text ? 'mb-2 border-b border-line/60 pb-2' : ''}>
+                            <button
+                              type="button"
+                              onClick={() => toggleReasoning(m.id)}
+                              className="flex w-full items-center gap-1.5 text-[11px] text-muted"
+                            >
+                              <span className={thinking ? 'animate-pulse' : ''}>💭</span>
+                              <span>
+                                {thinking ? '深度思考中' : '深度思考'}
+                                {secs != null ? ` (${secs.toFixed(1)}s)` : ''}
+                              </span>
+                              <span className="ml-auto">{open ? '⌃' : '⌄'}</span>
+                            </button>
+                            <div className={`bw-collapse ${open ? 'open' : ''}`}>
+                              <div>
+                                <div
+                                  ref={(el) => {
+                                    if (el && streamingIds.has(m.id)) el.scrollTop = el.scrollHeight
+                                  }}
+                                  className="mt-1 max-h-44 overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-muted [overflow-wrap:anywhere]"
+                                >
+                                  {m.reasoning}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )
+                      })()}
                       {m.text && <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{renderRichText(showLinks ? m.text : stripLinks(m.text))}</div>}
                     </div>
                   )
                 )}
 
-                {!selectMode && editingId !== m.id && (
+                {!selectMode && editingId !== m.id && !streamingIds.has(m.id) && (
                   <div className="mt-2 flex flex-wrap items-center gap-3.5 px-1 text-muted">
                     <span className="text-[10px]">{m.at}</span>
                     {!me && ttsEnabled && m.text.trim() && (
@@ -1112,7 +1334,7 @@ export default function Chat() {
             </div>
           )
         })}
-        {(sending || generating) && (
+        {((sending && streamingIds.size === 0) || generating) && (
           <div className="flex items-start gap-2">
             <Avatar
               img={profile.avatarBImg}

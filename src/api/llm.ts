@@ -92,6 +92,118 @@ export interface ChatResult {
   reasoning?: string
 }
 
+export interface StreamCallbacks {
+  /** 思考增量（reasoning / reasoning_content 流） */
+  onReasoning?: (delta: string) => void
+  /** 正文增量 */
+  onContent?: (delta: string) => void
+}
+
+/** 是否支持流式：仅 OpenAI 兼容直连（非 Worker、非 anthropic）。其余回退到非流式。 */
+export function canStream(ch: ApiChannel): boolean {
+  return !ch.viaWorker && ch.provider !== 'anthropic'
+}
+
+/**
+ * 流式对话（SSE）：边收边回调 onReasoning / onContent，结束返回完整结果。
+ * 仅 OpenAI 兼容直连真正流式；anthropic / 经 Worker 回退到非流式（一次性把整段当增量发出）。
+ */
+export async function chatCompleteStream(
+  ch: ApiChannel,
+  messages: ChatApiMessage[],
+  system: string,
+  opts: ChatOptions,
+  cb: StreamCallbacks,
+): Promise<ChatResult> {
+  if (!canStream(ch)) {
+    const r = await chatComplete(ch, messages, system, opts)
+    if (r.reasoning) cb.onReasoning?.(r.reasoning)
+    if (r.text) cb.onContent?.(r.text)
+    return r
+  }
+
+  const maxTokens = opts.maxTokens ?? 1024
+  const isOpenRouter = /openrouter\.ai/i.test(ch.baseUrl)
+  const model =
+    opts.webSearch && isOpenRouter && !/:online$/.test(ch.model) ? `${ch.model}:online` : ch.model
+  const full = system ? [{ role: 'system' as const, content: system }, ...messages] : messages
+
+  const res = await fetch(`${trim(ch.baseUrl)}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${ch.apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: full,
+      max_tokens: maxTokens,
+      stream: true,
+      ...(isOpenRouter ? { stream_options: { include_usage: true } } : {}),
+      ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
+      ...(opts.reasoning ? { reasoning: { effort: 'medium' } } : {}),
+      ...(isOpenRouter ? { usage: { include: true } } : {}),
+    }),
+  })
+  if (!res.ok || !res.body) {
+    const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } }
+    throw new Error(data.error?.message || `HTTP ${res.status}`)
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buf = ''
+  let text = ''
+  let reasoning = ''
+  let usage: UsageInfo | undefined
+
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buf += decoder.decode(value, { stream: true })
+    const lines = buf.split('\n')
+    buf = lines.pop() || '' // 末行可能不完整，留到下次
+    for (const raw of lines) {
+      const line = raw.trim()
+      if (!line.startsWith('data:')) continue
+      const payload = line.slice(5).trim()
+      if (!payload || payload === '[DONE]') continue
+      let json: {
+        choices?: { delta?: { content?: string; reasoning?: string; reasoning_content?: string } }[]
+        usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; cost?: number }
+      }
+      try {
+        json = JSON.parse(payload)
+      } catch {
+        continue
+      }
+      const delta = json.choices?.[0]?.delta
+      // 思考增量：不同服务商字段名不同（reasoning / reasoning_content）
+      const rd = delta?.reasoning ?? delta?.reasoning_content
+      if (rd) {
+        reasoning += rd
+        cb.onReasoning?.(rd)
+      }
+      if (delta?.content) {
+        text += delta.content
+        cb.onContent?.(delta.content)
+      }
+      if (json.usage) {
+        const u = json.usage
+        usage = {
+          promptTokens: u.prompt_tokens ?? 0,
+          completionTokens: u.completion_tokens ?? 0,
+          totalTokens: u.total_tokens ?? (u.prompt_tokens ?? 0) + (u.completion_tokens ?? 0),
+          cost: typeof u.cost === 'number' ? u.cost : undefined,
+          model: ch.model,
+        }
+      }
+    }
+  }
+
+  return { text, usage, reasoning: reasoning.trim() || undefined }
+}
+
 /** 发起一次对话，返回回复文本与用量 */
 export async function chatComplete(
   ch: ApiChannel,

@@ -18,6 +18,8 @@ export interface ChatMsg {
   tokens?: number
   /** 思考过程（开启 reasoning 时，折叠展示） */
   reasoning?: string
+  /** 思考耗时（ms）：流式思考结束→出正文时记录，收起后显示「深度思考 (x.xs)」 */
+  thinkMs?: number
   /** 文件附件（只存本地） */
   file?: {
     name: string
