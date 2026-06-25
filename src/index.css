@@ -199,6 +199,22 @@ body {
   animation: bw-typing 1.2s infinite;
 }
 
+/* 思考链平滑展开/收起（grid 高度过渡，避免瞬间跳动） */
+.bw-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 280ms ease, opacity 220ms ease;
+}
+.bw-collapse.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.bw-collapse > div {
+  overflow: hidden;
+  min-height: 0;
+}
+
 /* 触屏设备：输入框字号 ≥16px，避免 iOS 聚焦时自动放大整页 */
 @media (pointer: coarse) {
   input:not([type='checkbox']):not([type='range']),

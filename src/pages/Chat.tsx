@@ -151,8 +151,6 @@ export default function Chat() {
   const [editDraft, setEditDraft] = useState('')
   const [copiedId, setCopiedId] = useState('')
   const [openReasoning, setOpenReasoning] = useState<Set<string>>(new Set())
-  // 正在「先显示思考链、正文暂藏」阶段的消息 id（过一会自动收起思考链→显示正文）
-  const [reasoningReveal, setReasoningReveal] = useState<Set<string>>(new Set())
   // 记忆提示（飘一下就消失，不进对话正文）
   const [memToast, setMemToast] = useState('')
   const memToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -761,19 +759,13 @@ export default function Chat() {
           ? [{ id: newId(), role: 'companion' as const, text: '……', at: now() }]
           : []),
       ])
-      // 有思考链时：先把思考链展开、正文先藏着，停留一会后自动收起思考链并显示正文
-      // （非流式 await，用这段拟出「先思考过程→自动合上→出正文」的观感）
+      // 有思考链：先自动展开「思考过程」，停留一会后平滑收起（正文一直在下方，
+      // 只有一个柔和的收起动画，避免「先藏正文→再弹出」的二次跳动）
       if (reply && reasoning) {
         setOpenReasoning((prev) => new Set(prev).add(replyId))
-        setReasoningReveal((prev) => new Set(prev).add(replyId))
-        const hold = Math.min(3500, 1400 + reasoning.length * 6)
+        const hold = Math.min(2200, 900 + reasoning.length * 4)
         setTimeout(() => {
           setOpenReasoning((prev) => {
-            const n = new Set(prev)
-            n.delete(replyId)
-            return n
-          })
-          setReasoningReveal((prev) => {
             const n = new Set(prev)
             n.delete(replyId)
             return n
@@ -901,8 +893,6 @@ export default function Chat() {
         {messages.map((m) => {
           const me = m.role === 'me'
           const picked = selectMode && selected.has(m.id)
-          // 思考链分段呈现期间，正文先藏着（思考链收起后才显示）
-          const showBody = !!m.text && !reasoningReveal.has(m.id)
 
           // 任务卡：进行中的在右上角悬浮卡显示；完成/取消后落进对话成记录
           if (m.task) {
@@ -1052,7 +1042,7 @@ export default function Chat() {
                       ].join(' ')}
                     >
                       {!me && m.reasoning && (
-                        <div className={showBody ? 'mb-2 border-b border-line/60 pb-2' : ''}>
+                        <div className={m.text ? 'mb-2 border-b border-line/60 pb-2' : ''}>
                           <button
                             type="button"
                             onClick={() => toggleReasoning(m.id)}
@@ -1060,19 +1050,21 @@ export default function Chat() {
                           >
                             ☁️ 思考过程 {openReasoning.has(m.id) ? '⌃' : '⌄'}
                           </button>
-                          {openReasoning.has(m.id) && (
-                            <div className="mt-1 max-h-52 overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-muted [overflow-wrap:anywhere]">
-                              {m.reasoning}
+                          <div className={`bw-collapse ${openReasoning.has(m.id) ? 'open' : ''}`}>
+                            <div>
+                              <div className="mt-1 max-h-52 overflow-y-auto whitespace-pre-wrap text-[12px] leading-relaxed text-muted [overflow-wrap:anywhere]">
+                                {m.reasoning}
+                              </div>
                             </div>
-                          )}
+                          </div>
                         </div>
                       )}
-                      {showBody && <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{renderRichText(showLinks ? m.text : stripLinks(m.text))}</div>}
+                      {m.text && <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{renderRichText(showLinks ? m.text : stripLinks(m.text))}</div>}
                     </div>
                   )
                 )}
 
-                {!selectMode && editingId !== m.id && !reasoningReveal.has(m.id) && (
+                {!selectMode && editingId !== m.id && (
                   <div className="mt-2 flex flex-wrap items-center gap-3.5 px-1 text-muted">
                     <span className="text-[10px]">{m.at}</span>
                     {!me && ttsEnabled && m.text.trim() && (
