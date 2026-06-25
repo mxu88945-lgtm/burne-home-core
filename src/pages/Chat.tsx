@@ -151,6 +151,8 @@ export default function Chat() {
   const [editDraft, setEditDraft] = useState('')
   const [copiedId, setCopiedId] = useState('')
   const [openReasoning, setOpenReasoning] = useState<Set<string>>(new Set())
+  // 正在「先显示思考链、正文暂藏」阶段的消息 id（过一会自动收起思考链→显示正文）
+  const [reasoningReveal, setReasoningReveal] = useState<Set<string>>(new Set())
   // 记忆提示（飘一下就消失，不进对话正文）
   const [memToast, setMemToast] = useState('')
   const memToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -739,12 +741,13 @@ export default function Chat() {
           }
         }
       }
+      const replyId = newId()
       setMessages((prev) => [
         ...prev,
         ...(reply
           ? [
               {
-                id: newId(),
+                id: replyId,
                 role: 'companion' as const,
                 text: reply,
                 at: now(),
@@ -758,6 +761,25 @@ export default function Chat() {
           ? [{ id: newId(), role: 'companion' as const, text: '……', at: now() }]
           : []),
       ])
+      // 有思考链时：先把思考链展开、正文先藏着，停留一会后自动收起思考链并显示正文
+      // （非流式 await，用这段拟出「先思考过程→自动合上→出正文」的观感）
+      if (reply && reasoning) {
+        setOpenReasoning((prev) => new Set(prev).add(replyId))
+        setReasoningReveal((prev) => new Set(prev).add(replyId))
+        const hold = Math.min(3500, 1400 + reasoning.length * 6)
+        setTimeout(() => {
+          setOpenReasoning((prev) => {
+            const n = new Set(prev)
+            n.delete(replyId)
+            return n
+          })
+          setReasoningReveal((prev) => {
+            const n = new Set(prev)
+            n.delete(replyId)
+            return n
+          })
+        }, hold)
+      }
       // 自动沉淀记忆：开了开关每轮判断；或用户明确说「记一下」时必存
       const lastUser = [...history].reverse().find((m) => m.role === 'me')
       const force = !!lastUser && /记住|记一下|记下来|记下|记录|存一下|帮我记|记到/.test(lastUser.text)
@@ -879,6 +901,8 @@ export default function Chat() {
         {messages.map((m) => {
           const me = m.role === 'me'
           const picked = selectMode && selected.has(m.id)
+          // 思考链分段呈现期间，正文先藏着（思考链收起后才显示）
+          const showBody = !!m.text && !reasoningReveal.has(m.id)
 
           // 任务卡：进行中的在右上角悬浮卡显示；完成/取消后落进对话成记录
           if (m.task) {
@@ -1028,7 +1052,7 @@ export default function Chat() {
                       ].join(' ')}
                     >
                       {!me && m.reasoning && (
-                        <div className={m.text ? 'mb-2 border-b border-line/60 pb-2' : ''}>
+                        <div className={showBody ? 'mb-2 border-b border-line/60 pb-2' : ''}>
                           <button
                             type="button"
                             onClick={() => toggleReasoning(m.id)}
@@ -1043,12 +1067,12 @@ export default function Chat() {
                           )}
                         </div>
                       )}
-                      {m.text && <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{renderRichText(showLinks ? m.text : stripLinks(m.text))}</div>}
+                      {showBody && <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{renderRichText(showLinks ? m.text : stripLinks(m.text))}</div>}
                     </div>
                   )
                 )}
 
-                {!selectMode && editingId !== m.id && (
+                {!selectMode && editingId !== m.id && !reasoningReveal.has(m.id) && (
                   <div className="mt-2 flex flex-wrap items-center gap-3.5 px-1 text-muted">
                     <span className="text-[10px]">{m.at}</span>
                     {!me && ttsEnabled && m.text.trim() && (
