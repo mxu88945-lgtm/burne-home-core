@@ -1681,8 +1681,7 @@ export default function Chat() {
             >
               ← 主页
             </Link>
-            <div className="flex items-center justify-between px-1">
-              <span className="headline text-base text-ink">对话</span>
+            <div className="flex items-center justify-end px-1">
               <button
                 type="button"
                 onClick={() => {
@@ -1718,7 +1717,7 @@ export default function Chat() {
                         if (t) renameSession(s.id, t)
                       }}
                       aria-label="重命名"
-                      className="text-[12px] text-muted hover:text-accent"
+                      className="px-1.5 text-lg leading-none text-muted hover:text-accent"
                     >
                       ✎
                     </button>
@@ -1729,7 +1728,7 @@ export default function Chat() {
                         if (window.confirm(`删除对话「${s.title}」？`)) removeSession(s.id)
                       }}
                       aria-label="删除"
-                      className="text-[12px] text-muted hover:text-accent"
+                      className="px-1.5 text-lg leading-none text-muted hover:text-accent"
                     >
                       ✕
                     </button>

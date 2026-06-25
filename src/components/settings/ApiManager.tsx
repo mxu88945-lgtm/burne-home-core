@@ -34,6 +34,8 @@ export default function ApiManager() {
       return next
     })
   }
+  // 是否所有渠道都展开了（用于「全部展开/收起」总键）
+  const allOpen = channels.length > 0 && channels.every((c) => expanded.has(c.id))
 
   function preset() {
     setName('OpenRouter')
@@ -110,6 +112,21 @@ export default function ApiManager() {
   return (
     <div className="space-y-3">
       {msg && <div className="text-[11px] text-accent">{msg}</div>}
+
+      {/* 全部展开 / 收起 总键（渠道多时一键收纳） */}
+      {channels.length > 1 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() =>
+              setExpanded(allOpen ? new Set() : new Set(channels.map((c) => c.id)))
+            }
+            className="text-[11px] text-accent hover:underline"
+          >
+            {allOpen ? '全部收起 ⌃' : '全部展开 ⌄'}
+          </button>
+        </div>
+      )}
 
       {/* 已有渠道 */}
       {channels.length === 0 ? (
