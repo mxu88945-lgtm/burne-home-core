@@ -22,7 +22,7 @@ export interface Appearance {
 
 const DEFAULT_APPEARANCE: Appearance = {
   chatBg: '',
-  chatBgDim: 0.3,
+  chatBgDim: 0,
   chatBgOpacity: 1,
   chatBgBlur: 0,
   chatBgFit: 'cover',

@@ -777,13 +777,13 @@ export default function Chat() {
   const modelLabel = activeChannel?.model || config.chatModel || (connected ? '默认' : '未连接')
 
   return (
-    <div className="relative flex h-full flex-col pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+    <div className="relative isolate flex h-full flex-col overflow-hidden pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       {/* 聊天页背景：① 设了自定义背景图就只显示它(+变暗滑块)，不叠别的层(避免毛玻璃打架糊成灰)；
           ② 否则琉璃(粉)用雾化小猫；③ 其余主题跟随主题背景 + 一层柔白。 */}
       {chatBg ? (
         <>
           <div
-            className="pointer-events-none absolute -inset-3 -z-10 bg-center bg-no-repeat"
+            className="pointer-events-none absolute -inset-3 z-0 bg-center bg-no-repeat"
             style={{
               backgroundImage: `url(${chatBg})`,
               backgroundSize: chatBgFit === 'contain' ? 'contain' : 'cover',
@@ -793,7 +793,7 @@ export default function Chat() {
           />
           {chatBgDim > 0 && (
             <div
-              className="pointer-events-none absolute inset-0 -z-10 bg-black"
+              className="pointer-events-none absolute inset-0 z-0 bg-black"
               style={{ opacity: chatBgDim }}
             />
           )}
@@ -801,11 +801,11 @@ export default function Chat() {
       ) : theme === 'aurora' ? (
         <>
           <div
-            className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-center"
+            className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${chatCat})` }}
           />
           <div
-            className="pointer-events-none absolute inset-0 -z-10"
+            className="pointer-events-none absolute inset-0 z-0"
             style={{
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
@@ -815,7 +815,7 @@ export default function Chat() {
         </>
       ) : (
         <div
-          className="pointer-events-none absolute inset-0 -z-10"
+          className="pointer-events-none absolute inset-0 z-0"
           style={{
             backdropFilter: 'blur(18px)',
             WebkitBackdropFilter: 'blur(18px)',
@@ -832,7 +832,7 @@ export default function Chat() {
         </div>
       )}
       {/* 滚动区：顶栏 sticky 贴顶，消息从其下方滚过（毛玻璃透出内容） */}
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="relative z-10 min-h-0 flex-1 overflow-y-auto">
       {/* 角色头部（sticky 贴顶） */}
       {selectMode ? (
         <div className="glass-bar sticky top-0 z-20 flex items-center justify-between gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
@@ -869,35 +869,8 @@ export default function Chat() {
             <div className="headline truncate text-lg leading-none text-ink">{name}</div>
             <div className="mt-0.5 truncate text-[10px] text-muted">{active?.title ?? '新对话'}</div>
           </div>
-          <div className="relative flex min-w-0 flex-1 justify-end">
-            <button
-              type="button"
-              onClick={() => setModelOpen((o) => !o)}
-              className="flex max-w-full items-center gap-1 rounded-full bg-white/40 px-2.5 py-1 text-[10px] text-muted"
-            >
-              <span className="truncate">{modelLabel}</span>
-              <span className="shrink-0">▾</span>
-            </button>
-            {modelOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-20"
-                  onClick={() => setModelOpen(false)}
-                />
-                <div className="glass-strong absolute right-0 top-full z-30 mt-1 w-64 max-w-[72vw] rounded-2xl p-3 text-left shadow-lg">
-                  <div className="text-[10px] text-muted">当前模型</div>
-                  <div className="mt-1 break-all text-[12px] text-ink">{modelLabel}</div>
-                  <Link
-                    to="/settings/api"
-                    onClick={() => setModelOpen(false)}
-                    className="mt-2 block text-[11px] text-accent"
-                  >
-                    在 API 设置里切换 →
-                  </Link>
-                </div>
-              </>
-            )}
-          </div>
+          {/* 模型已挪进底部输入框，这里只留占位让名字居中 */}
+          <div className="min-w-0 flex-1" />
         </div>
       )}
 
@@ -1245,7 +1218,7 @@ export default function Chat() {
 
       {/* 输入栏 + 模型条（钉在底部，不滚） */}
       {!selectMode && (
-      <div className="flex-none px-4 pt-2">
+      <div className="relative z-10 flex-none px-4 pt-2">
         {ttsError && (
           <div className="mb-1 px-2 text-center text-[11px] text-red-500">
             朗读失败：{ttsError}
@@ -1315,7 +1288,7 @@ export default function Chat() {
             if (f) pickFile(f)
           }}
         />
-        <div className="relative flex items-center">
+        <div className="relative">
           {/* ＋ 菜单 */}
           {plusOpen && (
             <>
@@ -1323,7 +1296,7 @@ export default function Chat() {
                 className="fixed inset-0 z-10"
                 onClick={() => setPlusOpen(false)}
               />
-              <div className="glass-strong absolute bottom-14 left-2 z-20 w-36 overflow-hidden rounded-2xl p-1 text-sm text-ink">
+              <div className="glass-strong absolute bottom-16 left-2 z-20 w-36 overflow-hidden rounded-2xl p-1 text-sm text-ink">
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
@@ -1370,15 +1343,8 @@ export default function Chat() {
               </div>
             </>
           )}
-          <div className="glass-strong flex flex-1 items-end gap-1 rounded-3xl py-1 pl-2 pr-1.5">
-            <button
-              type="button"
-              onClick={() => setPlusOpen((o) => !o)}
-              aria-label="添加"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl text-muted hover:bg-white/40 hover:text-ink"
-            >
-              ＋
-            </button>
+          {/* 上面输入、下面 ＋ 和模型 pill、右侧发送 */}
+          <div className="glass-strong flex flex-col gap-1.5 rounded-3xl px-3 py-2">
             <textarea
               ref={inputRef}
               value={draft}
@@ -1399,17 +1365,54 @@ export default function Chat() {
                 }
               }}
               placeholder={`say something to ${name}…`}
-              className="headline min-h-[36px] max-h-[120px] min-w-0 flex-1 resize-none self-center bg-transparent py-1.5 text-sm not-italic leading-snug text-ink outline-none placeholder:italic placeholder:text-muted"
+              className="headline min-h-[24px] max-h-[120px] w-full resize-none bg-transparent px-1 py-0.5 text-sm not-italic leading-snug text-ink outline-none placeholder:italic placeholder:text-muted"
             />
-            <button
-              type="button"
-              onClick={send}
-              disabled={sending}
-              aria-label="发送"
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-accent hover:bg-white/40 disabled:opacity-40"
-            >
-              <SendIcon className="h-[18px] w-[18px]" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPlusOpen((o) => !o)}
+                aria-label="添加"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xl text-muted hover:bg-white/40 hover:text-ink"
+              >
+                ＋
+              </button>
+              {/* 模型 pill：直接点击切换（去掉了后面的小箭头） */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setModelOpen((o) => !o)}
+                  className="block max-w-[160px] truncate rounded-full bg-white/50 px-3 py-1 text-[11px] text-muted hover:text-ink"
+                >
+                  {modelLabel}
+                </button>
+                {modelOpen && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setModelOpen(false)} />
+                    <div className="glass-strong absolute bottom-full left-0 z-20 mb-2 w-60 max-w-[72vw] rounded-2xl p-3 text-left shadow-lg">
+                      <div className="text-[10px] text-muted">当前模型</div>
+                      <div className="mt-1 break-all text-[12px] text-ink">{modelLabel}</div>
+                      <Link
+                        to="/settings/api"
+                        onClick={() => setModelOpen(false)}
+                        className="mt-2 block text-[11px] text-accent"
+                      >
+                        在 API 设置里切换 →
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex-1" />
+              <button
+                type="button"
+                onClick={send}
+                disabled={sending}
+                aria-label="发送"
+                className="btn-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-40"
+              >
+                <SendIcon className="h-[18px] w-[18px]" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -182,7 +182,7 @@ export default function AppearanceManager() {
             <UploadButton
               label="上传背景"
               maxSize={1280}
-              onPicked={(d) => update({ chatBg: d })}
+              onPicked={(d) => update({ chatBg: d, chatBgDim: 0, chatBgOpacity: 1, chatBgBlur: 0 })}
               onError={setErr}
             />
             {appearance.chatBg && (
