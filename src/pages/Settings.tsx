@@ -28,6 +28,7 @@ const ITEMS: { to: string; Icon: IconType; title: string; sub: string }[] = [
   { to: '/settings/tts', Icon: SpeakerWaveIcon, title: '语音朗读', sub: 'MiniMax 海螺 TTS' },
   { to: '/settings/imagegen', Icon: ImageSparkIcon, title: '生成图片', sub: '文生图渠道' },
   { to: '/settings/vision', Icon: EyeIcon, title: '读图模型', sub: '主模型不支持图时用' },
+  { to: '/settings/memory-model', Icon: ArchiveIcon, title: '记忆模型', sub: '单独模型记记忆 · 不占主模型' },
   { to: '/settings/usage', Icon: ChartIcon, title: '用量 · 账单', sub: 'token 与花费' },
   { to: '/settings/data', Icon: ArchiveIcon, title: '数据 · 备份', sub: '导出 / 恢复 / 更新' },
   { to: '/settings/privacy', Icon: LockIcon, title: '隐私锁', sub: '本地保护' },

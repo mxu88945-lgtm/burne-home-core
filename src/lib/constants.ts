@@ -23,6 +23,7 @@ export const STORAGE_KEYS = {
   chat: `${NS}:chat`,
   imagegen: `${NS}:imagegen`,
   vision: `${NS}:vision`,
+  memoryModel: `${NS}:memory-model`,
   chatprefs: `${NS}:chatprefs`,
   memoryOverview: `${NS}:memory-overview`,
   reading: `${NS}:reading`,

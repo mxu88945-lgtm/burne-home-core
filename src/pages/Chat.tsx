@@ -19,6 +19,7 @@ import { generateImage } from '@/api/imagegen'
 import { useVisionStore } from '@/store/visionStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { useMemoryStore } from '@/store/memoryStore'
+import { useMemoryModelStore } from '@/store/memoryModelStore'
 import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
 import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, SendIcon } from '@/components/ui/icons'
@@ -115,6 +116,7 @@ export default function Chat() {
   const [nowTs, setNowTs] = useState(Date.now())
   const addMemory = useMemoryStore((s) => s.addMemory)
   const memoriesRef = useMemoryStore((s) => s.memories)
+  const memoryModelCfg = useMemoryModelStore((s) => s.config)
   const { chatBg, chatBgDim, chatBgOpacity, chatBgBlur, chatBgFit } = useAppearanceStore(
     (s) => s.appearance,
   )
@@ -524,7 +526,19 @@ export default function Chat() {
 
   /** 自动沉淀记忆：让 AI 判断有没有值得长期记住的，存进记忆库（高门槛 / 或用户明确要求时必存） */
   async function extractMemories(history: Msg[], force: boolean) {
-    if (!activeChannel && !workerUrl) return
+    // 开了「记忆模型」就用它单独提炼（不占主聊天模型）；否则回退主渠道 / Worker
+    const memChannel: ApiChannel | undefined =
+      memoryModelCfg.enabled && memoryModelCfg.apiKey.trim() && memoryModelCfg.model.trim()
+        ? {
+            id: 'memory',
+            name: '记忆',
+            provider: 'openai',
+            baseUrl: memoryModelCfg.baseUrl,
+            apiKey: memoryModelCfg.apiKey,
+            model: memoryModelCfg.model,
+          }
+        : activeChannel
+    if (!memChannel && !workerUrl) return
     const memName = profile.nameA || '她'
     const recent = history.slice(-8)
     const transcript = recent
@@ -539,9 +553,9 @@ export default function Chat() {
       `\n只输出 JSON：{"items":[{"title":"简短标题","content":"要记住的内容"}]}，没有就 {"items":[]}。\n\n对话：\n${transcript}`
     try {
       let text = ''
-      if (activeChannel) {
+      if (memChannel) {
         text = (
-          await chatComplete(activeChannel, [{ role: 'user', content: ask }], sys, {
+          await chatComplete(memChannel, [{ role: 'user', content: ask }], sys, {
             workerUrl,
             syncKey: config.syncKey,
             maxTokens: 600,
