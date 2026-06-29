@@ -25,6 +25,7 @@ export const STORAGE_KEYS = {
   vision: `${NS}:vision`,
   memoryModel: `${NS}:memory-model`,
   stt: `${NS}:stt`,
+  drama: `${NS}:drama`,
   chatprefs: `${NS}:chatprefs`,
   memoryOverview: `${NS}:memory-overview`,
   reading: `${NS}:reading`,

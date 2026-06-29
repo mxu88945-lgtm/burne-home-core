@@ -5,6 +5,8 @@ import MemoryLibrary from '@/pages/MemoryLibrary'
 import Chat from '@/pages/Chat'
 import PhonePage from '@/pages/PhonePage'
 import ReadingRoom from '@/pages/ReadingRoom'
+import DramaList from '@/pages/DramaList'
+import DramaRoom from '@/pages/DramaRoom'
 import CalendarPage from '@/pages/CalendarPage'
 import ReadingPage from '@/pages/settings/ReadingPage'
 import Persona from '@/pages/Persona'
@@ -34,6 +36,8 @@ export const router = createHashRouter([
       { path: 'chat', element: <Chat /> },
       { path: 'phone', element: <PhonePage /> },
       { path: 'reading', element: <ReadingRoom /> },
+      { path: 'drama', element: <DramaList /> },
+      { path: 'drama/room', element: <DramaRoom /> },
       { path: 'calendar', element: <CalendarPage /> },
       { path: 'settings/reading', element: <ReadingPage /> },
       { path: 'persona', element: <Persona /> },

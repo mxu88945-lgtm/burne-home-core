@@ -158,6 +158,7 @@ export default function Home() {
         />
         <QuickEntry to="/chat" icon="💬" title="今天聊聊" sub="说点什么吧" onClick={startBlank} />
         <QuickEntry to="/reading" icon="📖" title="一起看书" sub="和 TA 共读一本书" />
+        <QuickEntry to="/drama" icon="🎭" title="戏剧" sub="多角色群聊 · 扮演" />
         <QuickEntry to="/settings" icon="⚙️" title="设置" sub="同步 · 备份 · 隐私" />
       </section>
 
