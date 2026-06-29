@@ -8,9 +8,13 @@ import { chatComplete } from '@/api/llm'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { cleanReply } from '@/lib/cleanReply'
 import { fileToDataUrl } from '@/lib/image'
+import { useSttStore } from '@/store/sttStore'
+import { transcribe } from '@/api/stt'
+import { useTtsStore } from '@/store/ttsStore'
+import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import Avatar from '@/components/ui/Avatar'
 import BackBar from '@/components/layout/BackBar'
-import { SendIcon } from '@/components/ui/icons'
+import { SendIcon, SpeakerIcon, StopIcon, MicIcon } from '@/components/ui/icons'
 
 function now() {
   return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
@@ -26,12 +30,16 @@ export default function DramaRoom() {
   const updateChar = useDramaStore((s) => s.updateChar)
   const removeChar = useDramaStore((s) => s.removeChar)
   const addMessage = useDramaStore((s) => s.addMessage)
+  const setMessages = useDramaStore((s) => s.setMessages)
   const setSummary = useDramaStore((s) => s.setSummary)
 
   const activeChannel = useApiStore((s) => s.getActive())
   const { config } = useSyncStore()
   const addUsage = useUsageStore((s) => s.add)
   const workerUrl = config.workerUrl?.trim()
+  const sttCfg = useSttStore((s) => s.config)
+  const ttsEnabled = useTtsStore((s) => s.config.enabled)
+  const { play, playingId, loadingId } = useTtsPlayback()
 
   const scene = scenes.find((s) => s.id === activeId)
 
@@ -43,8 +51,13 @@ export default function DramaRoom() {
   const [editing, setEditing] = useState<DramaChar | 'new' | null>(null)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [summaryBusy, setSummaryBusy] = useState(false)
+  const [recording, setRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
+  const mediaRecRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const sinceSummaryRef = useRef(0) // 距上次摘要的 AI 回复数，攒够自动更新
 
   const messages = scene?.messages ?? []
   useEffect(() => {
@@ -157,6 +170,12 @@ export default function DramaRoom() {
         text: reply || '……',
         at: now(),
       })
+      // 摘要自动更新：每攒够 8 条 AI 回复，后台静默刷新一次剧情摘要
+      sinceSummaryRef.current += 1
+      if (sinceSummaryRef.current >= 8) {
+        sinceSummaryRef.current = 0
+        void genSummary(true)
+      }
     } catch (e) {
       setErr(`${char.name} 没接上话：${(e as Error).message}`)
     } finally {
@@ -164,18 +183,18 @@ export default function DramaRoom() {
     }
   }
 
-  /** 生成/更新剧情摘要 */
-  async function genSummary() {
+  /** 生成/更新剧情摘要（silent=自动更新，不弹提示/不展开） */
+  async function genSummary(silent = false) {
     if (summaryBusy) return
     if (!connected) {
-      setErr('请先在「设置 → API / 模型」配置渠道')
+      if (!silent) setErr('请先在「设置 → API / 模型」配置渠道')
       return
     }
     if (sc.messages.length === 0) {
-      setErr('还没有对话可以总结')
+      if (!silent) setErr('还没有对话可以总结')
       return
     }
-    setErr('')
+    if (!silent) setErr('')
     setSummaryBusy(true)
     try {
       const transcript = sc.messages
@@ -208,12 +227,110 @@ export default function DramaRoom() {
       }
       if (text) {
         setSummary(sc.id, cleanReply(text).trim())
-        setSummaryOpen(true)
+        sinceSummaryRef.current = 0
+        if (!silent) setSummaryOpen(true)
       }
     } catch (e) {
-      setErr(`生成摘要失败：${(e as Error).message}`)
+      if (!silent) setErr(`生成摘要失败：${(e as Error).message}`)
     } finally {
       setSummaryBusy(false)
+    }
+  }
+
+  /** 压缩对话：把较早的对话并进剧情摘要，只留最近几条，省 token、防忘 */
+  async function compress() {
+    if (busyChar || summaryBusy) return
+    const keep = 6
+    if (sc.messages.length <= keep + 2) {
+      setErr('对话还短，先不用压缩～')
+      return
+    }
+    if (!connected) {
+      setErr('请先在「设置 → API / 模型」配置渠道')
+      return
+    }
+    if (!window.confirm('把较早的对话压缩进「剧情摘要」？只保留最近几条，不可恢复。')) return
+    setErr('')
+    setSummaryBusy(true)
+    try {
+      const head = sc.messages.slice(0, sc.messages.length - keep)
+      const tail = sc.messages.slice(sc.messages.length - keep)
+      const transcript = head
+        .map((m) => `${nameOf(m.who)}：${m.text}${m.image ? '［图片］' : ''}`)
+        .join('\n')
+      const sys = '你是剧情记录助手，只输出摘要正文，不要寒暄。'
+      const ask =
+        `把下面这段角色扮演群聊整理并合并进「剧情摘要」（350字以内，交代角色、关系、关键剧情与当前情境，便于接着演不忘设定）。` +
+        `${sc.summary.trim() ? `\n已有摘要（在其基础上更新合并）：${sc.summary.trim()}` : ''}\n\n要压缩的较早对话：\n${transcript}`
+      let text = ''
+      if (activeChannel) {
+        text = (
+          await chatComplete(activeChannel, [{ role: 'user', content: ask }], sys, {
+            workerUrl,
+            syncKey: config.syncKey,
+            maxTokens: 900,
+          })
+        ).text.trim()
+      } else {
+        text = (
+          await sendChat({
+            workerUrl: workerUrl!,
+            syncKey: config.syncKey,
+            messages: [{ role: 'user', content: ask }],
+            system: sys,
+            maxTokens: 900,
+          })
+        ).trim()
+      }
+      if (!text) throw new Error('摘要为空')
+      setSummary(sc.id, cleanReply(text).trim())
+      setMessages(sc.id, tail)
+      sinceSummaryRef.current = 0
+      setSummaryOpen(true)
+    } catch (e) {
+      setErr(`压缩失败：${(e as Error).message}`)
+    } finally {
+      setSummaryBusy(false)
+    }
+  }
+
+  /** 语音输入：录音 → 转文字填进输入框 */
+  async function toggleRec() {
+    if (transcribing) return
+    if (recording) {
+      mediaRecRef.current?.stop()
+      return
+    }
+    setErr('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mr = new MediaRecorder(stream)
+      chunksRef.current = []
+      mr.ondataavailable = (e) => {
+        if (e.data.size) chunksRef.current.push(e.data)
+      }
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop())
+        setRecording(false)
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' })
+        if (!blob.size) return
+        setTranscribing(true)
+        try {
+          const cfg = { ...sttCfg, workerUrl: sttCfg.workerUrl.trim() || (workerUrl || '') }
+          const t = await transcribe(cfg, blob, { syncKey: config.syncKey })
+          if (t) setDraft((d) => (d ? `${d} ${t}` : t))
+          else setErr('没识别到内容，再说一次试试')
+        } catch (e) {
+          setErr(`语音转文字失败：${(e as Error).message}`)
+        } finally {
+          setTranscribing(false)
+        }
+      }
+      mediaRecRef.current = mr
+      mr.start()
+      setRecording(true)
+    } catch (e) {
+      setErr(`打不开麦克风：${(e as Error).message}`)
     }
   }
 
@@ -277,9 +394,14 @@ export default function DramaRoom() {
             <span className="label">剧情摘要</span>
             <span className="text-[11px] text-accent">{summaryOpen ? '▲' : '▼'}</span>
           </button>
-          <button onClick={genSummary} disabled={summaryBusy} className="text-[12px] text-accent disabled:opacity-50">
-            {summaryBusy ? '生成中…' : '✨ 更新摘要'}
-          </button>
+          <div className="flex items-center gap-3 text-[12px]">
+            <button onClick={() => genSummary()} disabled={summaryBusy} className="text-accent disabled:opacity-50">
+              {summaryBusy ? '处理中…' : '✨ 更新摘要'}
+            </button>
+            <button onClick={compress} disabled={summaryBusy || !!busyChar} className="text-muted hover:text-accent disabled:opacity-50">
+              🗜 压缩
+            </button>
+          </div>
         </div>
         {summaryOpen && (
           <textarea
@@ -326,7 +448,25 @@ export default function DramaRoom() {
                       {m.text}
                     </div>
                   )}
-                  <span className="px-1 text-[9px] text-muted">{m.at}</span>
+                  <div className="flex items-center gap-2 px-1 text-muted">
+                    <span className="text-[9px]">{m.at}</span>
+                    {!mine && ttsEnabled && m.text.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => play(m.id, m.text)}
+                        aria-label="朗读"
+                        className="hover:text-accent"
+                      >
+                        {loadingId === m.id ? (
+                          <span className="text-[11px]">⏳</span>
+                        ) : playingId === m.id ? (
+                          <StopIcon className="h-[13px] w-[13px]" />
+                        ) : (
+                          <SpeakerIcon className="h-[13px] w-[13px]" />
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )
@@ -398,6 +538,25 @@ export default function DramaRoom() {
             placeholder={meChar ? `以「${meChar.name}」的身份说…` : '说点什么（建议先建一张「我」的角色卡）…'}
             className="max-h-[120px] min-h-[36px] min-w-0 flex-1 resize-none self-center bg-transparent py-1.5 text-sm leading-snug text-ink outline-none placeholder:text-muted"
           />
+          {sttCfg.enabled && (
+            <button
+              onClick={toggleRec}
+              disabled={transcribing}
+              aria-label={recording ? '停止录音' : '语音输入'}
+              className={[
+                'flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-50',
+                recording ? 'animate-pulse bg-red-500 text-white' : 'bg-black/5 text-ink/70 hover:bg-black/10',
+              ].join(' ')}
+            >
+              {transcribing ? (
+                <span className="text-sm">⏳</span>
+              ) : recording ? (
+                <StopIcon className="h-[15px] w-[15px]" />
+              ) : (
+                <MicIcon className="h-[17px] w-[17px]" />
+              )}
+            </button>
+          )}
           <button
             onClick={sendMine}
             aria-label="发送"
