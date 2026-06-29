@@ -67,19 +67,16 @@ function splitBubbles(text: string): string[] {
     .slice(0, 14)
 }
 
-/** 共用记忆库：把记忆概览 + 长期记忆注入到 TA 的 system，让小手机也「记得」 */
+/** 共用记忆库：概述 + 所有标星★ + 最近 15 条，注入到 TA 的 system（与主聊天/读书一致，省 token） */
 function memoryNote(): string {
   const mem = useMemoryStore.getState()
+  const starred = mem.memories.filter((m) => m.starred)
+  const recent = mem.memories.filter((m) => !m.starred).slice(0, 15)
+  const picked = [...starred, ...recent]
+  const lines = picked.map((m) => `· ${m.title ? `${m.title}：` : ''}${m.content}`).join('\n')
   let note = ''
   if (mem.overview?.trim()) note += `\n\n【你们的记忆概览】\n${mem.overview.trim()}`
-  const longs = mem.memories.filter((m) => m.kind === 'long')
-  if (longs.length) {
-    const lines = longs
-      .slice(0, 40)
-      .map((m) => `· ${m.title}：${m.content}`)
-      .join('\n')
-    note += `\n\n【长期记忆（请记得）】\n${lines}`
-  }
+  if (lines) note += `\n\n【长期记忆（请当作你真实记得的事，自然运用，别生硬复述）】\n${lines}`
   return note.length > 2000 ? note.slice(0, 2000) + '…' : note
 }
 
