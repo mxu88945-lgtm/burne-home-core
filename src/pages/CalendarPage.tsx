@@ -53,7 +53,7 @@ export default function CalendarPage() {
       <div className="px-1">
         <h2 className="headline text-2xl text-ink">生理期日历 🌸</h2>
         <p className="mt-1 text-xs text-muted">
-          点经期开始那天，自动标记一整段；点已标的某天可取消整段
+          点你实际来例假的每一天来记录；再点一下取消（纯手动，不会自动替你标）
         </p>
       </div>
 
@@ -61,7 +61,7 @@ export default function CalendarPage() {
       <div className="glass flex items-center justify-between rounded-2xl p-4">
         <span className="text-sm text-ink">
           我的经期一般
-          <span className="block text-[11px] text-muted">点开始日时自动标这么多天</span>
+          <span className="block text-[11px] text-muted">仅用于预测下次经期（不会自动标记）</span>
         </span>
         <div className="flex items-center gap-3">
           <button
