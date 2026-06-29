@@ -65,3 +65,33 @@ export function SendIcon({ className }: P) {
     </svg>
   )
 }
+
+/** 发送 · 上箭头（黑圆底用，像 Claude） */
+export function ArrowUpIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M12 19V5" />
+      <path d="M5 12l7-7 7 7" />
+    </svg>
+  )
+}
+
+/** 麦克风 */
+export function MicIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0" />
+      <path d="M12 18v4" />
+    </svg>
+  )
+}
+
+/** 电话听筒 */
+export function PhoneIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8.1 9.5a16 16 0 0 0 6 6l1.1-1.1a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z" />
+    </svg>
+  )
+}

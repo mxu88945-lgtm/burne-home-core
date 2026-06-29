@@ -24,7 +24,7 @@ import { useSttStore } from '@/store/sttStore'
 import { transcribe } from '@/api/stt'
 import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
-import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, SendIcon } from '@/components/ui/icons'
+import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, ArrowUpIcon, MicIcon, PhoneIcon } from '@/components/ui/icons'
 import { renderRichText, stripLinks } from '@/lib/richText'
 import { cleanReply } from '@/lib/cleanReply'
 import { usePeriodStore } from '@/store/periodStore'
@@ -1237,22 +1237,8 @@ export default function Chat() {
             <div className="headline truncate text-lg leading-none text-ink">{name}</div>
             <div className="mt-0.5 truncate text-[10px] text-muted">{active?.title ?? '新对话'}</div>
           </div>
-          {/* 右侧：语音通话入口（开了语音输入才显示），同时给名字居中占位 */}
-          <div className="flex min-w-0 flex-1 justify-end">
-            {sttCfg.enabled && (
-              <button
-                type="button"
-                onClick={() => {
-                  spokenRef.current = ''
-                  setCallMode(true)
-                }}
-                aria-label="语音通话"
-                className="flex h-8 w-8 items-center justify-center rounded-full text-base text-muted hover:bg-white/40 hover:text-accent"
-              >
-                📞
-              </button>
-            )}
-          </div>
+          {/* 模型与语音都在底部输入栏，这里只留占位让名字居中 */}
+          <div className="min-w-0 flex-1" />
         </div>
       )}
 
@@ -1806,6 +1792,7 @@ export default function Chat() {
                 )}
               </div>
               <div className="flex-1" />
+              {/* 话筒：浅色圆底（开了语音输入才显示） */}
               {sttCfg.enabled && (
                 <button
                   type="button"
@@ -1813,24 +1800,45 @@ export default function Chat() {
                   disabled={transcribing}
                   aria-label={recording ? '停止录音' : '语音输入'}
                   className={[
-                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base disabled:opacity-50',
+                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-50',
                     recording
-                      ? 'animate-pulse bg-red-500/80 text-white'
-                      : 'text-muted hover:bg-white/40 hover:text-ink',
+                      ? 'animate-pulse bg-red-500 text-white'
+                      : 'bg-black/5 text-ink/70 hover:bg-black/10',
                   ].join(' ')}
                 >
-                  {transcribing ? '⏳' : recording ? '⏹' : '🎤'}
+                  {transcribing ? (
+                    <span className="text-sm">⏳</span>
+                  ) : recording ? (
+                    <StopIcon className="h-[15px] w-[15px]" />
+                  ) : (
+                    <MicIcon className="h-[17px] w-[17px]" />
+                  )}
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => send()}
-                disabled={sending}
-                aria-label="发送"
-                className="btn-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-40"
-              >
-                <SendIcon className="h-[18px] w-[18px]" />
-              </button>
+              {/* 黑色圆键：有字=发送(↑)，没字且开了语音=通话(📞)，否则=发送 */}
+              {draft.trim() || !sttCfg.enabled ? (
+                <button
+                  type="button"
+                  onClick={() => send()}
+                  disabled={sending}
+                  aria-label="发送"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white disabled:opacity-40"
+                >
+                  <ArrowUpIcon className="h-[18px] w-[18px]" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    spokenRef.current = ''
+                    setCallMode(true)
+                  }}
+                  aria-label="语音通话"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white"
+                >
+                  <PhoneIcon className="h-[17px] w-[17px]" />
+                </button>
+              )}
             </div>
           </div>
         </div>
