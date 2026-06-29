@@ -136,6 +136,13 @@ export default function Chat() {
   useEffect(() => {
     callModeRef.current = callMode
   }, [callMode])
+  // 免手模式：念完自动接着听（VAD 自动判停），全程不用点
+  const [handsFree, setHandsFree] = useState(true)
+  const handsFreeRef = useRef(true)
+  useEffect(() => {
+    handsFreeRef.current = handsFree
+  }, [handsFree])
+  const startingRef = useRef(false)
   // 通话里：AI 新回复出现且生成完，就自动朗读（记下已念过的，避免重复）
   const spokenRef = useRef('')
   const { chatBg, chatBgDim, chatBgOpacity, chatBgBlur, chatBgFit } = useAppearanceStore(
@@ -312,6 +319,28 @@ export default function Chat() {
       play(last.id, last.text)
     }
   }, [callMode, ttsEnabled, sending, streamingIds, messages, play])
+
+  // 免手通话：空闲且轮到我说时，自动开始听（进通话首轮、或 AI 念完之后）
+  useEffect(() => {
+    if (!callMode || !handsFree) return
+    if (
+      recording ||
+      transcribing ||
+      sending ||
+      streamingIds.size > 0 ||
+      playingId ||
+      loadingId ||
+      startingRef.current
+    )
+      return
+    const last = messages[messages.length - 1]
+    // 没消息（刚进通话）或最后一条是 AI（它说完了）→ 该听我说了
+    if (messages.length === 0 || (last && last.role === 'companion')) {
+      const t = setTimeout(() => startRec(), 500)
+      return () => clearTimeout(t)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [callMode, handsFree, recording, transcribing, sending, streamingIds, playingId, loadingId, messages])
 
   const mmss = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
@@ -556,9 +585,61 @@ export default function Chat() {
     await respond(history)
   }
 
+  /** 静音检测：说话后停顿 ~1.2s 自动结束；没说话 8s/总时长 25s 兜底（通话免手用） */
+  function startVad(stream: MediaStream, mr: MediaRecorder) {
+    try {
+      const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      const ac = new AC()
+      ac.resume?.()
+      const src = ac.createMediaStreamSource(stream)
+      const analyser = ac.createAnalyser()
+      analyser.fftSize = 512
+      src.connect(analyser)
+      const data = new Uint8Array(analyser.fftSize)
+      let spoke = false
+      let silence = 0
+      const t0 = Date.now()
+      const tick = () => {
+        if (mr.state !== 'recording') {
+          ac.close()
+          return
+        }
+        analyser.getByteTimeDomainData(data)
+        let sum = 0
+        for (let i = 0; i < data.length; i++) {
+          const d = data[i] - 128
+          sum += d * d
+        }
+        const rms = Math.sqrt(sum / data.length)
+        const now = Date.now()
+        if (rms > 7) {
+          spoke = true
+          silence = 0
+        } else if (spoke) {
+          if (!silence) silence = now
+          else if (now - silence > 1200) {
+            ac.close()
+            mr.stop()
+            return
+          }
+        }
+        if ((!spoke && now - t0 > 8000) || now - t0 > 25000) {
+          ac.close()
+          mr.stop()
+          return
+        }
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    } catch {
+      // VAD 起不来就退回手动点停
+    }
+  }
+
   /** 语音输入：开始录音 */
   async function startRec() {
-    if (recording || transcribing) return
+    if (recording || transcribing || startingRef.current) return
+    startingRef.current = true
     setImgErr('')
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -570,6 +651,7 @@ export default function Chat() {
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop())
         setRecording(false)
+        startingRef.current = false
         const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' })
         if (!blob.size) return
         setTranscribing(true)
@@ -596,7 +678,11 @@ export default function Chat() {
       mediaRecRef.current = mr
       mr.start()
       setRecording(true)
+      startingRef.current = false
+      // 通话免手：自动判停
+      if (callModeRef.current && handsFreeRef.current) startVad(stream, mr)
     } catch (e) {
+      startingRef.current = false
       setImgErr(`打不开麦克风：${(e as Error).message}（需允许麦克风权限，且页面是 https）`)
     }
   }
@@ -1869,15 +1955,30 @@ export default function Chat() {
             </div>
             <div className="min-h-[1.5rem] text-center text-sm text-ink">
               {recording
-                ? '在听你说…（点一下结束）'
+                ? handsFree
+                  ? '在听你说…（停顿一下就自动发）'
+                  : '在听你说…（点一下结束）'
                 : transcribing
                   ? '识别中…'
                   : sending || streamingIds.size > 0
                     ? `${name} 思考中…`
                     : playingId || loadingId
                       ? `${name} 正在说…`
-                      : '点麦克风，跟我说话'}
+                      : handsFree
+                        ? '免手模式 · 该你说啦～'
+                        : '点麦克风，跟我说话'}
             </div>
+            {/* 免手开关 */}
+            <button
+              type="button"
+              onClick={() => setHandsFree((v) => !v)}
+              className={[
+                'rounded-full px-4 py-1.5 text-[12px] transition',
+                handsFree ? 'btn-primary' : 'glass text-muted',
+              ].join(' ')}
+            >
+              {handsFree ? '✓ 免手模式（念完自动接着听）' : '免手模式：关'}
+            </button>
             {!ttsEnabled && (
               <div className="px-6 text-center text-[11px] text-amber-600">
                 还没开「语音朗读」，回复不会念出来。去 设置→语音朗读 打开～
