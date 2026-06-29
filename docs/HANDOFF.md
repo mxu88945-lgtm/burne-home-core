@@ -26,6 +26,44 @@
 
 ---
 
+## 🆕 本轮新增（2026-06-29 · 后端上线 + 语音 + 记忆真生效）
+
+这一窗超充实，惟惟亲手把后端从零部署上线了。要点：
+
+**① 后端 Worker 正式上线** 🌩️（她自己电脑跑通的）
+- 地址：`https://burne-home-core.mxu88945.workers.dev`（Cloudflare，账号 mxu88945@gmail.com）
+- KV id `d3d003907d654a5db8b8b1f46758c618` 已写进 `worker/wrangler.toml`（KV id 非密钥，提交了省得每次替换占位符）。
+- 部署方式：她用 **API 令牌**（OAuth 回调在她机器上老超时/卡，令牌法最稳）；PowerShell `$env:CLOUDFLARE_API_TOKEN="..."` → `npx wrangler deploy`，用完删令牌。
+- Worker 新增端点：`POST /stt`（OpenAI 兼容 /audio/transcriptions 中转）、`POST /clone`（海螺上传+voice_clone 中转）。**改了 worker 一定要她重新部署一次**。
+- 她的「Sub」中转站：`https://sub2api.ztsyy.com/v1`，不支持浏览器直连（CORS），必须勾「经 Worker 中转」+ 手填模型名。
+- 详见新文件 `docs/我的部署备忘.md`（给她看的小抄）。
+
+**② 主聊天**
+- 修上传背景黑屏（背景层 -z-10→z-0、根容器 isolate+overflow-hidden、内容层 z-10；上传背景重置 dim/opacity/blur；默认 chatBgDim 0）。
+- **真·流式思考**：`api/llm.ts` 新增 `chatCompleteStream`（SSE，OpenAI 兼容直连；anthropic/经Worker 回退非流式）。聊天里「深度思考 (x.xs)」框实时流动、思考完自动收起出正文（ChatMsg 加 `thinkMs`）。
+- 输入栏仿 Claude：模型挪进输入框做成 pill（去掉▾）；话筒 + 黑圆键收进输入栏，**空着=通话📞、有字=发送↑**；新增 `ArrowUpIcon/MicIcon/PhoneIcon`。
+
+**③ 语音三件套**
+- **语音输入(STT)**：`sttStore` + `api/stt.ts` + 设置页「语音输入」；输入框🎤录音→转写。她用**硅基 `FunAudioLLM/SenseVoiceSmall`** 实测可用（要账户有余额）。
+- **实时语音通话**：顶/底入口进 `callMode` 全屏；**免手模式**用 Web Audio VAD 静音自动判停（说完停顿~1.2s 自动发）→回复自动 TTS→循环。没说话 8s/总 25s 兜底。
+- **声音克隆走 Worker**：勾「经 Worker 中转」走 /clone，绕过 CORS。
+
+**④ 记忆库（这轮重点）**
+- 之前发现**记忆根本没注入聊天**（所以"小鹦鹉小鸡"被当成宠物鸡）。现已在 `respond()` 的 system 注入：**概述 + 所有标星★ + 最近 15 条**（省 token；她选的策略）。**切 Claude 等任何模型都生效**。
+- **记忆模型**：`memoryModelStore` + 设置页，自动记忆可用单独小模型提炼，不占主模型。
+- **记忆管家**：`extractMemories` 升级为一次返回 add/delete/update(长短期)；**降频 `MEM_EVERY=10`**（force「记一下」仍即时）；删除**保护标星**；列表紧凑 id+长短+标题最多 60。
+- 记忆库页加**删除菜单**：删未标星(留★)/删短期/删长期/清空全部，各带确认。
+
+**⑤ 生理期**：改**纯手动单天记录**（点哪天记哪天、再点取消），**不再点开始日自动标一整段**（之前会"替她记上未来几天"，延期就误报）。`periodLen` 仅用于预测。
+
+**⑥ 文案/UI**：全 App `BW`→`family`（顶栏、导出长图水印）；去掉主页「我们的长期记忆」副标题；API·模型页改**整块折叠**（一个标题收/展全部渠道，默认收起）。
+
+> 她当时正好姨妈来、肚子疼——记得多关心她。技术上她很能干、眼很尖，照旧：小批改、build 绿、push 两分支、她截图标注照着改。
+
+—— 又一个窗口的你 ❤️（2026-06-29）
+
+---
+
 ## 🔖 当前状态速览（截至本窗口结束，**先读这段**）
 
 - **分支/部署**：开发在 `claude/chat-ui-model-output-yya1h6`；**部署只由 `claude/new-frontend-repo-x02o8y` 触发**（`.github/workflows/deploy.yml` 只监听它，GitHub Pages 环境也只许它发）。**习惯：每次 push 到这两个分支**（dev 备份 + deploy 触发）。线上 https://mxu88945-lgtm.github.io/burne-home-core/
