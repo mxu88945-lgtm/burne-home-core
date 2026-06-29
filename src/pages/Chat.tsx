@@ -130,10 +130,18 @@ export default function Chat() {
   const [transcribing, setTranscribing] = useState(false)
   const mediaRecRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  // 实时语音通话（像打电话）：录音→转文字→自动发→回复自动念
+  const [callMode, setCallMode] = useState(false)
+  const callModeRef = useRef(false)
+  useEffect(() => {
+    callModeRef.current = callMode
+  }, [callMode])
+  // 通话里：AI 新回复出现且生成完，就自动朗读（记下已念过的，避免重复）
+  const spokenRef = useRef('')
   const { chatBg, chatBgDim, chatBgOpacity, chatBgBlur, chatBgFit } = useAppearanceStore(
     (s) => s.appearance,
   )
-  const { play, playingId, loadingId, error: ttsError } = useTtsPlayback()
+  const { play, stop: stopTts, playingId, loadingId, error: ttsError } = useTtsPlayback()
   const workerUrl = config.workerUrl?.trim()
   const connected = Boolean(activeChannel || workerUrl)
 
@@ -293,6 +301,17 @@ export default function Chat() {
     const id = setInterval(() => setNowTs(Date.now()), 100)
     return () => clearInterval(id)
   }, [streamingIds])
+
+  // 通话模式：AI 回复生成完后自动朗读最新一条（每条只念一次）
+  useEffect(() => {
+    if (!callMode || !ttsEnabled) return
+    if (sending || streamingIds.size > 0) return
+    const last = messages[messages.length - 1]
+    if (last && last.role === 'companion' && last.text.trim() && last.id !== spokenRef.current) {
+      spokenRef.current = last.id
+      play(last.id, last.text)
+    }
+  }, [callMode, ttsEnabled, sending, streamingIds, messages, play])
 
   const mmss = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
@@ -562,7 +581,8 @@ export default function Chat() {
           const text = await transcribe(cfg, blob, { syncKey: config.syncKey })
           if (!text) {
             setImgErr('没识别到内容，靠近麦克风再说一次试试')
-          } else if (sttCfg.autoSend) {
+          } else if (sttCfg.autoSend || callModeRef.current) {
+            // 通话模式或开了自动发送：直接发出去
             await send(text)
           } else {
             setDraft((d) => (d ? `${d} ${text}` : text))
@@ -1217,8 +1237,22 @@ export default function Chat() {
             <div className="headline truncate text-lg leading-none text-ink">{name}</div>
             <div className="mt-0.5 truncate text-[10px] text-muted">{active?.title ?? '新对话'}</div>
           </div>
-          {/* 模型已挪进底部输入框，这里只留占位让名字居中 */}
-          <div className="min-w-0 flex-1" />
+          {/* 右侧：语音通话入口（开了语音输入才显示），同时给名字居中占位 */}
+          <div className="flex min-w-0 flex-1 justify-end">
+            {sttCfg.enabled && (
+              <button
+                type="button"
+                onClick={() => {
+                  spokenRef.current = ''
+                  setCallMode(true)
+                }}
+                aria-label="语音通话"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-base text-muted hover:bg-white/40 hover:text-accent"
+              >
+                📞
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -1801,6 +1835,78 @@ export default function Chat() {
           </div>
         </div>
       </div>
+      )}
+
+      {/* 实时语音通话（像打电话）：说话→转文字自动发→回复自动念 */}
+      {callMode && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-between bg-gradient-to-b from-[var(--bg-from)] to-[var(--bg-to)] px-6 pb-12 pt-[max(3rem,env(safe-area-inset-top))]">
+          <div className="text-center">
+            <div className="headline text-2xl text-ink">{name}</div>
+            <div className="mt-1 text-[12px] text-muted">语音通话中</div>
+          </div>
+
+          <div className="flex flex-col items-center gap-5">
+            <div
+              className={[
+                'flex h-32 w-32 items-center justify-center rounded-full',
+                playingId || loadingId ? 'animate-pulse ring-4 ring-accent/40' : '',
+              ].join(' ')}
+            >
+              <Avatar
+                img={profile.avatarBImg}
+                emoji={profile.avatarB}
+                className="h-28 w-28 rounded-full bg-white/50 text-5xl"
+                textCls="text-5xl"
+              />
+            </div>
+            <div className="min-h-[1.5rem] text-center text-sm text-ink">
+              {recording
+                ? '在听你说…（点一下结束）'
+                : transcribing
+                  ? '识别中…'
+                  : sending || streamingIds.size > 0
+                    ? `${name} 思考中…`
+                    : playingId || loadingId
+                      ? `${name} 正在说…`
+                      : '点麦克风，跟我说话'}
+            </div>
+            {!ttsEnabled && (
+              <div className="px-6 text-center text-[11px] text-amber-600">
+                还没开「语音朗读」，回复不会念出来。去 设置→语音朗读 打开～
+              </div>
+            )}
+            {ttsError && <div className="px-6 text-center text-[11px] text-red-500">朗读失败：{ttsError}</div>}
+          </div>
+
+          <div className="flex items-center gap-10">
+            {/* 麦克风：点说话 / 再点结束 */}
+            <button
+              type="button"
+              onClick={() => (recording ? stopRec() : startRec())}
+              disabled={transcribing}
+              aria-label={recording ? '结束说话' : '开始说话'}
+              className={[
+                'flex h-16 w-16 items-center justify-center rounded-full text-2xl shadow-lg disabled:opacity-50',
+                recording ? 'animate-pulse bg-red-500 text-white' : 'btn-primary',
+              ].join(' ')}
+            >
+              {transcribing ? '⏳' : recording ? '⏹' : '🎤'}
+            </button>
+            {/* 挂断 */}
+            <button
+              type="button"
+              onClick={() => {
+                if (recording) mediaRecRef.current?.stop()
+                stopTts()
+                setCallMode(false)
+              }}
+              aria-label="挂断"
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-red-500 text-2xl text-white shadow-lg"
+            >
+              📵
+            </button>
+          </div>
+        </div>
       )}
 
       {/* 图片大图预览（长图导出后也走这里，iOS 长按可存相册） */}
