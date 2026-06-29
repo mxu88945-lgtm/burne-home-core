@@ -33,6 +33,8 @@ export default function DramaRoom() {
   const setMessages = useDramaStore((s) => s.setMessages)
   const setSummary = useDramaStore((s) => s.setSummary)
   const setWorld = useDramaStore((s) => s.setWorld)
+  const flat = useDramaStore((s) => s.flat)
+  const setFlat = useDramaStore((s) => s.setFlat)
 
   const activeChannel = useApiStore((s) => s.getActive())
   const { config } = useSyncStore()
@@ -54,10 +56,14 @@ export default function DramaRoom() {
   const [summaryBusy, setSummaryBusy] = useState(false)
   const [recording, setRecording] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
+  const [menuMsgId, setMenuMsgId] = useState('') // 长按选中的消息
+  const [editMsgId, setEditMsgId] = useState('') // 正在改写的消息
+  const [editText, setEditText] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const mediaRecRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sinceSummaryRef = useRef(0) // 距上次摘要的 AI 回复数，攒够自动更新
 
   const messages = scene?.messages ?? []
@@ -356,6 +362,43 @@ export default function DramaRoom() {
     }
   }
 
+  // 长按消息 → 弹操作菜单
+  function pressStart(id: string) {
+    pressTimer.current = setTimeout(() => setMenuMsgId(id), 480)
+  }
+  function pressEnd() {
+    if (pressTimer.current) {
+      clearTimeout(pressTimer.current)
+      pressTimer.current = null
+    }
+  }
+  function delMsg(id: string) {
+    setMessages(sc.id, sc.messages.filter((m) => m.id !== id))
+    setMenuMsgId('')
+  }
+  /** 回溯：删掉这条及它之后的所有消息（回到这条之前重来） */
+  function rollback(id: string) {
+    const i = sc.messages.findIndex((m) => m.id === id)
+    setMenuMsgId('')
+    if (i < 0) return
+    if (window.confirm('回溯：删除这条及之后的所有消息？（用于回到此处重来）')) {
+      setMessages(sc.id, sc.messages.slice(0, i))
+    }
+  }
+  function startEdit(id: string) {
+    const m = sc.messages.find((x) => x.id === id)
+    setMenuMsgId('')
+    if (!m) return
+    setEditMsgId(id)
+    setEditText(m.text)
+  }
+  function saveEdit() {
+    const t = editText
+    setMessages(sc.id, sc.messages.map((m) => (m.id === editMsgId ? { ...m, text: t } : m)))
+    setEditMsgId('')
+    setEditText('')
+  }
+
   return (
     <div className="flex h-full flex-col">
       {/* 顶栏：左 ☰(角色/剧场) · 中标题 · 右 ⚙(世界观/剧情) —— 收进两角，中间留干净 */}
@@ -407,9 +450,26 @@ export default function DramaRoom() {
         </div>
       )}
 
-      {/* 右侧面板：世界观 + 剧情摘要（更新/压缩） */}
+      {/* 右侧面板：显示样式 + 世界观 + 剧情摘要（更新/压缩） */}
       {rightOpen && (
         <div className="glass-strong mb-2 space-y-3 rounded-2xl p-3">
+          <div className="flex items-center justify-between">
+            <span className="label">显示样式</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFlat(false)}
+                className={`rounded-full px-3 py-1 text-[12px] ${!flat ? 'btn-primary' : 'glass text-muted'}`}
+              >
+                气泡式
+              </button>
+              <button
+                onClick={() => setFlat(true)}
+                className={`rounded-full px-3 py-1 text-[12px] ${flat ? 'btn-primary' : 'glass text-muted'}`}
+              >
+                平铺式
+              </button>
+            </div>
+          </div>
           <div>
             <div className="label mb-1">世界观 · 背景（所有角色共用）</div>
             <textarea
@@ -455,6 +515,62 @@ export default function DramaRoom() {
           messages.map((m) => {
             const c = charById(m.who)
             const mine = !c || c.isMe
+            const editingThis = editMsgId === m.id
+            const longPress = {
+              onContextMenu: (e: { preventDefault: () => void }) => {
+                e.preventDefault()
+                setMenuMsgId(m.id)
+              },
+              onTouchStart: () => pressStart(m.id),
+              onTouchEnd: pressEnd,
+              onTouchMove: pressEnd,
+            }
+            const ttsBtn =
+              !mine && ttsEnabled && m.text.trim() ? (
+                <button type="button" onClick={() => play(m.id, m.text)} aria-label="朗读" className="hover:text-accent">
+                  {loadingId === m.id ? (
+                    <span className="text-[11px]">⏳</span>
+                  ) : playingId === m.id ? (
+                    <StopIcon className="h-[13px] w-[13px]" />
+                  ) : (
+                    <SpeakerIcon className="h-[13px] w-[13px]" />
+                  )}
+                </button>
+              ) : null
+            const editArea = (
+              <div className="mt-0.5 w-[80vw] max-w-full">
+                <textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  className="min-h-[64px] w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                />
+                <div className="mt-1 flex justify-end gap-2">
+                  <button onClick={() => { setEditMsgId(''); setEditText('') }} className="glass rounded-full px-3 py-1 text-[12px] text-ink">取消</button>
+                  <button onClick={saveEdit} className="btn-primary rounded-full px-3 py-1 text-[12px]">保存</button>
+                </div>
+              </div>
+            )
+
+            // 平铺式：无气泡、铺满、像小说
+            if (flat) {
+              return (
+                <div key={m.id} className="border-b border-line/40 pb-3" {...longPress}>
+                  <div className="mb-1 flex items-center gap-1.5">
+                    <span className="text-[12px] font-medium" style={{ color: c?.color || 'var(--accent)' }}>
+                      {nameOf(m.who)}
+                    </span>
+                    <span className="text-[9px] text-muted">{m.at}</span>
+                    {ttsBtn}
+                  </div>
+                  {m.image && <img src={m.image} alt="" className="mb-1 max-h-60 max-w-full rounded-xl object-cover" />}
+                  {editingThis ? editArea : m.text && (
+                    <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink [overflow-wrap:anywhere]">{m.text}</div>
+                  )}
+                </div>
+              )
+            }
+
+            // 气泡式
             return (
               <div key={m.id} className={`flex items-start gap-2 ${mine ? 'flex-row-reverse' : ''}`}>
                 <Avatar
@@ -464,14 +580,14 @@ export default function DramaRoom() {
                   textCls="text-base"
                   style={{ background: (c?.color || '#999') + '33' }}
                 />
-                <div className={`flex min-w-0 max-w-[78%] flex-col ${mine ? 'items-end' : 'items-start'}`}>
+                <div className={`flex min-w-0 max-w-[78%] flex-col ${mine ? 'items-end' : 'items-start'}`} {...longPress}>
                   <span className="px-1 text-[10px] text-muted">{nameOf(m.who)}</span>
                   {m.image && (
                     <img src={m.image} alt="" className="mt-0.5 max-h-52 max-w-full rounded-2xl object-cover" />
                   )}
-                  {m.text && (
+                  {editingThis ? editArea : m.text && (
                     <div
-                      className={`mt-0.5 whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm [overflow-wrap:anywhere] ${mine ? 'text-ink' : 'text-ink'}`}
+                      className="mt-0.5 whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm text-ink [overflow-wrap:anywhere]"
                       style={{ background: (c?.color || '#bb9af7') + (mine ? '40' : '22') }}
                     >
                       {m.text}
@@ -479,22 +595,7 @@ export default function DramaRoom() {
                   )}
                   <div className="flex items-center gap-2 px-1 text-muted">
                     <span className="text-[9px]">{m.at}</span>
-                    {!mine && ttsEnabled && m.text.trim() && (
-                      <button
-                        type="button"
-                        onClick={() => play(m.id, m.text)}
-                        aria-label="朗读"
-                        className="hover:text-accent"
-                      >
-                        {loadingId === m.id ? (
-                          <span className="text-[11px]">⏳</span>
-                        ) : playingId === m.id ? (
-                          <StopIcon className="h-[13px] w-[13px]" />
-                        ) : (
-                          <SpeakerIcon className="h-[13px] w-[13px]" />
-                        )}
-                      </button>
-                    )}
+                    {ttsBtn}
                   </div>
                 </div>
               </div>
@@ -595,6 +696,29 @@ export default function DramaRoom() {
           </button>
         </div>
       </div>
+
+      {/* 长按消息 · 操作菜单 */}
+      {menuMsgId && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/30" onClick={() => setMenuMsgId('')}>
+          <div
+            className="glass-strong w-full space-y-1 rounded-t-3xl p-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button onClick={() => startEdit(menuMsgId)} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40">
+              ✏️ 改写
+            </button>
+            <button onClick={() => rollback(menuMsgId)} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40">
+              ↩️ 回溯（删这条及之后，回到此处重来）
+            </button>
+            <button onClick={() => delMsg(menuMsgId)} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-red-500 hover:bg-white/40">
+              🗑 删除这条
+            </button>
+            <button onClick={() => setMenuMsgId('')} className="block w-full rounded-xl px-4 py-3 text-center text-sm text-muted">
+              取消
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 角色卡编辑器 */}
       {editing && (

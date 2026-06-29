@@ -51,9 +51,11 @@ export interface DramaScene {
 interface Persisted {
   scenes: DramaScene[]
   activeId: string
+  /** 气泡式(false) / 平铺式(true) —— 全局显示样式 */
+  flat: boolean
 }
 
-const DEFAULT: Persisted = { scenes: [], activeId: '' }
+const DEFAULT: Persisted = { scenes: [], activeId: '', flat: false }
 const init = { ...DEFAULT, ...readJSON<Partial<Persisted>>(STORAGE_KEYS.drama, {}) }
 
 function uid(): string {
@@ -75,11 +77,12 @@ interface DramaState extends Persisted {
   addMessage: (sceneId: string, msg: DramaMsg) => void
   setSummary: (sceneId: string, summary: string) => void
   setWorld: (sceneId: string, world: string) => void
+  setFlat: (flat: boolean) => void
 }
 
 export const useDramaStore = create<DramaState>((set, get) => {
   const persist = (scenes: DramaScene[], activeId = get().activeId) =>
-    writeJSON(STORAGE_KEYS.drama, { scenes, activeId })
+    writeJSON(STORAGE_KEYS.drama, { scenes, activeId, flat: get().flat })
 
   const patchScene = (sceneId: string, fn: (s: DramaScene) => DramaScene) => {
     const scenes = get().scenes.map((s) => (s.id === sceneId ? fn(s) : s))
@@ -90,6 +93,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
   return {
     scenes: init.scenes,
     activeId: init.activeId,
+    flat: init.flat,
 
     createScene: (title) => {
       const scene: DramaScene = {
@@ -155,6 +159,11 @@ export const useDramaStore = create<DramaState>((set, get) => {
     setSummary: (sceneId, summary) => patchScene(sceneId, (s) => ({ ...s, summary })),
 
     setWorld: (sceneId, world) => patchScene(sceneId, (s) => ({ ...s, world })),
+
+    setFlat: (flat) => {
+      writeJSON(STORAGE_KEYS.drama, { scenes: get().scenes, activeId: get().activeId, flat })
+      set({ flat })
+    },
   }
 })
 
