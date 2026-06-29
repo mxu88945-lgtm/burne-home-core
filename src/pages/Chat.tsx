@@ -2115,7 +2115,7 @@ export default function Chat() {
             gap: 16,
           }}
         >
-          <div className="headline text-center text-base text-accent">BW ♡ {name}</div>
+          <div className="headline text-center text-base text-accent">family ♡ {name}</div>
           {selectedMsgs.map((m) => {
             const me = m.role === 'me'
             return (
