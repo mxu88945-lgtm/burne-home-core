@@ -20,6 +20,7 @@ import {
 export default function MemoryLibrary() {
   const memories = useMemoryStore((s) => s.memories)
   const toggleStar = useMemoryStore((s) => s.toggleStar)
+  const replaceAll = useMemoryStore((s) => s.replaceAll)
   const overview = useMemoryStore((s) => s.overview)
   const setOverview = useMemoryStore((s) => s.setOverview)
   const summary = useMemoryStore((s) => s.getSummary())
@@ -102,12 +103,29 @@ export default function MemoryLibrary() {
             共 {summary.total} 条 · 长期 {summary.longCount} · 短期 {summary.shortCount}
           </p>
         </div>
-        <button
-          onClick={() => setEditing('new')}
-          className="btn-primary rounded-full px-4 py-2 text-sm"
-        >
-          ＋ 新增
-        </button>
+        <div className="flex items-center gap-3">
+          {summary.total > 0 && (
+            <button
+              onClick={() => {
+                const starred = memories.filter((m) => m.starred).length
+                const tip =
+                  `确定清空全部 ${summary.total} 条记忆吗？此操作不可恢复。` +
+                  (starred ? `（含 ${starred} 条标星★）` : '') +
+                  `\n建议先去「设置 → 数据·备份」导出备份。`
+                if (window.confirm(tip)) replaceAll([])
+              }}
+              className="text-[12px] text-muted hover:text-red-500"
+            >
+              🗑 清空
+            </button>
+          )}
+          <button
+            onClick={() => setEditing('new')}
+            className="btn-primary rounded-full px-4 py-2 text-sm"
+          >
+            ＋ 新增
+          </button>
+        </div>
       </div>
 
       {/* 记忆摘要概述 */}
