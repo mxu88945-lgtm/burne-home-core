@@ -19,7 +19,7 @@ MODEL = "openai/gpt-4o-mini"                       # 通用兜底
 #   wrangler kv namespace create MEMORY_KV
 [[kv_namespaces]]
 binding = "MEMORY_KV"
-id = "REPLACE_WITH_YOUR_KV_ID"
+id = "d3d003907d654a5db8b8b1f46758c618"
 
 # 密钥不写这里！用命令设置（不会进仓库）：
 #   wrangler secret put SYNC_KEY            # 可选：多端同步共享密钥
