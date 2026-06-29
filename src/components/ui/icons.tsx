@@ -12,11 +12,13 @@ const base = {
   height: 13,
 }
 
+/* 以下操作图标统一画在约 x5–19 / y5–19 的居中范围，三个视觉大小一致 */
+
 export function CopyIcon({ className }: P) {
   return (
     <svg {...base} className={className} aria-hidden>
-      <rect x="8" y="8" width="12" height="12" rx="2" />
-      <path d="M4 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2" />
+      <rect x="9" y="9" width="10" height="10" rx="2" />
+      <path d="M6 15a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2" />
     </svg>
   )
 }
@@ -24,8 +26,8 @@ export function CopyIcon({ className }: P) {
 export function RegenIcon({ className }: P) {
   return (
     <svg {...base} className={className} aria-hidden>
-      <path d="M20.5 12a8.5 8.5 0 1 1-2.5-6" />
-      <polyline points="20.5 3.5 20.5 9 15 9" />
+      <path d="M19 12a7 7 0 1 1-2-5" />
+      <polyline points="19 5 19 9.5 14.5 9.5" />
     </svg>
   )
 }
@@ -33,8 +35,8 @@ export function RegenIcon({ className }: P) {
 export function EditIcon({ className }: P) {
   return (
     <svg {...base} className={className} aria-hidden>
-      <path d="M4 20h4L19 9a2 2 0 0 0-3-3L5 17z" />
-      <path d="M14.5 7.5l3 3" />
+      <path d="M5 19h3L18 9a1.8 1.8 0 0 0-2.6-2.6L5 16z" />
+      <path d="M13.8 8l2.6 2.6" />
     </svg>
   )
 }
@@ -42,8 +44,8 @@ export function EditIcon({ className }: P) {
 export function SpeakerIcon({ className }: P) {
   return (
     <svg {...base} className={className} aria-hidden>
-      <polygon points="3 9 7 9 12 4 12 20 7 15 3 15" />
-      <path d="M16 8.5a6 6 0 0 1 0 7" />
+      <path d="M5 9.5h3l4-3.5v12l-4-3.5H5z" />
+      <path d="M15.5 9a4.5 4.5 0 0 1 0 6" />
     </svg>
   )
 }
@@ -51,7 +53,7 @@ export function SpeakerIcon({ className }: P) {
 export function StopIcon({ className }: P) {
   return (
     <svg {...base} className={className} aria-hidden>
-      <rect x="4.5" y="4.5" width="15" height="15" rx="2.5" />
+      <rect x="6" y="6" width="12" height="12" rx="2" />
     </svg>
   )
 }
