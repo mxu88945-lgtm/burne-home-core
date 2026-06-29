@@ -115,8 +115,13 @@ export default function Chat() {
   const theme = useThemeStore((s) => s.theme)
   const [nowTs, setNowTs] = useState(Date.now())
   const addMemory = useMemoryStore((s) => s.addMemory)
+  const removeMemory = useMemoryStore((s) => s.removeMemory)
+  const updateMemory = useMemoryStore((s) => s.updateMemory)
   const memoriesRef = useMemoryStore((s) => s.memories)
   const memoryModelCfg = useMemoryModelStore((s) => s.config)
+  // 自动记忆降频计数：每隔几轮才跑一次记忆维护（force 时立即跑），省 token
+  const memTurnRef = useRef(0)
+  const MEM_EVERY = 6
   const { chatBg, chatBgDim, chatBgOpacity, chatBgBlur, chatBgFit } = useAppearanceStore(
     (s) => s.appearance,
   )
@@ -524,8 +529,18 @@ export default function Chat() {
     await respond(history)
   }
 
-  /** 自动沉淀记忆：让 AI 判断有没有值得长期记住的，存进记忆库（高门槛 / 或用户明确要求时必存） */
+  /**
+   * 自动记忆维护：让 AI 当「记忆管家」，一次返回 新增/删除/改长短期 三类操作。
+   * 省 token：非 force 时每隔 MEM_EVERY 轮才真正跑一次；force（用户说「记一下」）立即跑。
+   */
   async function extractMemories(history: Msg[], force: boolean) {
+    // 降频：攒够 MEM_EVERY 轮才跑；force 时立即跑并清零
+    if (!force) {
+      memTurnRef.current += 1
+      if (memTurnRef.current < MEM_EVERY) return
+    }
+    memTurnRef.current = 0
+
     // 开了「记忆模型」就用它单独提炼（不占主聊天模型）；否则回退主渠道 / Worker
     const memChannel: ApiChannel | undefined =
       memoryModelCfg.enabled && memoryModelCfg.apiKey.trim() && memoryModelCfg.model.trim()
@@ -540,17 +555,26 @@ export default function Chat() {
         : activeChannel
     if (!memChannel && !workerUrl) return
     const memName = profile.nameA || '她'
-    const recent = history.slice(-8)
+    const recent = history.slice(-14)
     const transcript = recent
       .map((m) => `${m.role === 'me' ? memName : name}：${m.text}${m.image ? '［图片］' : ''}`)
       .join('\n')
+    // 已有记忆（紧凑：id+长短+标题），最多 60 条，省 token
+    const memList = memoriesRef.slice(0, 60)
+    const memListText = memList.length
+      ? memList
+          .map((m) => `[${m.id}]（${m.kind === 'long' ? '长' : '短'}${m.starred ? '★' : ''}）${m.title}`)
+          .join('\n')
+      : '（空）'
+
     const sys = '你是记忆管理助手，只输出 JSON，不要任何多余文字。'
     const ask =
-      `判断下面对话里有没有【真正值得长期记住】的重要信息：${memName} 或角色的人物设定、重要背景、关键事实、长期偏好、郑重承诺、重大事件等。` +
-      `⚠️ 极高门槛、宁缺毋滥：日常闲聊、寒暄、一时情绪、临时小事、普通互动一律【不要记】；只有那种特别、有长期意义、以后还想被记得的事才记。多数情况下应返回空。` +
-      (force ? ` ${memName} 已明确要求记住，请务必提取其指向的内容。` : '') +
-      `\n记忆内容里称呼她就用「${memName}」，不要写「用户」。` +
-      `\n只输出 JSON：{"items":[{"title":"简短标题","content":"要记住的内容"}]}，没有就 {"items":[]}。\n\n对话：\n${transcript}`
+      `你在维护${memName}的长期记忆库。看【已有记忆】和【最近对话】，判断要不要：新增、删除（重复/过时/已被取代的）、改长短期。\n` +
+      `⚠️ 高门槛、宁缺毋滥：日常闲聊/寒暄/一时情绪/临时小事都【不要】记；带★标星的【绝不能删】。多数情况三个数组都空。\n` +
+      `长期(long)=人设/重要事实/长期偏好/郑重承诺/重大事件；短期(short)=有时效的近期安排等。称呼她用「${memName}」。\n` +
+      (force ? `${memName}已明确要求记住，请务必在 add 里提取其指向的内容。\n` : '') +
+      `只输出 JSON：{"add":[{"title":"简短标题","content":"内容","kind":"long"|"short"}],"delete":["要删的记忆id"],"update":[{"id":"记忆id","kind":"long"|"short"}]}\n\n` +
+      `【已有记忆】\n${memListText}\n\n【最近对话】\n${transcript}`
     try {
       let text = ''
       if (memChannel) {
@@ -558,7 +582,7 @@ export default function Chat() {
           await chatComplete(memChannel, [{ role: 'user', content: ask }], sys, {
             workerUrl,
             syncKey: config.syncKey,
-            maxTokens: 600,
+            maxTokens: 700,
           })
         ).text
       } else {
@@ -567,24 +591,60 @@ export default function Chat() {
           syncKey: config.syncKey,
           messages: [{ role: 'user', content: ask }],
           system: sys,
-          maxTokens: 600,
+          maxTokens: 700,
         })
       }
       const match = text.match(/\{[\s\S]*\}/)
       if (!match) return
-      const items = (JSON.parse(match[0]).items || []) as { title?: string; content?: string }[]
+      const data = JSON.parse(match[0]) as {
+        add?: { title?: string; content?: string; kind?: string }[]
+        items?: { title?: string; content?: string; kind?: string }[] // 兼容旧格式
+        delete?: string[]
+        update?: { id?: string; kind?: string }[]
+      }
+      const byId = new Map(memoriesRef.map((m) => [m.id, m]))
       let added = 0
-      for (const it of items) {
+      let removed = 0
+      let changed = 0
+
+      // 新增（去重）
+      for (const it of data.add || data.items || []) {
         const content = (it.content || '').trim()
         const title = (it.title || '').trim()
         if (!content) continue
-        // 去重：已有相同正文/标题就跳过
         if (memoriesRef.some((m) => m.content.trim() === content || (title && m.title.trim() === title)))
           continue
-        addMemory({ title: title || content.slice(0, 16), content, kind: 'long', source: 'auto' })
+        addMemory({
+          title: title || content.slice(0, 16),
+          content,
+          kind: it.kind === 'short' ? 'short' : 'long',
+          source: 'auto',
+        })
         added++
       }
-      if (added > 0) showMemToast(`🧠 已记到记忆库（${added} 条）`)
+      // 删除（保护标星；id 必须真实存在）
+      for (const id of data.delete || []) {
+        const m = byId.get(id)
+        if (m && !m.starred) {
+          removeMemory(id)
+          removed++
+        }
+      }
+      // 改长短期
+      for (const u of data.update || []) {
+        const m = u.id ? byId.get(u.id) : undefined
+        const kind = u.kind === 'long' || u.kind === 'short' ? u.kind : undefined
+        if (m && kind && m.kind !== kind) {
+          updateMemory(m.id, { kind })
+          changed++
+        }
+      }
+
+      const parts = []
+      if (added) parts.push(`+${added}`)
+      if (changed) parts.push(`改${changed}`)
+      if (removed) parts.push(`删${removed}`)
+      if (parts.length) showMemToast(`🧠 记忆已更新（${parts.join(' · ')}）`)
     } catch {
       // 静默失败，不打扰对话
     }
