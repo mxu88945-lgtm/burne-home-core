@@ -21,6 +21,7 @@ import AppearancePage from '@/pages/settings/AppearancePage'
 import ImageGenPage from '@/pages/settings/ImageGenPage'
 import VisionPage from '@/pages/settings/VisionPage'
 import MemoryModelPage from '@/pages/settings/MemoryModelPage'
+import SttPage from '@/pages/settings/SttPage'
 import NotFound from '@/pages/NotFound'
 
 export const router = createHashRouter([
@@ -45,6 +46,7 @@ export const router = createHashRouter([
       { path: 'settings/imagegen', element: <ImageGenPage /> },
       { path: 'settings/vision', element: <VisionPage /> },
       { path: 'settings/memory-model', element: <MemoryModelPage /> },
+      { path: 'settings/stt', element: <SttPage /> },
       { path: 'settings/appearance', element: <AppearancePage /> },
       { path: 'settings/usage', element: <UsagePage /> },
       { path: 'settings/data', element: <DataPage /> },

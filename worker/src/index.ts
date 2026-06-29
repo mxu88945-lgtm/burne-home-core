@@ -90,6 +90,8 @@ export default {
       if (path === '/test' && req.method === 'POST') return json({ ok: true })
       if (path === '/chat' && req.method === 'POST') return await handleChat(req, env)
       if (path === '/tts' && req.method === 'POST') return await handleTts(req, env)
+      if (path === '/stt' && req.method === 'POST') return await handleStt(req, env)
+      if (path === '/clone' && req.method === 'POST') return await handleClone(req, env)
       if (path === '/image' && req.method === 'POST') return await handleImage(req, env)
 
       const mGet = path.match(/^\/spaces\/([^/]+)\/memories$/)
@@ -291,6 +293,97 @@ async function handleTts(req: Request, env: Env): Promise<Response> {
   return new Response(hexToBytes(hex), {
     headers: { 'Content-Type': 'audio/mpeg', ...CORS },
   })
+}
+
+/**
+ * 语音转文字(STT) 中转：前端上传录音(multipart) → Worker → OpenAI 兼容 /audio/transcriptions → { text }
+ * Key 优先用前端覆盖（apiKey），其次 Worker secret（OPENAI_API_KEY）。
+ */
+async function handleStt(req: Request, env: Env): Promise<Response> {
+  if (!authed(req, env)) return json({ error: 'unauthorized' }, { status: 401 })
+
+  const form = await req.formData()
+  const file = form.get('file') as unknown as File | null
+  const apiKey = (form.get('apiKey') as string) || env.OPENAI_API_KEY
+  const baseUrl = ((form.get('baseUrl') as string) || env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(
+    /\/+$/,
+    ''
+  )
+  const model = (form.get('model') as string) || 'whisper-1'
+  const language = (form.get('language') as string) || ''
+  if (!file) return json({ error: '没有收到录音文件' }, { status: 400 })
+  if (!apiKey) return json({ error: '缺少 STT API Key' }, { status: 400 })
+
+  const fwd = new FormData()
+  fwd.append('file', file, file.name || 'audio.webm')
+  fwd.append('model', model)
+  if (language) fwd.append('language', language)
+
+  const res = await fetch(`${baseUrl}/audio/transcriptions`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${apiKey}` },
+    body: fwd,
+  })
+  const t = await res.text()
+  if (!res.ok) return json({ error: `STT ${res.status} ${t.slice(0, 200)}` }, { status: 502 })
+  let text = ''
+  try {
+    text = ((JSON.parse(t) as { text?: string }).text || '').trim()
+  } catch {
+    text = t.trim()
+  }
+  return json({ text })
+}
+
+/**
+ * 海螺声音克隆中转：上传录音 → file_id → voice_clone，返回 { voice_id }。
+ * Key/GroupId 优先前端覆盖，其次 Worker secret（MINIMAX_*）。
+ */
+async function handleClone(req: Request, env: Env): Promise<Response> {
+  if (!authed(req, env)) return json({ error: 'unauthorized' }, { status: 401 })
+
+  const form = await req.formData()
+  const file = form.get('file') as unknown as File | null
+  const apiKey = (form.get('apiKey') as string) || env.MINIMAX_API_KEY
+  const groupId = (form.get('groupId') as string) || env.MINIMAX_GROUP_ID
+  const baseUrl = ((form.get('baseUrl') as string) || env.MINIMAX_BASE_URL || 'https://api.minimax.chat').replace(
+    /\/+$/,
+    ''
+  )
+  const voiceId = (form.get('voiceId') as string) || `bw${Date.now()}`
+  if (!file) return json({ error: '没有收到录音文件' }, { status: 400 })
+  if (!apiKey || !groupId) return json({ error: '缺少 MiniMax API Key 或 GroupId' }, { status: 400 })
+
+  // 1) 上传录音拿 file_id
+  const up = new FormData()
+  up.append('purpose', 'voice_clone')
+  up.append('file', file, file.name || 'voice.m4a')
+  const upRes = await fetch(`${baseUrl}/v1/files/upload?GroupId=${encodeURIComponent(groupId)}`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${apiKey}` },
+    body: up,
+  })
+  const upText = await upRes.text()
+  if (!upRes.ok) return json({ error: `上传失败 ${upRes.status} ${upText.slice(0, 200)}` }, { status: 502 })
+  const upCode = upText.match(/"status_code"\s*:\s*(\d+)/)
+  const upMsg = upText.match(/"status_msg"\s*:\s*"([^"]+)"/)
+  if (upCode && upCode[1] !== '0') return json({ error: upMsg?.[1] || '上传失败' }, { status: 502 })
+  const idM = upText.match(/"file_id"\s*:\s*"?(\d+)"?/)
+  if (!idM) return json({ error: '没拿到 file_id' }, { status: 502 })
+  const fileId = idM[1]
+
+  // 2) voice_clone（file_id 是 int64，内联避免精度丢失）
+  const clRes = await fetch(`${baseUrl}/v1/voice_clone?GroupId=${encodeURIComponent(groupId)}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
+    body: `{"file_id":${fileId},"voice_id":"${voiceId}"}`,
+  })
+  const clText = await clRes.text()
+  if (!clRes.ok) return json({ error: `克隆失败 ${clRes.status} ${clText.slice(0, 200)}` }, { status: 502 })
+  const clCode = clText.match(/"status_code"\s*:\s*(\d+)/)
+  const clMsg = clText.match(/"status_msg"\s*:\s*"([^"]+)"/)
+  if (clCode && clCode[1] !== '0') return json({ error: clMsg?.[1] || '克隆失败' }, { status: 502 })
+  return json({ voice_id: voiceId })
 }
 
 /**

@@ -109,3 +109,31 @@ export async function cloneFromFile(config: TtsConfig, file: File): Promise<stri
   await cloneVoice(config, fileId, voiceId)
   return voiceId
 }
+
+/** 经 Worker 中转的一键克隆（上传+克隆都在 Worker 完成，绕过浏览器跨域），返回 voice_id */
+export async function cloneFromFileViaWorker(
+  config: TtsConfig,
+  file: File,
+  opts: { syncKey?: string } = {}
+): Promise<string> {
+  const base = config.workerUrl.trim().replace(/\/+$/, '')
+  if (!base) throw new Error('勾了 Worker 中转，但没填 Worker 地址')
+  const voiceId = genVoiceId()
+  const form = new FormData()
+  form.append('file', file, cloneFileName(file))
+  form.append('voiceId', voiceId)
+  if (config.groupId.trim()) form.append('groupId', config.groupId.trim())
+  if (config.apiKey.trim()) form.append('apiKey', config.apiKey.trim())
+  if (config.baseUrl.trim()) form.append('baseUrl', config.baseUrl.trim())
+  const res = await fetchTimeout(
+    `${base}/clone`,
+    { method: 'POST', headers: { ...(opts.syncKey ? { 'X-Sync-Key': opts.syncKey } : {}) }, body: form },
+    120000
+  )
+  const text = await res.text()
+  if (!res.ok) throw new Error(`克隆失败 ${res.status}：${text.slice(0, 200)}`)
+  const m = text.match(/"voice_id"\s*:\s*"([^"]+)"/)
+  if (m) return m[1]
+  const em = text.match(/"error"\s*:\s*"([^"]+)"/)
+  throw new Error(em?.[1] || `没拿到 voice_id：${text.slice(0, 200)}`)
+}

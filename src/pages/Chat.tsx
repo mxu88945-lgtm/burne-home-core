@@ -20,6 +20,8 @@ import { useVisionStore } from '@/store/visionStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { useMemoryStore } from '@/store/memoryStore'
 import { useMemoryModelStore } from '@/store/memoryModelStore'
+import { useSttStore } from '@/store/sttStore'
+import { transcribe } from '@/api/stt'
 import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
 import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, SendIcon } from '@/components/ui/icons'
@@ -119,9 +121,15 @@ export default function Chat() {
   const updateMemory = useMemoryStore((s) => s.updateMemory)
   const memoriesRef = useMemoryStore((s) => s.memories)
   const memoryModelCfg = useMemoryModelStore((s) => s.config)
+  const sttCfg = useSttStore((s) => s.config)
   // 自动记忆降频计数：每隔几轮才跑一次记忆维护（force 时立即跑），省 token
   const memTurnRef = useRef(0)
   const MEM_EVERY = 6
+  // 语音输入（录音 → 转文字）
+  const [recording, setRecording] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
+  const mediaRecRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
   const { chatBg, chatBgDim, chatBgOpacity, chatBgBlur, chatBgFit } = useAppearanceStore(
     (s) => s.appearance,
   )
@@ -496,8 +504,8 @@ export default function Chat() {
     }
   }
 
-  async function send() {
-    const text = draft.trim()
+  async function send(textOverride?: string) {
+    const text = (textOverride ?? draft).trim()
     if ((!text && !pendingImage && !pendingFile) || sending) return
     const mine: Msg = {
       id: newId(),
@@ -527,6 +535,55 @@ export default function Chat() {
       return
     }
     await respond(history)
+  }
+
+  /** 语音输入：开始录音 */
+  async function startRec() {
+    if (recording || transcribing) return
+    setImgErr('')
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const mr = new MediaRecorder(stream)
+      chunksRef.current = []
+      mr.ondataavailable = (e) => {
+        if (e.data.size) chunksRef.current.push(e.data)
+      }
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop())
+        setRecording(false)
+        const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' })
+        if (!blob.size) return
+        setTranscribing(true)
+        try {
+          const cfg = {
+            ...sttCfg,
+            workerUrl: sttCfg.workerUrl.trim() || (config.workerUrl || '').trim(),
+          }
+          const text = await transcribe(cfg, blob, { syncKey: config.syncKey })
+          if (!text) {
+            setImgErr('没识别到内容，靠近麦克风再说一次试试')
+          } else if (sttCfg.autoSend) {
+            await send(text)
+          } else {
+            setDraft((d) => (d ? `${d} ${text}` : text))
+          }
+        } catch (e) {
+          setImgErr(`语音转文字失败：${(e as Error).message}`)
+        } finally {
+          setTranscribing(false)
+        }
+      }
+      mediaRecRef.current = mr
+      mr.start()
+      setRecording(true)
+    } catch (e) {
+      setImgErr(`打不开麦克风：${(e as Error).message}（需允许麦克风权限，且页面是 https）`)
+    }
+  }
+
+  /** 语音输入：停止录音并转写 */
+  function stopRec() {
+    mediaRecRef.current?.stop()
   }
 
   /**
@@ -1715,9 +1772,25 @@ export default function Chat() {
                 )}
               </div>
               <div className="flex-1" />
+              {sttCfg.enabled && (
+                <button
+                  type="button"
+                  onClick={() => (recording ? stopRec() : startRec())}
+                  disabled={transcribing}
+                  aria-label={recording ? '停止录音' : '语音输入'}
+                  className={[
+                    'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base disabled:opacity-50',
+                    recording
+                      ? 'animate-pulse bg-red-500/80 text-white'
+                      : 'text-muted hover:bg-white/40 hover:text-ink',
+                  ].join(' ')}
+                >
+                  {transcribing ? '⏳' : recording ? '⏹' : '🎤'}
+                </button>
+              )}
               <button
                 type="button"
-                onClick={send}
+                onClick={() => send()}
                 disabled={sending}
                 aria-label="发送"
                 className="btn-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full disabled:opacity-40"

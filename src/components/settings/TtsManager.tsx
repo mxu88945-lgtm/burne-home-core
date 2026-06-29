@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useTtsStore, VOICE_PRESETS } from '@/store/ttsStore'
 import { useSyncStore } from '@/store/syncStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
-import { cloneFromFile } from '@/api/voiceClone'
+import { cloneFromFile, cloneFromFileViaWorker } from '@/api/voiceClone'
 import PasswordInput from '@/components/ui/PasswordInput'
 
 const inputCls =
@@ -10,7 +10,8 @@ const inputCls =
 
 export default function TtsManager() {
   const { config, update } = useTtsStore()
-  const syncWorkerUrl = useSyncStore((s) => s.config.workerUrl)
+  const sync = useSyncStore((s) => s.config)
+  const syncWorkerUrl = sync.workerUrl
   const { play, playingId, loadingId, error } = useTtsPlayback()
 
   const presetMatch = VOICE_PRESETS.some((v) => v.id === config.voiceId)
@@ -32,7 +33,10 @@ export default function TtsManager() {
     }
     setCloning(true)
     try {
-      const voiceId = await cloneFromFile(config, file)
+      const cfg = { ...config, workerUrl: config.workerUrl.trim() || (syncWorkerUrl || '').trim() }
+      const voiceId = config.viaWorker
+        ? await cloneFromFileViaWorker(cfg, file, { syncKey: sync.syncKey })
+        : await cloneFromFile(config, file)
       update({ voiceId })
       setCloneMsg(`克隆成功！音色 ID 已自动填好：${voiceId}（点下面「试听一句」听听～）`)
     } catch (e) {
