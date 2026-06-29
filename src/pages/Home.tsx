@@ -139,24 +139,15 @@ export default function Home() {
         <div className="text-2xl font-semibold text-accent">{pMain}</div>
       </Link>
 
-      {/* 小手机：像发消息一样和 TA 聊（独立角色，共用记忆库）。文字居中 */}
-      <Link
-        to="/phone"
-        className="glass flex flex-col items-center justify-center rounded-3xl px-6 py-5 text-center transition active:scale-[0.99]"
-      >
-        <div className="label">小手机 📱</div>
-        <div className="mt-1 text-[11px] text-muted">像发消息一样和 TA 聊 · 短句</div>
-      </Link>
-
-      {/* 快捷入口 */}
+      {/* 小手机 + 今天聊聊（并排两块） */}
       <section className="grid grid-cols-2 gap-3">
-        <QuickEntry
-          to="/memories"
-          icon="📔"
-          title="我们的记忆"
-          sub="摘要 · 核心 · 全部"
-        />
+        <QuickEntry to="/phone" icon="📱" title="小手机" sub="像发消息一样聊 · 短句" />
         <QuickEntry to="/chat" icon="💬" title="今天聊聊" sub="说点什么吧" onClick={startBlank} />
+      </section>
+
+      {/* 快捷入口（四个平铺） */}
+      <section className="grid grid-cols-2 gap-3">
+        <QuickEntry to="/memories" icon="📔" title="我们的记忆" sub="摘要 · 核心 · 全部" />
         <QuickEntry to="/reading" icon="📖" title="一起看书" sub="和 TA 共读一本书" />
         <QuickEntry to="/drama" icon="🎭" title="戏剧" sub="多角色群聊 · 扮演" />
         <QuickEntry to="/settings" icon="⚙️" title="设置" sub="同步 · 备份 · 隐私" />

@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { MemoryItem } from '@/types/memory'
 import { useMemoryStore } from '@/store/memoryStore'
-import { useApiStore } from '@/store/apiStore'
+import { useApiStore, type ApiChannel } from '@/store/apiStore'
+import { useMemoryModelStore } from '@/store/memoryModelStore'
 import { useSyncStore } from '@/store/syncStore'
 import { chatComplete } from '@/api/llm'
 import { sendChat } from '@/api/chat'
@@ -25,6 +26,19 @@ export default function MemoryLibrary() {
   const setOverview = useMemoryStore((s) => s.setOverview)
   const summary = useMemoryStore((s) => s.getSummary())
   const activeChannel = useApiStore((s) => s.getActive())
+  const memModelCfg = useMemoryModelStore((s) => s.config)
+  // 开了「记忆模型」就用它独立渠道生成概述，否则用主聊天渠道
+  const memChannel: ApiChannel | undefined =
+    memModelCfg.enabled && memModelCfg.apiKey.trim() && memModelCfg.model.trim()
+      ? {
+          id: 'memory',
+          name: '记忆',
+          provider: 'openai',
+          baseUrl: memModelCfg.baseUrl,
+          apiKey: memModelCfg.apiKey,
+          model: memModelCfg.model,
+        }
+      : activeChannel
   const sync = useSyncStore((s) => s.config)
 
   const [kind, setKind] = useState<KindFilter>('all')
@@ -52,8 +66,8 @@ export default function MemoryLibrary() {
       return
     }
     const workerUrl = sync.workerUrl?.trim()
-    if (!activeChannel && !workerUrl) {
-      setErr('请先在「设置 → API / 模型」配置聊天渠道')
+    if (!memChannel && !workerUrl) {
+      setErr('请先在「设置 → API / 模型」或「记忆模型」配置渠道')
       return
     }
     setErr('')
@@ -65,9 +79,9 @@ export default function MemoryLibrary() {
       const sys = '你是记忆摘要助手，只输出摘要正文，不要寒暄。'
       const ask = `请把下面这些记忆概括成一段简洁、温柔的「记忆总览」（200字以内），点出主要主题、重要的人和事、以及情感脉络：\n\n${transcript}`
       let text = ''
-      if (activeChannel) {
+      if (memChannel) {
         text = (
-          await chatComplete(activeChannel, [{ role: 'user', content: ask }], sys, {
+          await chatComplete(memChannel, [{ role: 'user', content: ask }], sys, {
             workerUrl,
             syncKey: sync.syncKey,
             maxTokens: 800,

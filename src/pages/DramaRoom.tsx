@@ -48,10 +48,9 @@ export default function DramaRoom() {
   const [pendingImage, setPendingImage] = useState('')
   const [busyChar, setBusyChar] = useState('') // 正在生成回复的角色 id
   const [err, setErr] = useState('')
-  const [charsOpen, setCharsOpen] = useState(false)
+  const [leftOpen, setLeftOpen] = useState(false) // 左☰：角色/剧场
+  const [rightOpen, setRightOpen] = useState(false) // 右⚙：世界观/剧情摘要
   const [editing, setEditing] = useState<DramaChar | 'new' | null>(null)
-  const [summaryOpen, setSummaryOpen] = useState(false)
-  const [worldOpen, setWorldOpen] = useState(false)
   const [summaryBusy, setSummaryBusy] = useState(false)
   const [recording, setRecording] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
@@ -242,7 +241,7 @@ export default function DramaRoom() {
       if (text) {
         setSummary(sc.id, cleanReply(text).trim())
         sinceSummaryRef.current = 0
-        if (!silent) setSummaryOpen(true)
+        if (!silent) setRightOpen(true)
       }
     } catch (e) {
       if (!silent) setErr(`生成摘要失败：${(e as Error).message}`)
@@ -300,7 +299,7 @@ export default function DramaRoom() {
       setSummary(sc.id, cleanReply(text).trim())
       setMessages(sc.id, tail)
       sinceSummaryRef.current = 0
-      setSummaryOpen(true)
+      setRightOpen(true)
     } catch (e) {
       setErr(`压缩失败：${(e as Error).message}`)
     } finally {
@@ -359,25 +358,32 @@ export default function DramaRoom() {
 
   return (
     <div className="flex h-full flex-col">
-      <BackBar />
-      <div className="flex items-center justify-between px-1 pb-2">
-        <div className="min-w-0">
-          <h2 className="headline truncate text-xl text-ink">{sc.title} 🎭</h2>
-          <button onClick={() => nav('/drama')} className="text-[11px] text-muted hover:text-accent">
-            ← 剧场列表
-          </button>
+      {/* 顶栏：左 ☰(角色/剧场) · 中标题 · 右 ⚙(世界观/剧情) —— 收进两角，中间留干净 */}
+      <div className="flex items-center gap-2 px-1 pb-2 pt-[max(0.25rem,env(safe-area-inset-top))]">
+        <button
+          onClick={() => { setLeftOpen((o) => !o); setRightOpen(false) }}
+          aria-label="角色与剧场"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg text-muted hover:bg-white/40 hover:text-accent"
+        >
+          ☰
+        </button>
+        <div className="min-w-0 flex-1 text-center">
+          <div className="headline truncate text-lg leading-none text-ink">{sc.title}</div>
+          <div className="mt-0.5 text-[10px] text-muted">🎭 {sc.chars.length} 个角色</div>
         </div>
         <button
-          onClick={() => setCharsOpen((o) => !o)}
-          className="glass rounded-full px-3 py-1.5 text-[12px] text-ink"
+          onClick={() => { setRightOpen((o) => !o); setLeftOpen(false) }}
+          aria-label="世界观与剧情"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base text-muted hover:bg-white/40 hover:text-accent"
         >
-          角色（{sc.chars.length}）{charsOpen ? '⌃' : '⌄'}
+          ⚙
         </button>
       </div>
 
-      {/* 角色卡管理 */}
-      {charsOpen && (
-        <div className="glass mb-2 space-y-2 rounded-2xl p-3">
+      {/* 左侧面板：剧场列表 + 角色管理 */}
+      {leftOpen && (
+        <div className="glass-strong mb-2 space-y-2 rounded-2xl p-3">
+          <button onClick={() => nav('/drama')} className="text-[12px] text-accent">← 剧场列表 / 主页</button>
           {sc.chars.map((c) => (
             <div key={c.id} className="flex items-center gap-2">
               <Avatar img={c.avatarImg} emoji={c.avatar} className="h-8 w-8 rounded-full text-base" textCls="text-base" style={{ background: c.color + '33' }} />
@@ -392,64 +398,50 @@ export default function DramaRoom() {
               <button onClick={() => removeChar(sc.id, c.id)} className="px-1.5 text-[13px] text-muted hover:text-red-500">删</button>
             </div>
           ))}
-          <button
-            onClick={() => setEditing('new')}
-            className="btn-primary w-full rounded-xl py-2 text-[13px]"
-          >
+          <button onClick={() => setEditing('new')} className="btn-primary w-full rounded-xl py-2 text-[13px]">
             ＋ 新角色卡
           </button>
           <p className="text-[10px] leading-relaxed text-muted">
-            建一张勾「这是我」的女主卡（你来发言）；其余是 AI 角色（男主、NPC 等）。发言后点下面角色名让 TA 接话。
+            建一张勾「这是我」的女主卡（你来发言）；其余是 AI 角色（男主、NPC 等）。给角色填开场白可「▶开场」让 TA 先出场。
           </p>
         </div>
       )}
 
-      {/* 世界观 / 背景设定（所有角色共用） */}
-      <div className="glass mb-2 rounded-2xl px-3 py-2">
-        <button onClick={() => setWorldOpen((o) => !o)} className="flex items-center gap-1 text-[12px]">
-          <span className="label">世界观 · 背景</span>
-          <span className="text-[11px] text-accent">{worldOpen ? '▲' : '▼'}</span>
-          {!worldOpen && (sc.world || '').trim() && (
-            <span className="ml-1 truncate text-[10px] text-muted">已设定</span>
-          )}
-        </button>
-        {worldOpen && (
-          <textarea
-            value={sc.world || ''}
-            onChange={(e) => setWorld(sc.id, e.target.value)}
-            rows={3}
-            placeholder="整体世界观、背景、人物关系…（注入给本剧场所有角色，让大家认知一致）"
-            className="mt-2 w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] text-ink outline-none focus:border-accent"
-          />
-        )}
-      </div>
-
-      {/* 剧情摘要 */}
-      <div className="glass mb-2 rounded-2xl px-3 py-2">
-        <div className="flex items-center justify-between">
-          <button onClick={() => setSummaryOpen((o) => !o)} className="flex items-center gap-1 text-[12px]">
-            <span className="label">剧情摘要</span>
-            <span className="text-[11px] text-accent">{summaryOpen ? '▲' : '▼'}</span>
-          </button>
-          <div className="flex items-center gap-3 text-[12px]">
-            <button onClick={() => genSummary()} disabled={summaryBusy} className="text-accent disabled:opacity-50">
-              {summaryBusy ? '处理中…' : '✨ 更新摘要'}
-            </button>
-            <button onClick={compress} disabled={summaryBusy || !!busyChar} className="text-muted hover:text-accent disabled:opacity-50">
-              🗜 压缩
-            </button>
+      {/* 右侧面板：世界观 + 剧情摘要（更新/压缩） */}
+      {rightOpen && (
+        <div className="glass-strong mb-2 space-y-3 rounded-2xl p-3">
+          <div>
+            <div className="label mb-1">世界观 · 背景（所有角色共用）</div>
+            <textarea
+              value={sc.world || ''}
+              onChange={(e) => setWorld(sc.id, e.target.value)}
+              rows={3}
+              placeholder="整体世界观、背景、人物关系…（注入给本剧场所有角色，让大家认知一致）"
+              className="w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] text-ink outline-none focus:border-accent"
+            />
+          </div>
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <span className="label">剧情摘要（独立记忆）</span>
+              <div className="flex items-center gap-3 text-[12px]">
+                <button onClick={() => genSummary()} disabled={summaryBusy} className="text-accent disabled:opacity-50">
+                  {summaryBusy ? '处理中…' : '✨ 更新'}
+                </button>
+                <button onClick={compress} disabled={summaryBusy || !!busyChar} className="text-muted hover:text-accent disabled:opacity-50">
+                  🗜 压缩
+                </button>
+              </div>
+            </div>
+            <textarea
+              value={sc.summary}
+              onChange={(e) => setSummary(sc.id, e.target.value)}
+              rows={3}
+              placeholder="点「✨ 更新」让 AI 整理，或手写。会注入给角色，防止跑久了忘剧情。"
+              className="w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] text-ink outline-none focus:border-accent"
+            />
           </div>
         </div>
-        {summaryOpen && (
-          <textarea
-            value={sc.summary}
-            onChange={(e) => setSummary(sc.id, e.target.value)}
-            rows={3}
-            placeholder="点「✨ 更新摘要」让 AI 整理，或手写。会注入给角色，防止跑久了忘剧情。"
-            className="mt-2 w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] text-ink outline-none focus:border-accent"
-          />
-        )}
-      </div>
+      )}
 
       {err && <div className="mb-1 px-1 text-[11px] text-red-500">{err}</div>}
 
