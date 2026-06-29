@@ -883,6 +883,22 @@ export default function Chat() {
       const note = periodChatNote(periodState.days, profile.nameA || '她', periodState.periodLen)
       if (note) system += `\n\n${note}`
     }
+    // 注入长期记忆，让 TA 真的「记得」你们的事（标星优先 + 最近，最多 40 条，控 token）
+    {
+      const memState = useMemoryStore.getState()
+      const starred = memState.memories.filter((m) => m.starred)
+      const rest = memState.memories.filter((m) => !m.starred)
+      const picked = [...starred, ...rest].slice(0, 40)
+      const lines = picked
+        .map((m) => `· ${m.title ? `${m.title}：` : ''}${m.content}`)
+        .join('\n')
+      if (memState.overview.trim() || lines) {
+        system +=
+          `\n\n【关于${profile.nameA || '她'}和你们的长期记忆——请当作你真实记得的事，自然运用，不要生硬复述、也不要暴露这是设定】`
+        if (memState.overview.trim()) system += `\n（概述）${memState.overview.trim()}`
+        if (lines) system += `\n${lines}`
+      }
+    }
     if (allowTasks) {
       system +=
         `\n\n【任务提醒功能 · 请理解并善用】\n` +
