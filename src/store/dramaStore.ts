@@ -18,6 +18,8 @@ export interface DramaChar {
   avatarImg?: string
   /** 人设 / 设定（系统提示用） */
   persona: string
+  /** 开场白：作为出场第一条消息发出（可留空） */
+  greeting?: string
   /** 气泡色 hex */
   color: string
   /** 是否是「我」（女主，用户本人，由你发言） */
@@ -39,6 +41,8 @@ export interface DramaScene {
   title: string
   chars: DramaChar[]
   messages: DramaMsg[]
+  /** 世界观 / 背景设定（注入给本剧场所有角色，统一认知） */
+  world: string
   /** 剧情摘要（独立记忆，注入给角色防止跑久了忘剧情） */
   summary: string
   createdAt: string
@@ -70,6 +74,7 @@ interface DramaState extends Persisted {
   setMessages: (sceneId: string, messages: DramaMsg[]) => void
   addMessage: (sceneId: string, msg: DramaMsg) => void
   setSummary: (sceneId: string, summary: string) => void
+  setWorld: (sceneId: string, world: string) => void
 }
 
 export const useDramaStore = create<DramaState>((set, get) => {
@@ -92,6 +97,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
         title: title.trim() || '新剧场',
         chars: [],
         messages: [],
+        world: '',
         summary: '',
         createdAt: new Date().toISOString(),
       }
@@ -125,6 +131,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
           avatar: char.avatar || '🎭',
           avatarImg: char.avatarImg,
           persona: char.persona || '',
+          greeting: char.greeting || '',
           color,
           isMe: char.isMe ?? false,
         }
@@ -146,6 +153,8 @@ export const useDramaStore = create<DramaState>((set, get) => {
       patchScene(sceneId, (s) => ({ ...s, messages: [...s.messages, msg] })),
 
     setSummary: (sceneId, summary) => patchScene(sceneId, (s) => ({ ...s, summary })),
+
+    setWorld: (sceneId, world) => patchScene(sceneId, (s) => ({ ...s, world })),
   }
 })
 

@@ -32,6 +32,7 @@ export default function DramaRoom() {
   const addMessage = useDramaStore((s) => s.addMessage)
   const setMessages = useDramaStore((s) => s.setMessages)
   const setSummary = useDramaStore((s) => s.setSummary)
+  const setWorld = useDramaStore((s) => s.setWorld)
 
   const activeChannel = useApiStore((s) => s.getActive())
   const { config } = useSyncStore()
@@ -50,6 +51,7 @@ export default function DramaRoom() {
   const [charsOpen, setCharsOpen] = useState(false)
   const [editing, setEditing] = useState<DramaChar | 'new' | null>(null)
   const [summaryOpen, setSummaryOpen] = useState(false)
+  const [worldOpen, setWorldOpen] = useState(false)
   const [summaryBusy, setSummaryBusy] = useState(false)
   const [recording, setRecording] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
@@ -100,6 +102,16 @@ export default function DramaRoom() {
     setPendingImage('')
   }
 
+  /** 让某角色用开场白出场（把开场白作为一条消息发出来） */
+  function openWith(char: DramaChar) {
+    const g = (char.greeting || '').trim()
+    if (!g) {
+      setErr(`${char.name} 还没填开场白`)
+      return
+    }
+    addMessage(sc.id, { id: dramaMsgId(), who: char.id, text: g, at: now() })
+  }
+
   /** 点名某角色，让 TA 接话 */
   async function respond(char: DramaChar) {
     if (busyChar) return
@@ -114,8 +126,10 @@ export default function DramaRoom() {
         .filter((c) => c.id !== char.id)
         .map((c) => (c.isMe ? `${c.name}（用户本人/女主）` : c.name))
         .join('、')
+      const world = (sc.world || '').trim()
       const sys =
         `你在一个多人角色扮演群聊里，只扮演角色【${char.name}】。\n` +
+        (world ? `【世界观 / 背景设定（所有角色共同遵守）】\n${world}\n\n` : '') +
         `【${char.name}的人设】\n${char.persona || '（未填，请贴合名字与剧情合理发挥）'}\n` +
         (others ? `\n群里其他人：${others}。\n` : '') +
         (sc.summary.trim() ? `\n【到目前为止的剧情摘要】\n${sc.summary.trim()}\n` : '') +
@@ -371,6 +385,9 @@ export default function DramaRoom() {
                 {c.name}
                 {c.isMe && <span className="ml-1 text-[10px] text-accent">（我）</span>}
               </span>
+              {!c.isMe && (c.greeting || '').trim() && (
+                <button onClick={() => openWith(c)} className="px-1.5 text-[13px] text-accent hover:underline">▶开场</button>
+              )}
               <button onClick={() => setEditing(c)} className="px-1.5 text-[13px] text-muted hover:text-accent">编辑</button>
               <button onClick={() => removeChar(sc.id, c.id)} className="px-1.5 text-[13px] text-muted hover:text-red-500">删</button>
             </div>
@@ -386,6 +403,26 @@ export default function DramaRoom() {
           </p>
         </div>
       )}
+
+      {/* 世界观 / 背景设定（所有角色共用） */}
+      <div className="glass mb-2 rounded-2xl px-3 py-2">
+        <button onClick={() => setWorldOpen((o) => !o)} className="flex items-center gap-1 text-[12px]">
+          <span className="label">世界观 · 背景</span>
+          <span className="text-[11px] text-accent">{worldOpen ? '▲' : '▼'}</span>
+          {!worldOpen && (sc.world || '').trim() && (
+            <span className="ml-1 truncate text-[10px] text-muted">已设定</span>
+          )}
+        </button>
+        {worldOpen && (
+          <textarea
+            value={sc.world || ''}
+            onChange={(e) => setWorld(sc.id, e.target.value)}
+            rows={3}
+            placeholder="整体世界观、背景、人物关系…（注入给本剧场所有角色，让大家认知一致）"
+            className="mt-2 w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] text-ink outline-none focus:border-accent"
+          />
+        )}
+      </div>
 
       {/* 剧情摘要 */}
       <div className="glass mb-2 rounded-2xl px-3 py-2">
@@ -604,6 +641,7 @@ function CharEditor({
   const [avatar, setAvatar] = useState(base?.avatar ?? '🎭')
   const [avatarImg, setAvatarImg] = useState<string | undefined>(base?.avatarImg)
   const [persona, setPersona] = useState(base?.persona ?? '')
+  const [greeting, setGreeting] = useState(base?.greeting ?? '')
   const [color, setColor] = useState(base?.color ?? PRESET_COLORS[0])
   const [isMe, setIsMe] = useState(base?.isMe ?? false)
   const imgRef = useRef<HTMLInputElement>(null)
@@ -611,7 +649,7 @@ function CharEditor({
     'w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent'
 
   function save() {
-    const patch = { name, avatar, avatarImg, persona, color, isMe }
+    const patch = { name, avatar, avatarImg, persona, greeting, color, isMe }
     if (isNew) onAdd(sceneId, patch)
     else onUpdate(sceneId, (target as DramaChar).id, patch)
     onClose()
@@ -659,13 +697,27 @@ function CharEditor({
 
         <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="角色名字，如 伯恩 / 旁白NPC" />
 
-        <textarea
-          className={inputCls}
-          rows={5}
-          value={persona}
-          onChange={(e) => setPersona(e.target.value)}
-          placeholder="人设/设定：身份、性格、说话风格、背景关系…（NPC 卡可写：负责扮演各路 NPC 与旁白）"
-        />
+        <div>
+          <div className="mb-1 text-[12px] text-muted">角色设定 / 人设</div>
+          <textarea
+            className={inputCls}
+            rows={5}
+            value={persona}
+            onChange={(e) => setPersona(e.target.value)}
+            placeholder="身份、性别、年龄、性格、说话风格、背景关系…（NPC 卡可写：负责扮演各路 NPC 与旁白）"
+          />
+        </div>
+
+        <div>
+          <div className="mb-1 text-[12px] text-muted">开场白（出场第一条 · 可留空）</div>
+          <textarea
+            className={inputCls}
+            rows={3}
+            value={greeting}
+            onChange={(e) => setGreeting(e.target.value)}
+            placeholder="角色出场说的第一句/一段，用来开启剧情（如男主推门而入）。建好后在角色列表点「▶开场」发出。"
+          />
+        </div>
 
         <div>
           <div className="mb-1 text-[12px] text-muted">气泡颜色</div>
