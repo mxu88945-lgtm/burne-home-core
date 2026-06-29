@@ -4,7 +4,6 @@ export default function AppHeader() {
       <h1 className="headline text-2xl leading-none text-ink">
         family <span className="text-accent">♡</span>
       </h1>
-      <p className="mt-1 text-[11px] tracking-wide text-muted">我们的长期记忆</p>
     </header>
   )
 }
