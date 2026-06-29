@@ -124,7 +124,7 @@ export default function Chat() {
   const sttCfg = useSttStore((s) => s.config)
   // 自动记忆降频计数：每隔几轮才跑一次记忆维护（force 时立即跑），省 token
   const memTurnRef = useRef(0)
-  const MEM_EVERY = 6
+  const MEM_EVERY = 10
   // 语音输入（录音 → 转文字）
   const [recording, setRecording] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
