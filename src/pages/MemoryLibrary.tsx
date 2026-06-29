@@ -33,6 +33,7 @@ export default function MemoryLibrary() {
   const [genBusy, setGenBusy] = useState(false)
   const [editOverview, setEditOverview] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
+  const [delMenu, setDelMenu] = useState(false)
   const [draft, setDraft] = useState('')
   const [err, setErr] = useState('')
 
@@ -105,19 +106,64 @@ export default function MemoryLibrary() {
         </div>
         <div className="flex items-center gap-3">
           {summary.total > 0 && (
-            <button
-              onClick={() => {
-                const starred = memories.filter((m) => m.starred).length
-                const tip =
-                  `确定清空全部 ${summary.total} 条记忆吗？此操作不可恢复。` +
-                  (starred ? `（含 ${starred} 条标星★）` : '') +
-                  `\n建议先去「设置 → 数据·备份」导出备份。`
-                if (window.confirm(tip)) replaceAll([])
-              }}
-              className="text-[12px] text-muted hover:text-red-500"
-            >
-              🗑 清空
-            </button>
+            <div className="relative">
+              <button
+                onClick={() => setDelMenu((o) => !o)}
+                className="text-[12px] text-muted hover:text-red-500"
+              >
+                🗑 删除
+              </button>
+              {delMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setDelMenu(false)} />
+                  <div className="glass-strong absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-2xl p-1 text-left text-[13px] text-ink shadow-lg">
+                    {(() => {
+                      const starred = memories.filter((m) => m.starred).length
+                      const unstarred = summary.total - starred
+                      const run = (tip: string, keep: (m: MemoryItem) => boolean) => {
+                        setDelMenu(false)
+                        if (window.confirm(`${tip}\n不可恢复，建议先去「设置 → 数据·备份」导出。`))
+                          replaceAll(memories.filter(keep))
+                      }
+                      const Row = ({ label, onClick }: { label: string; onClick: () => void }) => (
+                        <button
+                          onClick={onClick}
+                          className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/40"
+                        >
+                          {label}
+                        </button>
+                      )
+                      return (
+                        <>
+                          {unstarred > 0 && (
+                            <Row
+                              label={`删未标星（留 ${starred} 条★）`}
+                              onClick={() => run(`删除 ${unstarred} 条未标星记忆？保留 ${starred} 条标星★。`, (m) => m.starred)}
+                            />
+                          )}
+                          {summary.shortCount > 0 && (
+                            <Row
+                              label={`删短期（${summary.shortCount} 条）`}
+                              onClick={() => run(`删除 ${summary.shortCount} 条短期记忆？`, (m) => m.kind !== 'short')}
+                            />
+                          )}
+                          {summary.longCount > 0 && (
+                            <Row
+                              label={`删长期（${summary.longCount} 条）`}
+                              onClick={() => run(`删除 ${summary.longCount} 条长期记忆？`, (m) => m.kind !== 'long')}
+                            />
+                          )}
+                          <Row
+                            label={`🗑 清空全部（${summary.total} 条）`}
+                            onClick={() => run(`确定清空全部 ${summary.total} 条记忆吗？${starred ? `含 ${starred} 条标星★。` : ''}`, () => false)}
+                          />
+                        </>
+                      )
+                    })()}
+                  </div>
+                </>
+              )}
+            </div>
           )}
           <button
             onClick={() => setEditing('new')}
