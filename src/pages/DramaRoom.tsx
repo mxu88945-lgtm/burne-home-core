@@ -16,6 +16,7 @@ import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import Avatar from '@/components/ui/Avatar'
 import BackBar from '@/components/layout/BackBar'
 import DramaBg from '@/components/ui/DramaBg'
+import { GearIcon } from '@/components/ui/navIcons'
 import { SendIcon, SpeakerIcon, StopIcon, MicIcon } from '@/components/ui/icons'
 
 function now() {
@@ -631,9 +632,9 @@ export default function DramaRoom() {
         <button
           onClick={() => { setRightOpen((o) => !o); setLeftOpen(false) }}
           aria-label="世界观与剧情"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base text-muted hover:bg-white/40 hover:text-accent"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted hover:bg-white/40 hover:text-accent"
         >
-          ⚙
+          <GearIcon className="h-5 w-5" />
         </button>
       </div>
 
