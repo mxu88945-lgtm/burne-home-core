@@ -10,6 +10,7 @@ import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { cleanReply } from '@/lib/cleanReply'
 import { fileToDataUrl } from '@/lib/image'
 import { parseCardFile, buildLoreText } from '@/lib/charCard'
+import { DramaRich } from '@/lib/dramaRich'
 import { useSttStore } from '@/store/sttStore'
 import { transcribe } from '@/api/stt'
 import { useTtsStore } from '@/store/ttsStore'
@@ -936,7 +937,9 @@ export default function DramaRoom() {
                   </div>
                   {m.image && <img src={m.image} alt="" className="mb-1 max-h-60 max-w-full rounded-xl object-cover" />}
                   {editingThis ? editArea : m.text && (
-                    <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink [overflow-wrap:anywhere]">{m.text}</div>
+                    <div className="text-[15px] leading-relaxed text-ink">
+                      <DramaRich text={m.text} />
+                    </div>
                   )}
                 </div>
               )
@@ -959,10 +962,10 @@ export default function DramaRoom() {
                   )}
                   {editingThis ? editArea : m.text && (
                     <div
-                      className="mt-0.5 whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-sm text-ink [overflow-wrap:anywhere]"
+                      className="mt-0.5 rounded-2xl px-3.5 py-2 text-sm text-ink"
                       style={{ background: (c?.color || '#bb9af7') + (mine ? '40' : '22') }}
                     >
-                      {m.text}
+                      <DramaRich text={m.text} />
                     </div>
                   )}
                   <div className="flex items-center gap-2 px-1 text-muted">
