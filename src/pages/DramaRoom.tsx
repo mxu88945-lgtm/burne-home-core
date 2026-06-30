@@ -14,6 +14,7 @@ import { useTtsStore } from '@/store/ttsStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import Avatar from '@/components/ui/Avatar'
 import BackBar from '@/components/layout/BackBar'
+import DramaBg from '@/components/ui/DramaBg'
 import { SendIcon, SpeakerIcon, StopIcon, MicIcon } from '@/components/ui/icons'
 
 function now() {
@@ -434,6 +435,7 @@ export default function DramaRoom() {
 
   return (
     <div className="flex h-full flex-col">
+      <DramaBg />
       {/* 顶栏：左 ☰(角色/剧场) · 中标题 · 右 ⚙(世界观/剧情) —— 收进两角，中间留干净 */}
       <div className="flex items-center gap-2 px-1 pb-2 pt-[max(0.25rem,env(safe-area-inset-top))]">
         <button

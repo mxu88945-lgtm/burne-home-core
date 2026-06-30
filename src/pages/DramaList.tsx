@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useDramaStore } from '@/store/dramaStore'
 import { parseDramaTxt, type ParsedDrama } from '@/lib/dramaImport'
 import BackBar from '@/components/layout/BackBar'
+import DramaBg from '@/components/ui/DramaBg'
 
 export default function DramaList() {
   const scenes = useDramaStore((s) => s.scenes)
@@ -69,6 +70,7 @@ export default function DramaList() {
 
   return (
     <div className="space-y-4">
+      <DramaBg />
       <BackBar />
       <div className="flex items-end justify-between gap-2 px-1">
         <div className="min-w-0">
