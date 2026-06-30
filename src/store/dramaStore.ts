@@ -47,6 +47,8 @@ export interface DramaScene {
   world: string
   /** 剧情摘要（独立记忆，注入给角色防止跑久了忘剧情） */
   summary: string
+  /** 已经并入摘要的消息条数（增量摘要用：下次只读这个数之后的新对话） */
+  summaryAt?: number
   createdAt: string
 }
 
@@ -55,9 +57,13 @@ interface Persisted {
   activeId: string
   /** 气泡式(false) / 平铺式(true) —— 全局显示样式 */
   flat: boolean
+  /** 自动更新剧情摘要（后台静默） */
+  autoSummary: boolean
+  /** 每攒够几条 AI 回复自动更新一次摘要 */
+  autoSummaryEvery: number
 }
 
-const DEFAULT: Persisted = { scenes: [], activeId: '', flat: false }
+const DEFAULT: Persisted = { scenes: [], activeId: '', flat: false, autoSummary: true, autoSummaryEvery: 8 }
 const init = { ...DEFAULT, ...readJSON<Partial<Persisted>>(STORAGE_KEYS.drama, {}) }
 
 function uid(): string {
@@ -78,8 +84,11 @@ interface DramaState extends Persisted {
   setMessages: (sceneId: string, messages: DramaMsg[]) => void
   addMessage: (sceneId: string, msg: DramaMsg) => void
   setSummary: (sceneId: string, summary: string) => void
+  setSummaryAt: (sceneId: string, n: number) => void
   setWorld: (sceneId: string, world: string) => void
   setFlat: (flat: boolean) => void
+  setAutoSummary: (on: boolean) => void
+  setAutoSummaryEvery: (n: number) => void
   /** 从导入的对话整本建一个新剧场（角色 + 消息一次性建好） */
   importScene: (input: {
     title: string
@@ -90,7 +99,13 @@ interface DramaState extends Persisted {
 
 export const useDramaStore = create<DramaState>((set, get) => {
   const persist = (scenes: DramaScene[], activeId = get().activeId) =>
-    writeJSON(STORAGE_KEYS.drama, { scenes, activeId, flat: get().flat })
+    writeJSON(STORAGE_KEYS.drama, {
+      scenes,
+      activeId,
+      flat: get().flat,
+      autoSummary: get().autoSummary,
+      autoSummaryEvery: get().autoSummaryEvery,
+    })
 
   const patchScene = (sceneId: string, fn: (s: DramaScene) => DramaScene) => {
     const scenes = get().scenes.map((s) => (s.id === sceneId ? fn(s) : s))
@@ -102,6 +117,8 @@ export const useDramaStore = create<DramaState>((set, get) => {
     scenes: init.scenes,
     activeId: init.activeId,
     flat: init.flat,
+    autoSummary: init.autoSummary,
+    autoSummaryEvery: init.autoSummaryEvery,
 
     createScene: (title) => {
       const scene: DramaScene = {
@@ -111,6 +128,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
         messages: [],
         world: '',
         summary: '',
+        summaryAt: 0,
         createdAt: new Date().toISOString(),
       }
       const scenes = [scene, ...get().scenes]
@@ -167,11 +185,23 @@ export const useDramaStore = create<DramaState>((set, get) => {
 
     setSummary: (sceneId, summary) => patchScene(sceneId, (s) => ({ ...s, summary })),
 
+    setSummaryAt: (sceneId, n) => patchScene(sceneId, (s) => ({ ...s, summaryAt: n })),
+
     setWorld: (sceneId, world) => patchScene(sceneId, (s) => ({ ...s, world })),
 
     setFlat: (flat) => {
-      writeJSON(STORAGE_KEYS.drama, { scenes: get().scenes, activeId: get().activeId, flat })
       set({ flat })
+      persist(get().scenes)
+    },
+
+    setAutoSummary: (on) => {
+      set({ autoSummary: on })
+      persist(get().scenes)
+    },
+
+    setAutoSummaryEvery: (n) => {
+      set({ autoSummaryEvery: Math.max(2, Math.min(50, Math.round(n) || 8)) })
+      persist(get().scenes)
     },
 
     importScene: (input) => {
@@ -202,6 +232,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
         messages,
         world: '',
         summary: '',
+        summaryAt: 0,
         createdAt: new Date().toISOString(),
       }
       const scenes = [scene, ...get().scenes]

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDramaStore, dramaMsgId, type DramaChar } from '@/store/dramaStore'
-import { useApiStore } from '@/store/apiStore'
+import { useApiStore, type ApiChannel } from '@/store/apiStore'
+import { useMemoryModelStore } from '@/store/memoryModelStore'
 import { useSyncStore } from '@/store/syncStore'
 import { useUsageStore } from '@/store/usageStore'
 import { chatComplete } from '@/api/llm'
@@ -33,12 +34,18 @@ export default function DramaRoom() {
   const addMessage = useDramaStore((s) => s.addMessage)
   const setMessages = useDramaStore((s) => s.setMessages)
   const setSummary = useDramaStore((s) => s.setSummary)
+  const setSummaryAt = useDramaStore((s) => s.setSummaryAt)
   const setWorld = useDramaStore((s) => s.setWorld)
   const flat = useDramaStore((s) => s.flat)
   const setFlat = useDramaStore((s) => s.setFlat)
+  const autoSummary = useDramaStore((s) => s.autoSummary)
+  const autoSummaryEvery = useDramaStore((s) => s.autoSummaryEvery)
+  const setAutoSummary = useDramaStore((s) => s.setAutoSummary)
+  const setAutoSummaryEvery = useDramaStore((s) => s.setAutoSummaryEvery)
 
   const activeChannel = useApiStore((s) => s.getActive())
   const channels = useApiStore((s) => s.channels)
+  const memModelCfg = useMemoryModelStore((s) => s.config)
   const { config } = useSyncStore()
   const addUsage = useUsageStore((s) => s.add)
   const workerUrl = config.workerUrl?.trim()
@@ -98,7 +105,11 @@ export default function DramaRoom() {
   const aiChars = sc.chars.filter((c) => !c.isMe)
   const charById = (id: string) => sc.chars.find((c) => c.id === id)
   const nameOf = (id: string) => charById(id)?.name ?? '我'
-  const connected = Boolean(activeChannel || workerUrl)
+  // 摘要/压缩用的渠道：开了「记忆模型」就用它(便宜)，否则回退主激活渠道
+  const useMemModel = memModelCfg.enabled && memModelCfg.apiKey.trim() !== '' && memModelCfg.model.trim() !== ''
+  const summaryChannel: ApiChannel | undefined = useMemModel
+    ? { id: 'mem', name: '记忆模型', provider: 'openai', baseUrl: memModelCfg.baseUrl, apiKey: memModelCfg.apiKey, model: memModelCfg.model }
+    : activeChannel
   // 输入框里正在打「@…」时，弹出可点名的角色列表
   const atMatch = draft.match(/@(\S*)$/)
   const atList = atMatch ? aiChars.filter((c) => c.name.includes(atMatch[1])) : []
@@ -226,9 +237,9 @@ export default function DramaRoom() {
         text: reply || '……',
         at: now(),
       })
-      // 摘要自动更新：每攒够 8 条 AI 回复，后台静默刷新一次剧情摘要
+      // 摘要自动更新（可在 ⚙ 里关/调频）：每攒够 N 条 AI 回复，后台静默增量刷新
       sinceSummaryRef.current += 1
-      if (sinceSummaryRef.current >= 8) {
+      if (autoSummary && sinceSummaryRef.current >= autoSummaryEvery) {
         sinceSummaryRef.current = 0
         void genSummary(true)
       }
@@ -239,10 +250,16 @@ export default function DramaRoom() {
     }
   }
 
-  /** 生成/更新剧情摘要（silent=自动更新，不弹提示/不展开） */
+  // 摘要的结构化要求（让模型牢记剧情、不跑偏；可精简描写但别丢事实/别改设定）
+  const SUMMARY_SYS =
+    '你是角色扮演剧情记录助手。只输出摘要正文，按四节组织：【人物与关系】【已发生的关键剧情】【当前情境】【未解决的悬念/线索】。' +
+    '保留所有关键事实与设定，可精简描写但不要丢事实、不要编造、不要擅自改变既定设定。控制在 600 字内。'
+
+  /** 生成/更新剧情摘要（silent=自动更新，不弹提示/不展开）。
+   *  自动且已有摘要时走「增量」：只读上次摘要之后的新对话来合并，省 token。 */
   async function genSummary(silent = false) {
     if (summaryBusy) return
-    if (!connected) {
+    if (!summaryChannel && !workerUrl) {
       if (!silent) setErr('请先在「设置 → API / 模型」配置渠道')
       return
     }
@@ -253,21 +270,24 @@ export default function DramaRoom() {
     if (!silent) setErr('')
     setSummaryBusy(true)
     try {
-      const transcript = sc.messages
+      const total = sc.messages.length
+      const at = Math.min(sc.summaryAt ?? 0, total)
+      const old = sc.summary.trim()
+      const incremental = silent && !!old && at < total
+      const slice = incremental ? sc.messages.slice(at) : sc.messages
+      const transcript = slice
         .map((m) => `${nameOf(m.who)}：${m.text}${m.image ? '［图片］' : ''}`)
         .join('\n')
-      const sys = '你是剧情记录助手，只输出摘要正文，不要寒暄。'
-      const ask =
-        `把下面这段多人角色扮演的群聊整理成一份「剧情摘要」（300字以内）：` +
-        `交代清楚有哪些角色、各自身份关系、已经发生的关键剧情和当前所处情境，` +
-        `便于后续接着演不忘设定。${sc.summary.trim() ? `\n（已有旧摘要，请在其基础上更新合并）旧摘要：${sc.summary.trim()}` : ''}\n\n群聊记录：\n${transcript}`
+      const ask = incremental
+        ? `这是已有的剧情摘要：\n${old}\n\n以下是【新发生】的对话，请把新剧情合并进上面的摘要，输出【更新后的完整摘要】（沿用四节结构，旧的关键事实也要保留）：\n\n${transcript}`
+        : `把下面这段多人角色扮演群聊整理成一份剧情摘要（四节结构）${old ? `，并与旧摘要合并。\n旧摘要：${old}\n` : '。'}\n\n群聊记录：\n${transcript}`
       let text = ''
-      if (activeChannel) {
+      if (summaryChannel) {
         text = (
-          await chatComplete(activeChannel, [{ role: 'user', content: ask }], sys, {
+          await chatComplete(summaryChannel, [{ role: 'user', content: ask }], SUMMARY_SYS, {
             workerUrl,
             syncKey: config.syncKey,
-            maxTokens: 800,
+            maxTokens: 1500,
           })
         ).text.trim()
       } else {
@@ -276,13 +296,14 @@ export default function DramaRoom() {
             workerUrl: workerUrl!,
             syncKey: config.syncKey,
             messages: [{ role: 'user', content: ask }],
-            system: sys,
-            maxTokens: 800,
+            system: SUMMARY_SYS,
+            maxTokens: 1500,
           })
         ).trim()
       }
       if (text) {
         setSummary(sc.id, cleanReply(text).trim())
+        setSummaryAt(sc.id, total)
         sinceSummaryRef.current = 0
         if (!silent) setRightOpen(true)
       }
@@ -301,7 +322,7 @@ export default function DramaRoom() {
       setErr('对话还短，先不用压缩～')
       return
     }
-    if (!connected) {
+    if (!summaryChannel && !workerUrl) {
       setErr('请先在「设置 → API / 模型」配置渠道')
       return
     }
@@ -314,17 +335,16 @@ export default function DramaRoom() {
       const transcript = head
         .map((m) => `${nameOf(m.who)}：${m.text}${m.image ? '［图片］' : ''}`)
         .join('\n')
-      const sys = '你是剧情记录助手，只输出摘要正文，不要寒暄。'
       const ask =
-        `把下面这段角色扮演群聊整理并合并进「剧情摘要」（350字以内，交代角色、关系、关键剧情与当前情境，便于接着演不忘设定）。` +
-        `${sc.summary.trim() ? `\n已有摘要（在其基础上更新合并）：${sc.summary.trim()}` : ''}\n\n要压缩的较早对话：\n${transcript}`
+        `把下面这段角色扮演群聊整理并合并进「剧情摘要」（四节结构，交代角色关系、关键剧情、当前情境与未解决悬念，便于接着演不忘设定）。` +
+        `${sc.summary.trim() ? `\n已有摘要（在其基础上更新合并、保留旧事实）：${sc.summary.trim()}` : ''}\n\n要压缩的较早对话：\n${transcript}`
       let text = ''
-      if (activeChannel) {
+      if (summaryChannel) {
         text = (
-          await chatComplete(activeChannel, [{ role: 'user', content: ask }], sys, {
+          await chatComplete(summaryChannel, [{ role: 'user', content: ask }], SUMMARY_SYS, {
             workerUrl,
             syncKey: config.syncKey,
-            maxTokens: 900,
+            maxTokens: 1500,
           })
         ).text.trim()
       } else {
@@ -333,14 +353,15 @@ export default function DramaRoom() {
             workerUrl: workerUrl!,
             syncKey: config.syncKey,
             messages: [{ role: 'user', content: ask }],
-            system: sys,
-            maxTokens: 900,
+            system: SUMMARY_SYS,
+            maxTokens: 1500,
           })
         ).trim()
       }
       if (!text) throw new Error('摘要为空')
       setSummary(sc.id, cleanReply(text).trim())
       setMessages(sc.id, tail)
+      setSummaryAt(sc.id, 0) // 留下的 tail 还没并入摘要，下次增量从头算
       sinceSummaryRef.current = 0
       setRightOpen(true)
     } catch (e) {
@@ -472,6 +493,7 @@ export default function DramaRoom() {
     if (i < 0) return
     if (window.confirm('回溯：删除这条及之后的所有消息？（用于回到此处重来）')) {
       setMessages(sc.id, sc.messages.slice(0, i))
+      setSummaryAt(sc.id, Math.min(sc.summaryAt ?? 0, i)) // 别让摘要"超前"于现存对话
     }
   }
   function startEdit(id: string) {
@@ -598,6 +620,35 @@ export default function DramaRoom() {
                 className="w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] text-ink outline-none focus:border-accent"
               />
             )}
+            {/* 自动摘要：开关 + 频率 + 用哪个模型 */}
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-muted">
+              <label className="flex items-center gap-1.5 text-ink">
+                <input
+                  type="checkbox"
+                  checked={autoSummary}
+                  onChange={(e) => setAutoSummary(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-accent"
+                />
+                自动更新
+              </label>
+              <span className="flex items-center gap-1">
+                每
+                <input
+                  type="number"
+                  min={2}
+                  max={50}
+                  value={autoSummaryEvery}
+                  disabled={!autoSummary}
+                  onChange={(e) => setAutoSummaryEvery(Number(e.target.value))}
+                  className="w-12 rounded-md border border-line bg-white/50 px-1.5 py-0.5 text-center text-ink outline-none focus:border-accent disabled:opacity-50"
+                />
+                条回复
+              </span>
+              <span className="text-[11px]">· 用{useMemModel ? '记忆模型' : '主渠道'}</span>
+            </div>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted">
+              自动更新走「增量」——只读上次之后的新对话来合并，省 token；摘要保留人物/关系/关键剧情/悬念，帮角色不忘、不跑偏。
+            </p>
           </div>
         </div>
       )}
