@@ -14,13 +14,11 @@ const avatarStyle = {
 
 function QuickEntry({
   to,
-  icon,
   title,
   sub,
   onClick,
 }: {
   to: string
-  icon: string
   title: string
   sub: string
   onClick?: () => void
@@ -29,9 +27,8 @@ function QuickEntry({
     <Link
       to={to}
       onClick={onClick}
-      className="glass flex flex-col items-center gap-1 rounded-2xl px-4 py-4 text-center transition active:scale-[0.98]"
+      className="glass flex flex-col items-center gap-1 rounded-2xl px-4 py-5 text-center transition active:scale-[0.98]"
     >
-      <span className="text-xl">{icon}</span>
       <span className="text-sm font-medium text-ink">{title}</span>
       <span className="text-[11px] text-muted">{sub}</span>
     </Link>
@@ -133,7 +130,7 @@ export default function Home() {
         className="glass flex items-center justify-center gap-5 rounded-3xl px-6 py-5 transition active:scale-[0.99]"
       >
         <div className="text-right">
-          <div className="label">生理期 🌸</div>
+          <div className="label">生理期</div>
           <div className="mt-1 text-[11px] text-muted">{pSub}</div>
         </div>
         <div className="text-2xl font-semibold text-accent">{pMain}</div>
@@ -141,16 +138,16 @@ export default function Home() {
 
       {/* 小手机 + 今天聊聊（并排两块） */}
       <section className="grid grid-cols-2 gap-3">
-        <QuickEntry to="/phone" icon="📱" title="小手机" sub="像发消息一样聊 · 短句" />
-        <QuickEntry to="/chat" icon="💬" title="今天聊聊" sub="说点什么吧" onClick={startBlank} />
+        <QuickEntry to="/phone" title="小手机" sub="像发消息一样聊 · 短句" />
+        <QuickEntry to="/chat" title="今天聊聊" sub="说点什么吧" onClick={startBlank} />
       </section>
 
       {/* 快捷入口（四个平铺） */}
       <section className="grid grid-cols-2 gap-3">
-        <QuickEntry to="/memories" icon="📔" title="我们的记忆" sub="摘要 · 核心 · 全部" />
-        <QuickEntry to="/reading" icon="📖" title="一起看书" sub="和 TA 共读一本书" />
-        <QuickEntry to="/drama" icon="🎭" title="戏剧" sub="多角色群聊 · 扮演" />
-        <QuickEntry to="/settings" icon="⚙️" title="设置" sub="同步 · 备份 · 隐私" />
+        <QuickEntry to="/memories" title="我们的记忆" sub="摘要 · 核心 · 全部" />
+        <QuickEntry to="/reading" title="一起看书" sub="和 TA 共读一本书" />
+        <QuickEntry to="/drama" title="戏剧" sub="多角色群聊 · 扮演" />
+        <QuickEntry to="/settings" title="设置" sub="同步 · 备份 · 隐私" />
       </section>
 
       <button

@@ -51,7 +51,7 @@ export default function CalendarPage() {
         </Link>
       </div>
       <div className="px-1">
-        <h2 className="headline text-2xl text-ink">生理期日历 🌸</h2>
+        <h2 className="headline text-2xl text-ink">生理期日历</h2>
         <p className="mt-1 text-xs text-muted">
           点你实际来例假的每一天来记录；再点一下取消（纯手动，不会自动替你标）
         </p>

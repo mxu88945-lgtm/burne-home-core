@@ -113,7 +113,7 @@ export default function MemoryLibrary() {
       <BackBar />
       <div className="flex items-end justify-between px-1">
         <div>
-          <h2 className="headline text-2xl text-ink">记忆库 📔</h2>
+          <h2 className="headline text-2xl text-ink">记忆库</h2>
           <p className="mt-1 text-xs text-muted">
             共 {summary.total} 条 · 长期 {summary.longCount} · 短期 {summary.shortCount}
           </p>

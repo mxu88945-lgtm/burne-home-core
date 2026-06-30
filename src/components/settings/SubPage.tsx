@@ -17,7 +17,9 @@ export default function SubPage({
       >
         ← 设置
       </Link>
-      <h2 className="headline text-2xl text-ink">{title}</h2>
+      <h2 className="headline text-2xl text-ink">
+        {title.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}]/gu, '').trim()}
+      </h2>
       <div className="space-y-3">{children}</div>
     </div>
   )

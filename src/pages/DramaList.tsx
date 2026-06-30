@@ -83,7 +83,7 @@ export default function DramaList() {
       </div>
       <div className="flex items-end justify-between gap-2 px-1">
         <div className="min-w-0">
-          <h2 className="headline text-2xl text-ink">戏剧 🎭</h2>
+          <h2 className="headline text-2xl text-ink">戏剧</h2>
           <p className="mt-1 text-xs text-muted">多角色群聊 · 角色扮演 · 每个剧场独立剧情</p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
@@ -94,7 +94,7 @@ export default function DramaList() {
             onClick={() => fileRef.current?.click()}
             className="glass rounded-full px-4 py-1.5 text-[13px] text-ink"
           >
-            📥 导入 TXT
+            导入 TXT
           </button>
         </div>
       </div>
@@ -114,9 +114,8 @@ export default function DramaList() {
 
       {scenes.length === 0 ? (
         <div className="glass rounded-3xl px-6 py-12 text-center">
-          <div className="text-3xl">🎭</div>
-          <p className="mt-3 text-sm text-muted">还没有剧场～建一个，加上角色就能群聊啦</p>
-          <p className="mt-1 text-[11px] text-muted">也可以「📥 导入 TXT」把旧的对话记录搬进来</p>
+          <p className="mt-1 text-sm text-muted">还没有剧场～建一个，加上角色就能群聊啦</p>
+          <p className="mt-1 text-[11px] text-muted">也可以「导入 TXT」把旧的对话记录搬进来</p>
           <button onClick={create} className="btn-primary mt-4 rounded-full px-5 py-2 text-sm">
             建第一个剧场
           </button>
@@ -129,7 +128,6 @@ export default function DramaList() {
               onClick={() => open(s.id)}
               className="glass flex items-center gap-3 rounded-2xl px-4 py-4 transition active:scale-[0.99]"
             >
-              <span className="text-2xl">🎭</span>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium text-ink">{s.title}</div>
                 <div className="mt-0.5 text-[11px] text-muted">

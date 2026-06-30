@@ -12,7 +12,7 @@ export default function ThemePage() {
         </Link>
       </div>
       <div className="px-1">
-        <h2 className="headline text-2xl text-ink">主题 🎨</h2>
+        <h2 className="headline text-2xl text-ink">主题</h2>
         <p className="mt-1 text-sm text-muted">毛玻璃透视 · 高级感雾系配色</p>
       </div>
 
@@ -65,9 +65,7 @@ export default function ThemePage() {
                   ))}
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                  <span className="text-sm font-medium text-ink">
-                    {t.emoji} {t.name}
-                  </span>
+                  <span className="text-sm font-medium text-ink">{t.name}</span>
                   {active && <span className="text-accent">✓</span>}
                 </div>
               </div>
