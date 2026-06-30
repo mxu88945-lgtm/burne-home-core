@@ -42,6 +42,8 @@ export default function DramaRoom() {
   const autoSummaryEvery = useDramaStore((s) => s.autoSummaryEvery)
   const setAutoSummary = useDramaStore((s) => s.setAutoSummary)
   const setAutoSummaryEvery = useDramaStore((s) => s.setAutoSummaryEvery)
+  const autoCharMemory = useDramaStore((s) => s.autoCharMemory)
+  const setAutoCharMemory = useDramaStore((s) => s.setAutoCharMemory)
 
   const activeChannel = useApiStore((s) => s.getActive())
   const channels = useApiStore((s) => s.channels)
@@ -74,12 +76,14 @@ export default function DramaRoom() {
   const [toast, setToast] = useState('') // 轻提示（复制成功等）
   const [transText, setTransText] = useState('') // 翻译结果（非空则弹层）
   const [transBusy, setTransBusy] = useState(false)
+  const [memBusyId, setMemBusyId] = useState('') // 正在生成私人记忆的角色 id
   const fileRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const mediaRecRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sinceSummaryRef = useRef(0) // 距上次摘要的 AI 回复数，攒够自动更新
+  const charMemTurnRef = useRef<Record<string, number>>({}) // 各角色距上次私人记忆更新的发言数
 
   const messages = scene?.messages ?? []
   useEffect(() => {
@@ -184,6 +188,7 @@ export default function DramaRoom() {
         `你在一个多人角色扮演群聊里，只扮演角色【${char.name}】。\n` +
         (world ? `【世界观 / 背景设定（所有角色共同遵守）】\n${world}\n\n` : '') +
         `【${char.name}的人设】\n${char.persona || '（未填，请贴合名字与剧情合理发挥）'}\n` +
+        ((char.memory || '').trim() ? `\n【你（${char.name}）自己记得 / 在意的（第一人称私人记忆）】\n${(char.memory || '').trim()}\n` : '') +
         (others ? `\n群里其他人：${others}。\n` : '') +
         (sc.summary.trim() ? `\n【到目前为止的剧情摘要】\n${sc.summary.trim()}\n` : '') +
         `\n规则：只输出【${char.name}】这一条的发言/动作，第一人称、贴合人设与当前剧情、自然推进剧情；` +
@@ -242,6 +247,14 @@ export default function DramaRoom() {
       if (autoSummary && sinceSummaryRef.current >= autoSummaryEvery) {
         sinceSummaryRef.current = 0
         void genSummary(true)
+      }
+      // 该角色私人记忆自动更新（默认关）：每攒够 N 条「自己的」发言，后台增量刷新
+      if (autoCharMemory) {
+        charMemTurnRef.current[char.id] = (charMemTurnRef.current[char.id] || 0) + 1
+        if (charMemTurnRef.current[char.id] >= autoSummaryEvery) {
+          charMemTurnRef.current[char.id] = 0
+          void genCharMemory(char, true)
+        }
       }
     } catch (e) {
       setErr(`${char.name} 没接上话：${(e as Error).message}`)
@@ -311,6 +324,64 @@ export default function DramaRoom() {
       if (!silent) setErr(`生成摘要失败：${(e as Error).message}`)
     } finally {
       setSummaryBusy(false)
+    }
+  }
+
+  /** 生成/更新某角色的「私人记忆」（第一人称视角；silent=自动增量，省 token） */
+  async function genCharMemory(char: DramaChar, silent = false) {
+    if (char.isMe) return // 「我」不需要 AI 私人记忆
+    if (memBusyId) return
+    if (!summaryChannel && !workerUrl) {
+      if (!silent) setErr('请先在「设置 → API / 模型」配置渠道')
+      return
+    }
+    const msgs = sc.messages
+    if (!msgs.length) {
+      if (!silent) setErr('还没有对话可以回顾')
+      return
+    }
+    if (!silent) { setErr(''); setMemBusyId(char.id) }
+    try {
+      const total = msgs.length
+      const at = Math.min(char.memoryAt ?? 0, total)
+      const old = (char.memory || '').trim()
+      const incremental = silent && !!old && at < total
+      const slice = incremental ? msgs.slice(at) : msgs
+      const transcript = slice
+        .map((m) => `${nameOf(m.who)}：${m.text}${m.image ? '［图片］' : ''}`)
+        .join('\n')
+      const sys =
+        `你在维护角色【${char.name}】的私人记忆。以 ${char.name} 的第一人称视角，` +
+        `记下 TA 自己知道 / 在意 / 想做的事：对其他人的看法与关系、自己的处境与目标、心结与情绪、做过的重要决定。` +
+        `只写 ${char.name} 立场上会记得的，别写 TA 不可能知道的事，别复述客观旁白。简洁，200 字内，只输出记忆正文。`
+      const ask = incremental
+        ? `这是 ${char.name} 已有的私人记忆：\n${old}\n\n以下是新发生的对话，请把 ${char.name} 新记住 / 新在意的合并进去，输出更新后的完整私人记忆：\n\n${transcript}`
+        : `根据下面的对话，整理出 ${char.name} 的私人记忆${old ? `（与已有合并：${old}）` : ''}：\n\n${transcript}`
+      let text = ''
+      if (summaryChannel) {
+        text = (
+          await chatComplete(summaryChannel, [{ role: 'user', content: ask }], sys, {
+            workerUrl,
+            syncKey: config.syncKey,
+            maxTokens: 700,
+          })
+        ).text.trim()
+      } else {
+        text = (
+          await sendChat({
+            workerUrl: workerUrl!,
+            syncKey: config.syncKey,
+            messages: [{ role: 'user', content: ask }],
+            system: sys,
+            maxTokens: 700,
+          })
+        ).trim()
+      }
+      if (text) updateChar(sc.id, char.id, { memory: cleanReply(text).trim(), memoryAt: total })
+    } catch (e) {
+      if (!silent) setErr(`生成 ${char.name} 记忆失败：${(e as Error).message}`)
+    } finally {
+      if (!silent) setMemBusyId('')
     }
   }
 
@@ -548,6 +619,16 @@ export default function DramaRoom() {
               {!c.isMe && (c.greeting || '').trim() && (
                 <button onClick={() => openWith(c)} className="px-1.5 text-[13px] text-accent hover:underline">▶开场</button>
               )}
+              {!c.isMe && (
+                <button
+                  onClick={() => genCharMemory(c)}
+                  disabled={!!memBusyId}
+                  title="让 TA 回顾、更新私人记忆"
+                  className="px-1.5 text-[13px] text-muted hover:text-accent disabled:opacity-50"
+                >
+                  {memBusyId === c.id ? '⏳' : '🧠'}
+                </button>
+              )}
               <button onClick={() => setEditing(c)} className="px-1.5 text-[13px] text-muted hover:text-accent">编辑</button>
               <button onClick={() => removeChar(sc.id, c.id)} className="px-1.5 text-[13px] text-muted hover:text-red-500">删</button>
             </div>
@@ -648,6 +729,23 @@ export default function DramaRoom() {
             </div>
             <p className="mt-1 text-[10px] leading-relaxed text-muted">
               自动更新走「增量」——只读上次之后的新对话来合并，省 token；摘要保留人物/关系/关键剧情/悬念，帮角色不忘、不跑偏。
+            </p>
+          </div>
+
+          {/* 各角色私人记忆 */}
+          <div className="border-t border-line/50 pt-2">
+            <label className="flex items-center gap-1.5 text-[12px] text-ink">
+              <input
+                type="checkbox"
+                checked={autoCharMemory}
+                onChange={(e) => setAutoCharMemory(e.target.checked)}
+                className="h-3.5 w-3.5 accent-accent"
+              />
+              各角色「私人记忆」自动更新
+            </label>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted">
+              每个 AI 角色以第一人称记着自己知道/在意的事，只在 TA 接话时注入，让角色更像自己、不串味。
+              开了会按上面的频率给「刚发言的角色」增量更新（走记忆模型，省 token）；不开就在左侧 ☰ 角色列表点 🧠 手动让 TA 回顾。
             </p>
           </div>
         </div>
@@ -985,8 +1083,10 @@ function CharEditor({
   const [color, setColor] = useState(base?.color ?? PRESET_COLORS[0])
   const [isMe, setIsMe] = useState(base?.isMe ?? false)
   const [apiChannelId, setApiChannelId] = useState<string | undefined>(base?.apiChannelId)
+  const [memory, setMemory] = useState(base?.memory ?? '')
   const [personaOpen, setPersonaOpen] = useState(!base?.persona) // 有内容默认收起
   const [greetingOpen, setGreetingOpen] = useState(!base?.greeting)
+  const [memoryOpen, setMemoryOpen] = useState(false)
   const [chanOpen, setChanOpen] = useState(false)
   const channels = useApiStore((s) => s.channels)
   const chanName = channels.find((c) => c.id === apiChannelId)?.name
@@ -995,7 +1095,7 @@ function CharEditor({
     'w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent'
 
   function save() {
-    const patch = { name, avatar, avatarImg, persona, greeting, color, isMe, apiChannelId }
+    const patch = { name, avatar, avatarImg, persona, greeting, color, isMe, apiChannelId, memory }
     if (isNew) onAdd(sceneId, patch)
     else onUpdate(sceneId, (target as DramaChar).id, patch)
     onClose()
@@ -1069,6 +1169,25 @@ function CharEditor({
             />
           )}
         </div>
+
+        {!isMe && (
+          <div>
+            <button onClick={() => setMemoryOpen((o) => !o)} className="mb-1 flex w-full items-center gap-1 text-left text-[12px] text-muted">
+              <span>{memoryOpen ? '▾' : '▸'}</span>
+              <span>TA 的私人记忆（第一人称 · 可手写/可让 TA 自己回顾）</span>
+              {!memoryOpen && memory.trim() && <span className="ml-1 truncate text-[11px] text-ink/60">{memory.trim().slice(0, 16)}…</span>}
+            </button>
+            {memoryOpen && (
+              <textarea
+                className={inputCls}
+                rows={4}
+                value={memory}
+                onChange={(e) => setMemory(e.target.value)}
+                placeholder="TA 自己知道/在意/想做的事（对别人的看法、心结、决定…）。也可以在角色列表点 🧠 让 TA 根据剧情自己回顾生成。"
+              />
+            )}
+          </div>
+        )}
 
         <div>
           <div className="mb-1 text-[12px] text-muted">气泡颜色</div>

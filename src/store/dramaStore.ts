@@ -26,6 +26,10 @@ export interface DramaChar {
   isMe?: boolean
   /** 独立 API 渠道 id（不填＝跟随当前激活渠道） */
   apiChannelId?: string
+  /** 私人记忆：以该角色第一人称记着自己知道/在意/想做的事（只在 TA 接话时注入） */
+  memory?: string
+  /** 已并入该角色私人记忆的消息条数（增量更新用） */
+  memoryAt?: number
 }
 
 export interface DramaMsg {
@@ -61,9 +65,11 @@ interface Persisted {
   autoSummary: boolean
   /** 每攒够几条 AI 回复自动更新一次摘要 */
   autoSummaryEvery: number
+  /** 自动更新各角色「私人记忆」（默认关，省 token） */
+  autoCharMemory: boolean
 }
 
-const DEFAULT: Persisted = { scenes: [], activeId: '', flat: false, autoSummary: true, autoSummaryEvery: 8 }
+const DEFAULT: Persisted = { scenes: [], activeId: '', flat: false, autoSummary: true, autoSummaryEvery: 8, autoCharMemory: false }
 const init = { ...DEFAULT, ...readJSON<Partial<Persisted>>(STORAGE_KEYS.drama, {}) }
 
 function uid(): string {
@@ -89,6 +95,7 @@ interface DramaState extends Persisted {
   setFlat: (flat: boolean) => void
   setAutoSummary: (on: boolean) => void
   setAutoSummaryEvery: (n: number) => void
+  setAutoCharMemory: (on: boolean) => void
   /** 从导入的对话整本建一个新剧场（角色 + 消息一次性建好） */
   importScene: (input: {
     title: string
@@ -105,6 +112,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
       flat: get().flat,
       autoSummary: get().autoSummary,
       autoSummaryEvery: get().autoSummaryEvery,
+      autoCharMemory: get().autoCharMemory,
     })
 
   const patchScene = (sceneId: string, fn: (s: DramaScene) => DramaScene) => {
@@ -119,6 +127,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
     flat: init.flat,
     autoSummary: init.autoSummary,
     autoSummaryEvery: init.autoSummaryEvery,
+    autoCharMemory: init.autoCharMemory,
 
     createScene: (title) => {
       const scene: DramaScene = {
@@ -201,6 +210,11 @@ export const useDramaStore = create<DramaState>((set, get) => {
 
     setAutoSummaryEvery: (n) => {
       set({ autoSummaryEvery: Math.max(2, Math.min(50, Math.round(n) || 8)) })
+      persist(get().scenes)
+    },
+
+    setAutoCharMemory: (on) => {
+      set({ autoCharMemory: on })
       persist(get().scenes)
     },
 
