@@ -88,7 +88,7 @@ export default function DramaRoom() {
 
   const messages = scene?.messages ?? []
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+    scrollToEnd() // 多次补滚到真底部，避免发完消息悬在半空
   }, [messages.length, busyChar])
 
   // 输入框自适应高度（随内容增高，最高 120px）
@@ -990,7 +990,7 @@ export default function DramaRoom() {
             rows={1}
             onChange={(e) => setDraft(e.target.value)}
             onFocus={scrollToEnd}
-            placeholder={meChar ? '说话…或 @角色 让 TA 回复' : '@角色 让 TA 回复（建议先建「我」卡）'}
+            placeholder="@角色 回复"
             className="max-h-[120px] min-h-[36px] min-w-0 flex-1 resize-none self-center bg-transparent py-1.5 text-sm leading-snug text-ink outline-none placeholder:text-muted"
           />
           {sttCfg.enabled && (
