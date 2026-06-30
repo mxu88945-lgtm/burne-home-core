@@ -24,6 +24,8 @@ export interface DramaChar {
   color: string
   /** 是否是「我」（女主，用户本人，由你发言） */
   isMe?: boolean
+  /** 独立 API 渠道 id（不填＝跟随当前激活渠道） */
+  apiChannelId?: string
 }
 
 export interface DramaMsg {
@@ -138,6 +140,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
           greeting: char.greeting || '',
           color,
           isMe: char.isMe ?? false,
+          apiChannelId: char.apiChannelId,
         }
         return { ...s, chars: [...s.chars, c] }
       }),

@@ -37,6 +37,7 @@ export default function DramaRoom() {
   const setFlat = useDramaStore((s) => s.setFlat)
 
   const activeChannel = useApiStore((s) => s.getActive())
+  const channels = useApiStore((s) => s.channels)
   const { config } = useSyncStore()
   const addUsage = useUsageStore((s) => s.add)
   const workerUrl = config.workerUrl?.trim()
@@ -52,6 +53,9 @@ export default function DramaRoom() {
   const [err, setErr] = useState('')
   const [leftOpen, setLeftOpen] = useState(false) // 左☰：角色/剧场
   const [rightOpen, setRightOpen] = useState(false) // 右⚙：世界观/剧情摘要
+  const [worldOpen, setWorldOpen] = useState(false) // 世界观框 折叠/展开
+  const [summaryOpen, setSummaryOpen] = useState(false) // 剧情摘要框 折叠/展开
+  const [plusOpen, setPlusOpen] = useState(false) // 输入栏 ＋ 菜单
   const [editing, setEditing] = useState<DramaChar | 'new' | null>(null)
   const [summaryBusy, setSummaryBusy] = useState(false)
   const [recording, setRecording] = useState(false)
@@ -120,7 +124,9 @@ export default function DramaRoom() {
   /** 点名某角色，让 TA 接话 */
   async function respond(char: DramaChar) {
     if (busyChar) return
-    if (!connected) {
+    // 该角色独立渠道（不填＝跟随当前激活渠道）
+    const ch = (char.apiChannelId && channels.find((c) => c.id === char.apiChannelId)) || activeChannel
+    if (!ch && !workerUrl) {
       setErr('还没配 API 哦～去「设置 → API / 模型」加一条渠道')
       return
     }
@@ -156,8 +162,8 @@ export default function DramaRoom() {
       const apiMsgs: ChatApiMessage[] = [{ role: 'user', content }]
 
       let reply = ''
-      if (activeChannel) {
-        const r = await chatComplete(activeChannel, apiMsgs, sys, {
+      if (ch) {
+        const r = await chatComplete(ch, apiMsgs, sys, {
           workerUrl,
           syncKey: config.syncKey,
           maxTokens: 800,
@@ -166,7 +172,7 @@ export default function DramaRoom() {
         if (r.usage)
           addUsage({
             at: new Date().toISOString(),
-            provider: activeChannel.provider,
+            provider: ch.provider,
             model: r.usage.model,
             promptTokens: r.usage.promptTokens,
             completionTokens: r.usage.completionTokens,
@@ -471,34 +477,44 @@ export default function DramaRoom() {
             </div>
           </div>
           <div>
-            <div className="label mb-1">世界观 · 背景（所有角色共用）</div>
-            <textarea
-              value={sc.world || ''}
-              onChange={(e) => setWorld(sc.id, e.target.value)}
-              rows={3}
-              placeholder="整体世界观、背景、人物关系…（注入给本剧场所有角色，让大家认知一致）"
-              className="w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] text-ink outline-none focus:border-accent"
-            />
+            <button
+              onClick={() => setWorldOpen((o) => !o)}
+              className="mb-1 flex w-full items-center gap-1 text-left"
+            >
+              <span className="text-[11px] text-muted">{worldOpen ? '▾' : '▸'}</span>
+              <span className="label">世界观 · 背景（所有角色共用）</span>
+              {!worldOpen && (sc.world || '').trim() && <span className="ml-1 truncate text-[10px] text-muted">· 已填</span>}
+            </button>
+            {worldOpen && (
+              <textarea
+                value={sc.world || ''}
+                onChange={(e) => setWorld(sc.id, e.target.value)}
+                rows={5}
+                placeholder="整体世界观、背景、人物关系…（注入给本剧场所有角色，让大家认知一致）"
+                className="w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] text-ink outline-none focus:border-accent"
+              />
+            )}
           </div>
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <span className="label">剧情摘要（独立记忆）</span>
-              <div className="flex items-center gap-3 text-[12px]">
-                <button onClick={() => genSummary()} disabled={summaryBusy} className="text-accent disabled:opacity-50">
-                  {summaryBusy ? '处理中…' : '✨ 更新'}
-                </button>
-                <button onClick={compress} disabled={summaryBusy || !!busyChar} className="text-muted hover:text-accent disabled:opacity-50">
-                  🗜 压缩
-                </button>
-              </div>
+              <button onClick={() => setSummaryOpen((o) => !o)} className="flex min-w-0 items-center gap-1 text-left">
+                <span className="text-[11px] text-muted">{summaryOpen ? '▾' : '▸'}</span>
+                <span className="label">剧情摘要（独立记忆）</span>
+                {!summaryOpen && sc.summary.trim() && <span className="ml-1 truncate text-[10px] text-muted">· 已有</span>}
+              </button>
+              <button onClick={() => genSummary()} disabled={summaryBusy} className="shrink-0 text-[12px] text-accent disabled:opacity-50">
+                {summaryBusy ? '处理中…' : '✨ 更新'}
+              </button>
             </div>
-            <textarea
-              value={sc.summary}
-              onChange={(e) => setSummary(sc.id, e.target.value)}
-              rows={3}
-              placeholder="点「✨ 更新」让 AI 整理，或手写。会注入给角色，防止跑久了忘剧情。"
-              className="w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] text-ink outline-none focus:border-accent"
-            />
+            {summaryOpen && (
+              <textarea
+                value={sc.summary}
+                onChange={(e) => setSummary(sc.id, e.target.value)}
+                rows={6}
+                placeholder="点「✨ 更新」让 AI 整理，或手写。会注入给角色，防止跑久了忘剧情。"
+                className="w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] text-ink outline-none focus:border-accent"
+              />
+            )}
           </div>
         </div>
       )}
@@ -556,6 +572,13 @@ export default function DramaRoom() {
               return (
                 <div key={m.id} className="border-b border-line/40 pb-3" {...longPress}>
                   <div className="mb-1 flex items-center gap-1.5">
+                    <Avatar
+                      img={c?.avatarImg}
+                      emoji={c?.avatar || '🙂'}
+                      className="h-6 w-6 shrink-0 rounded-full text-[13px]"
+                      textCls="text-[13px]"
+                      style={{ background: (c?.color || '#999') + '33' }}
+                    />
                     <span className="text-[12px] font-medium" style={{ color: c?.color || 'var(--accent)' }}>
                       {nameOf(m.who)}
                     </span>
@@ -654,13 +677,35 @@ export default function DramaRoom() {
           }}
         />
         <div className="glass-strong flex items-end gap-1 rounded-3xl py-1 pl-2 pr-1.5">
-          <button
-            onClick={() => fileRef.current?.click()}
-            aria-label="发图片"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl text-muted hover:bg-white/40 hover:text-ink"
-          >
-            ＋
-          </button>
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setPlusOpen((o) => !o)}
+              aria-label="更多"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-xl text-muted hover:bg-white/40 hover:text-ink"
+            >
+              ＋
+            </button>
+            {plusOpen && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setPlusOpen(false)} />
+                <div className="glass-strong absolute bottom-full left-0 z-30 mb-2 w-40 overflow-hidden rounded-2xl p-1.5 shadow-lg">
+                  <button
+                    onClick={() => { setPlusOpen(false); fileRef.current?.click() }}
+                    className="block w-full rounded-xl px-3 py-2 text-left text-[13px] text-ink hover:bg-white/40"
+                  >
+                    🖼 发图片
+                  </button>
+                  <button
+                    onClick={() => { setPlusOpen(false); void compress() }}
+                    disabled={summaryBusy || !!busyChar}
+                    className="block w-full rounded-xl px-3 py-2 text-left text-[13px] text-ink hover:bg-white/40 disabled:opacity-50"
+                  >
+                    🗜 压缩对话
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <textarea
             value={draft}
             rows={1}
@@ -754,18 +799,24 @@ function CharEditor({
   const isNew = target === 'new'
   const base = isNew ? null : (target as DramaChar)
   const [name, setName] = useState(base?.name ?? '')
-  const [avatar, setAvatar] = useState(base?.avatar ?? '🎭')
+  const [avatar] = useState(base?.avatar ?? '🎭')
   const [avatarImg, setAvatarImg] = useState<string | undefined>(base?.avatarImg)
   const [persona, setPersona] = useState(base?.persona ?? '')
   const [greeting, setGreeting] = useState(base?.greeting ?? '')
   const [color, setColor] = useState(base?.color ?? PRESET_COLORS[0])
   const [isMe, setIsMe] = useState(base?.isMe ?? false)
+  const [apiChannelId, setApiChannelId] = useState<string | undefined>(base?.apiChannelId)
+  const [personaOpen, setPersonaOpen] = useState(!base?.persona) // 有内容默认收起
+  const [greetingOpen, setGreetingOpen] = useState(!base?.greeting)
+  const [chanOpen, setChanOpen] = useState(false)
+  const channels = useApiStore((s) => s.channels)
+  const chanName = channels.find((c) => c.id === apiChannelId)?.name
   const imgRef = useRef<HTMLInputElement>(null)
   const inputCls =
     'w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent'
 
   function save() {
-    const patch = { name, avatar, avatarImg, persona, greeting, color, isMe }
+    const patch = { name, avatar, avatarImg, persona, greeting, color, isMe, apiChannelId }
     if (isNew) onAdd(sceneId, patch)
     else onUpdate(sceneId, (target as DramaChar).id, patch)
     onClose()
@@ -782,13 +833,6 @@ function CharEditor({
         <div className="flex items-center gap-3">
           <Avatar img={avatarImg} emoji={avatar} className="h-14 w-14 rounded-full text-2xl" textCls="text-2xl" style={{ background: color + '33' }} />
           <div className="flex flex-wrap items-center gap-2">
-            <input
-              className={inputCls + ' w-20 text-center'}
-              maxLength={4}
-              value={avatar}
-              onChange={(e) => setAvatar(e.target.value)}
-              placeholder="emoji"
-            />
             <input
               ref={imgRef}
               type="file"
@@ -814,25 +858,37 @@ function CharEditor({
         <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="角色名字，如 伯恩 / 旁白NPC" />
 
         <div>
-          <div className="mb-1 text-[12px] text-muted">角色设定 / 人设</div>
-          <textarea
-            className={inputCls}
-            rows={5}
-            value={persona}
-            onChange={(e) => setPersona(e.target.value)}
-            placeholder="身份、性别、年龄、性格、说话风格、背景关系…（NPC 卡可写：负责扮演各路 NPC 与旁白）"
-          />
+          <button onClick={() => setPersonaOpen((o) => !o)} className="mb-1 flex w-full items-center gap-1 text-left text-[12px] text-muted">
+            <span>{personaOpen ? '▾' : '▸'}</span>
+            <span>角色设定 / 人设</span>
+            {!personaOpen && persona.trim() && <span className="ml-1 truncate text-[11px] text-ink/60">{persona.trim().slice(0, 16)}…</span>}
+          </button>
+          {personaOpen && (
+            <textarea
+              className={inputCls}
+              rows={6}
+              value={persona}
+              onChange={(e) => setPersona(e.target.value)}
+              placeholder="身份、性别、年龄、性格、说话风格、背景关系…（NPC 卡可写：负责扮演各路 NPC 与旁白）"
+            />
+          )}
         </div>
 
         <div>
-          <div className="mb-1 text-[12px] text-muted">开场白（出场第一条 · 可留空）</div>
-          <textarea
-            className={inputCls}
-            rows={3}
-            value={greeting}
-            onChange={(e) => setGreeting(e.target.value)}
-            placeholder="角色出场说的第一句/一段，用来开启剧情（如男主推门而入）。建好后在角色列表点「▶开场」发出。"
-          />
+          <button onClick={() => setGreetingOpen((o) => !o)} className="mb-1 flex w-full items-center gap-1 text-left text-[12px] text-muted">
+            <span>{greetingOpen ? '▾' : '▸'}</span>
+            <span>开场白（出场第一条 · 可留空）</span>
+            {!greetingOpen && greeting.trim() && <span className="ml-1 truncate text-[11px] text-ink/60">{greeting.trim().slice(0, 16)}…</span>}
+          </button>
+          {greetingOpen && (
+            <textarea
+              className={inputCls}
+              rows={3}
+              value={greeting}
+              onChange={(e) => setGreeting(e.target.value)}
+              placeholder="角色出场说的第一句/一段，用来开启剧情（如男主推门而入）。建好后在角色列表点「▶开场」发出。"
+            />
+          )}
         </div>
 
         <div>
@@ -846,6 +902,47 @@ function CharEditor({
                 style={{ background: c }}
               />
             ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-1 text-[12px] text-muted">独立 API（这个角色单独用哪个模型）</div>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setChanOpen((o) => !o)}
+              className={inputCls + ' flex items-center justify-between text-left'}
+            >
+              <span className="truncate">{chanName || '跟随当前激活渠道'}</span>
+              <span className="shrink-0 text-muted">▾</span>
+            </button>
+            {chanOpen && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setChanOpen(false)} />
+                <div className="glass-strong absolute left-0 top-full z-30 mt-1 w-full max-h-52 overflow-y-auto rounded-2xl p-1.5 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => { setApiChannelId(undefined); setChanOpen(false) }}
+                    className="block w-full rounded-xl px-3 py-1.5 text-left text-[12px] text-ink hover:bg-white/40"
+                  >
+                    跟随当前激活渠道{!apiChannelId ? ' ✓' : ''}
+                  </button>
+                  {channels.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => { setApiChannelId(c.id); setChanOpen(false) }}
+                      className="block w-full truncate rounded-xl px-3 py-1.5 text-left text-[12px] text-ink hover:bg-white/40"
+                    >
+                      {c.name || c.model}{apiChannelId === c.id ? ' ✓' : ''}
+                    </button>
+                  ))}
+                  {channels.length === 0 && (
+                    <div className="px-3 py-1.5 text-[11px] text-muted">还没渠道，去「设置 → API / 模型」加</div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
