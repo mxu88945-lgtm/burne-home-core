@@ -25,6 +25,7 @@ export default function ApiManager() {
   const [busy, setBusy] = useState<string>('')
   const [addModels, setAddModels] = useState<string[]>([])
   const [addBusy, setAddBusy] = useState(false)
+  const [manual, setManual] = useState<Record<string, string>>({}) // 每条渠道的手填模型名
   // 整块折叠：渠道多时把整个列表收成一行，点标题收/展全部
   const [listOpen, setListOpen] = useState(false)
   const activeCh = channels.find((c) => c.id === activeId)
@@ -170,6 +171,29 @@ export default function ApiManager() {
                           className="glass rounded-lg px-3 py-1.5 text-ink disabled:opacity-60"
                         >
                           {busy === c.id ? '拉取中…' : '获取模型'}
+                        </button>
+                      </div>
+
+                      {/* 手填模型（拉不到模型的渠道也能直接改，不用删了重建） */}
+                      <div className="flex items-center gap-2">
+                        <input
+                          className={inputCls + ' flex-1'}
+                          placeholder="或手填模型名，如 gpt-4o-mini"
+                          value={manual[c.id] ?? ''}
+                          onChange={(e) => setManual((m) => ({ ...m, [c.id]: e.target.value }))}
+                        />
+                        <button
+                          onClick={() => {
+                            const v = (manual[c.id] ?? '').trim()
+                            if (!v) return
+                            updateChannel(c.id, { model: v })
+                            setManual((m) => ({ ...m, [c.id]: '' }))
+                            setMsg(`已确认模型：${v}`)
+                          }}
+                          disabled={!(manual[c.id] ?? '').trim()}
+                          className="btn-primary shrink-0 rounded-xl px-4 py-2 text-xs disabled:opacity-50"
+                        >
+                          确认
                         </button>
                       </div>
 
