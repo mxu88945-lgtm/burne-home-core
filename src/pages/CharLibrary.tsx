@@ -28,6 +28,7 @@ export default function CharLibrary() {
   const createScene = useDramaStore((s) => s.createScene)
   const addChar = useDramaStore((s) => s.addChar)
   const addLore = useDramaStore((s) => s.addLore)
+  const setSceneAuto = useDramaStore((s) => s.setSceneAuto)
 
   const fileRef = useRef<HTMLInputElement>(null)
   const [editing, setEditing] = useState<LibChar | 'new' | null>(null)
@@ -53,6 +54,7 @@ export default function CharLibrary() {
   /** 用这个角色开一个新的 1v1 对话（自动带「我」+ 这个角色 + 世界书） */
   function startChat(lc: LibChar) {
     const scene = createScene(lc.name)
+    setSceneAuto(scene.id, true) // 1v1：发完自动回复
     addChar(scene.id, {
       name: profile.nameA || '我',
       avatar: profile.avatarA || '🙂',

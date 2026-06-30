@@ -43,6 +43,7 @@ export default function DramaRoom() {
   const setMessages = useDramaStore((s) => s.setMessages)
   const setSummary = useDramaStore((s) => s.setSummary)
   const setSummaryAt = useDramaStore((s) => s.setSummaryAt)
+  const setSceneAuto = useDramaStore((s) => s.setSceneAuto)
   const setWorld = useDramaStore((s) => s.setWorld)
   const flat = useDramaStore((s) => s.flat)
   const setFlat = useDramaStore((s) => s.setFlat)
@@ -155,6 +156,17 @@ export default function DramaRoom() {
   const aiChars = sc.chars.filter((c) => !c.isMe)
   const charById = (id: string) => sc.chars.find((c) => c.id === id)
   const nameOf = (id: string) => charById(id)?.name ?? '我'
+  // 发完自动回复：1v1 默认开；老对话/群聊可在 ⚙ 手动开
+  const effectiveAuto = sc.auto ?? (aiChars.length === 1)
+  /** 自动回复的对象：最近说话的 AI 角色，没有就第一个 AI */
+  function autoTarget(): DramaChar | undefined {
+    if (!aiChars.length) return undefined
+    for (let i = sc.messages.length - 1; i >= 0; i--) {
+      const c = charById(sc.messages[i].who)
+      if (c && !c.isMe) return c
+    }
+    return aiChars[0]
+  }
   // 摘要/压缩用的渠道：开了「记忆模型」就用它(便宜)，否则回退主激活渠道
   const useMemModel = memModelCfg.enabled && memModelCfg.apiKey.trim() !== '' && memModelCfg.model.trim() !== ''
   const summaryChannel: ApiChannel | undefined = useMemModel
@@ -196,8 +208,11 @@ export default function DramaRoom() {
     }
     const had = !!(t || pendingImage)
     sendMine()
-    // 1v1（只有一个 AI 角色）：发完自动让 TA 回
-    if (had && aiChars.length === 1 && !busyChar) void respond(aiChars[0])
+    // 自动回复（1v1 默认开 / ⚙ 可手动开）：让最近说话的 AI 角色回
+    if (had && effectiveAuto && !busyChar) {
+      const tgt = autoTarget()
+      if (tgt) void respond(tgt)
+    }
   }
 
   /** 点 @ 弹层里的角色：清掉输入框里的 @词，直接让 TA 接话 */
@@ -749,6 +764,18 @@ export default function DramaRoom() {
               <span className="text-sm text-ink">背景图</span>
               <span className="text-[12px] text-muted">去设置换图 ›</span>
             </button>
+            <div className="mx-2.5 border-t border-line/40" />
+            <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
+              <span className="text-sm text-ink">发完自动回复</span>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input type="checkbox" checked={effectiveAuto} onChange={(e) => setSceneAuto(sc.id, e.target.checked)} className="peer sr-only" />
+                <span className="h-5 w-9 rounded-full bg-black/15 transition peer-checked:bg-accent" />
+                <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
+              </label>
+            </div>
+            <p className="px-2.5 pb-1 text-[10px] leading-relaxed text-muted">
+              开＝你发完，最近说话的 AI 角色自动回（1v1 默认开）；关＝群聊用「@角色」点名。
+            </p>
           </div>
 
           {/* 剧情 · 记忆 */}
@@ -1075,7 +1102,7 @@ export default function DramaRoom() {
             rows={1}
             onChange={(e) => setDraft(e.target.value)}
             onFocus={scrollToEnd}
-            placeholder={aiChars.length === 1 ? `和 ${aiChars[0].name} 说点什么…` : '@角色 回复'}
+            placeholder={effectiveAuto ? (aiChars.length === 1 ? `和 ${aiChars[0].name} 说点什么…` : '说点什么…（自动回复）') : '@角色 回复'}
             className="max-h-[120px] min-h-[36px] min-w-0 flex-1 resize-none self-center bg-transparent py-1.5 text-sm leading-snug text-ink outline-none placeholder:text-muted"
           />
           {sttCfg.enabled && (

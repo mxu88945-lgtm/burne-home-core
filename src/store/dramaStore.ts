@@ -72,6 +72,8 @@ export interface DramaScene {
   summaryAt?: number
   /** 世界书：常驻条目always注入、关键词条目命中才注入（省 token） */
   lore?: LoreEntry[]
+  /** 发完消息自动回复（1v1 默认开；不填时按是否只有一个 AI 角色判断） */
+  auto?: boolean
   createdAt: string
 }
 
@@ -110,6 +112,7 @@ interface DramaState extends Persisted {
   addMessage: (sceneId: string, msg: DramaMsg) => void
   setSummary: (sceneId: string, summary: string) => void
   setSummaryAt: (sceneId: string, n: number) => void
+  setSceneAuto: (sceneId: string, on: boolean) => void
   setWorld: (sceneId: string, world: string) => void
   setFlat: (flat: boolean) => void
   setAutoSummary: (on: boolean) => void
@@ -219,6 +222,8 @@ export const useDramaStore = create<DramaState>((set, get) => {
     setSummary: (sceneId, summary) => patchScene(sceneId, (s) => ({ ...s, summary })),
 
     setSummaryAt: (sceneId, n) => patchScene(sceneId, (s) => ({ ...s, summaryAt: n })),
+
+    setSceneAuto: (sceneId, on) => patchScene(sceneId, (s) => ({ ...s, auto: on })),
 
     setWorld: (sceneId, world) => patchScene(sceneId, (s) => ({ ...s, world })),
 
