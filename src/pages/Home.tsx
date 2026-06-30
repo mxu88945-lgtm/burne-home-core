@@ -29,7 +29,7 @@ function QuickEntry({
     <Link
       to={to}
       onClick={onClick}
-      className="glass flex flex-col gap-1 rounded-2xl px-4 py-4 transition active:scale-[0.98]"
+      className="glass flex flex-col items-center gap-1 rounded-2xl px-4 py-4 text-center transition active:scale-[0.98]"
     >
       <span className="text-xl">{icon}</span>
       <span className="text-sm font-medium text-ink">{title}</span>
@@ -80,9 +80,9 @@ export default function Home() {
   }
 
   return (
-    <div className="home-glassy space-y-5">
+    <div className="home-glassy space-y-3">
       {/* 情侣主视觉 */}
-      <section className="glass-strong rounded-3xl px-6 py-7 text-center">
+      <section className="glass-strong rounded-3xl px-6 py-6 text-center">
         <div className="flex items-center justify-center gap-5">
           <Avatar
             img={profile.avatarAImg}

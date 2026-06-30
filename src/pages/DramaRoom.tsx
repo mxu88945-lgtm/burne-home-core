@@ -64,6 +64,9 @@ export default function DramaRoom() {
   const [menuMsgId, setMenuMsgId] = useState('') // 长按选中的消息
   const [editMsgId, setEditMsgId] = useState('') // 正在改写的消息
   const [editText, setEditText] = useState('')
+  const [toast, setToast] = useState('') // 轻提示（复制成功等）
+  const [transText, setTransText] = useState('') // 翻译结果（非空则弹层）
+  const [transBusy, setTransBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const mediaRecRef = useRef<MediaRecorder | null>(null)
@@ -409,6 +412,58 @@ export default function DramaRoom() {
   function delMsg(id: string) {
     setMessages(sc.id, sc.messages.filter((m) => m.id !== id))
     setMenuMsgId('')
+  }
+  function flashToast(t: string) {
+    setToast(t)
+    setTimeout(() => setToast(''), 1500)
+  }
+  function copyMsg(id: string) {
+    const m = sc.messages.find((x) => x.id === id)
+    setMenuMsgId('')
+    if (!m) return
+    navigator.clipboard
+      ?.writeText(m.text)
+      .then(() => flashToast('已复制'))
+      .catch(() => setErr('复制失败，可能浏览器不允许'))
+  }
+  /** 翻译这条：非中文→中文，本身是中文→英文；结果弹层显示 */
+  async function translateMsg(id: string) {
+    const m = sc.messages.find((x) => x.id === id)
+    setMenuMsgId('')
+    if (!m || !m.text.trim()) return
+    if (!activeChannel && !workerUrl) {
+      setErr('翻译需要先在「设置 → API / 模型」配置渠道')
+      return
+    }
+    setTransText('')
+    setTransBusy(true)
+    try {
+      const sys = '你是翻译助手，只输出译文本身，不要解释、不要加引号。'
+      const ask = `把下面文本翻译成中文；如果它本身就是中文，则翻译成自然流畅的英文：\n\n${m.text}`
+      let out = ''
+      if (activeChannel) {
+        out = (
+          await chatComplete(activeChannel, [{ role: 'user', content: ask }], sys, {
+            workerUrl,
+            syncKey: config.syncKey,
+            maxTokens: 2048,
+          })
+        ).text
+      } else {
+        out = await sendChat({
+          workerUrl: workerUrl!,
+          syncKey: config.syncKey,
+          messages: [{ role: 'user', content: ask }],
+          system: sys,
+          maxTokens: 2048,
+        })
+      }
+      setTransText(cleanReply(out).trim() || '（没翻译出内容）')
+    } catch (e) {
+      setErr(`翻译失败：${(e as Error).message}`)
+    } finally {
+      setTransBusy(false)
+    }
   }
   /** 回溯：删掉这条及它之后的所有消息（回到这条之前重来） */
   function rollback(id: string) {
@@ -787,6 +842,12 @@ export default function DramaRoom() {
             <button onClick={() => startEdit(menuMsgId)} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40">
               ✏️ 改写
             </button>
+            <button onClick={() => copyMsg(menuMsgId)} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40">
+              📋 复制
+            </button>
+            <button onClick={() => translateMsg(menuMsgId)} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40">
+              🌐 翻译
+            </button>
             <button onClick={() => rollback(menuMsgId)} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40">
               ↩️ 回溯（删这条及之后，回到此处重来）
             </button>
@@ -810,6 +871,38 @@ export default function DramaRoom() {
           onAdd={addChar}
           onUpdate={updateChar}
         />
+      )}
+
+      {/* 轻提示（复制成功等） */}
+      {toast && (
+        <div className="pointer-events-none fixed inset-x-0 top-20 z-[60] flex justify-center">
+          <div className="glass-strong rounded-full px-3.5 py-1.5 text-[12px] text-ink shadow">{toast}</div>
+        </div>
+      )}
+
+      {/* 翻译结果弹层 */}
+      {(transBusy || transText) && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4" onClick={() => setTransText('')}>
+          <div className="glass-strong max-h-[70vh] w-full max-w-sm space-y-3 overflow-y-auto rounded-2xl p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="label">🌐 翻译</div>
+            {transBusy ? (
+              <div className="text-sm text-muted">翻译中…</div>
+            ) : (
+              <>
+                <div className="whitespace-pre-wrap text-sm leading-relaxed text-ink [overflow-wrap:anywhere]">{transText}</div>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => navigator.clipboard?.writeText(transText).then(() => flashToast('已复制')).catch(() => {})}
+                    className="glass rounded-full px-3 py-1.5 text-[12px] text-ink"
+                  >
+                    复制译文
+                  </button>
+                  <button onClick={() => setTransText('')} className="btn-primary rounded-full px-4 py-1.5 text-[12px]">关闭</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )
