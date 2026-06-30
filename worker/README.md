@@ -68,6 +68,7 @@ key 始终用 `wrangler secret put` 设置，**不写进 wrangler.toml、不进�
 | `GET  /spaces/:spaceId/memories` | 拉取该空间全部记忆 |
 | `POST /spaces/:spaceId/sync` | 增量合并（last-write-wins，含墓碑）并返回权威集合 |
 | `POST /chat` | 聊天中转（body 可带 `provider` / `model` 覆盖） |
+| `POST /models` | 拉取模型列表中转（body 带 `provider` / `baseUrl` / `apiKey`，解决 https 页面直连 http 上游的混合内容拦截） |
 
 鉴权：设了 `SYNC_KEY` 时，同步与聊天端点都需请求头 `X-Sync-Key` 匹配。
 

@@ -56,3 +56,29 @@ export async function sendChat(opts: {
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
   return data.reply ?? ''
 }
+
+/** 经 Worker 中转拉取模型列表（解决 https 页面直连 http 上游被混合内容拦截） */
+export async function fetchModelsViaWorker(opts: {
+  workerUrl: string
+  syncKey?: string
+  provider?: string
+  baseUrl?: string
+  apiKey?: string
+}): Promise<string[]> {
+  const base = opts.workerUrl.replace(/\/+$/, '')
+  const res = await fetch(`${base}/models`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(opts.syncKey ? { 'X-Sync-Key': opts.syncKey } : {}),
+    },
+    body: JSON.stringify({
+      ...(opts.provider ? { provider: opts.provider } : {}),
+      ...(opts.baseUrl ? { baseUrl: opts.baseUrl } : {}),
+      ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
+    }),
+  })
+  const data = (await res.json().catch(() => ({}))) as { models?: string[]; error?: string }
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
+  return data.models ?? []
+}

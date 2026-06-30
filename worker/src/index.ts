@@ -89,6 +89,7 @@ export default {
     try {
       if (path === '/test' && req.method === 'POST') return json({ ok: true })
       if (path === '/chat' && req.method === 'POST') return await handleChat(req, env)
+      if (path === '/models' && req.method === 'POST') return await handleModels(req, env)
       if (path === '/tts' && req.method === 'POST') return await handleTts(req, env)
       if (path === '/stt' && req.method === 'POST') return await handleStt(req, env)
       if (path === '/clone' && req.method === 'POST') return await handleClone(req, env)
@@ -191,6 +192,42 @@ async function callAnthropic(
   const data = (await res.json()) as { content?: { text?: string }[] }
   const reply = Array.isArray(data.content) ? data.content.map((c) => c.text || '').join('') : ''
   return json({ reply, provider: 'anthropic', model })
+}
+
+/** 拉取模型列表中转（解决 https 页面无法直连 http 上游的混合内容拦截） */
+async function handleModels(req: Request, env: Env): Promise<Response> {
+  let body: { provider?: string; baseUrl?: string; apiKey?: string }
+  try {
+    body = (await req.json()) as typeof body
+  } catch {
+    return json({ error: '请求体不是合法 JSON' }, { status: 400 })
+  }
+  const provider = body.provider || env.DEFAULT_PROVIDER || 'openai'
+  try {
+    if (provider === 'anthropic') {
+      const key = body.apiKey || env.ANTHROPIC_API_KEY
+      if (!key) return json({ error: '未提供 API key' }, { status: 400 })
+      const base = (body.baseUrl || env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com').replace(/\/+$/, '')
+      const res = await fetch(`${base}/v1/models`, {
+        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      })
+      if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`)
+      const data = (await res.json()) as { data?: { id: string }[] }
+      return json({ models: (data.data || []).map((m) => m.id).filter(Boolean) })
+    }
+    // openai 兼容
+    const key = body.apiKey || env.OPENAI_API_KEY
+    if (!key) return json({ error: '未提供 API key' }, { status: 400 })
+    const base = (body.baseUrl || env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '')
+    const res = await fetch(`${base}/models`, {
+      headers: { authorization: `Bearer ${key}` },
+    })
+    if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`)
+    const data = (await res.json()) as { data?: { id: string }[] }
+    return json({ models: (data.data || []).map((m) => m.id).filter(Boolean) })
+  } catch (e) {
+    return json({ error: (e as Error).message }, { status: 502 })
+  }
 }
 
 /** OpenAI 兼容 Chat Completions（base URL 可指向你自己的网关） */

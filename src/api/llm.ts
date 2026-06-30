@@ -6,7 +6,7 @@
  */
 
 import type { ApiChannel } from '@/store/apiStore'
-import { sendChat, type ChatApiMessage } from '@/api/chat'
+import { sendChat, fetchModelsViaWorker, type ChatApiMessage } from '@/api/chat'
 
 function trim(u: string): string {
   return u.replace(/\/+$/, '')
@@ -29,8 +29,21 @@ function toAnthropic(messages: ChatApiMessage[]) {
   })
 }
 
-/** 拉取模型列表 */
-export async function listModels(ch: ApiChannel): Promise<string[]> {
+/** 拉取模型列表。勾了「经 Worker 中转」就让 Worker 去拉（绕开 https→http 混合内容拦截）。 */
+export async function listModels(
+  ch: ApiChannel,
+  opts?: { workerUrl?: string; syncKey?: string },
+): Promise<string[]> {
+  if (ch.viaWorker) {
+    if (!opts?.workerUrl?.trim()) throw new Error('勾了「经 Worker 中转」但还没配 Worker 地址（设置→账号同步）')
+    return fetchModelsViaWorker({
+      workerUrl: opts.workerUrl,
+      syncKey: opts.syncKey,
+      provider: ch.provider,
+      baseUrl: ch.baseUrl,
+      apiKey: ch.apiKey,
+    })
+  }
   if (ch.provider === 'anthropic') {
     const res = await fetch(`${trim(ch.baseUrl)}/v1/models`, {
       headers: {

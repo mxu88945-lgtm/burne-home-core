@@ -11,6 +11,7 @@ export default function ApiManager() {
   const { channels, activeId, addChannel, updateChannel, removeChannel, setActive } =
     useApiStore()
   const workerUrl = useSyncStore((s) => s.config.workerUrl)
+  const syncKey = useSyncStore((s) => s.config.syncKey)
 
   const [name, setName] = useState('')
   const [provider, setProvider] = useState<ApiProvider>('openai')
@@ -65,14 +66,18 @@ export default function ApiManager() {
     setAddBusy(true)
     setMsg('')
     try {
-      const list = await listModels({
-        id: '_new',
-        name: name || provider,
-        provider,
-        baseUrl: baseUrl.trim(),
-        apiKey: apiKey.trim(),
-        model: model.trim(),
-      })
+      const list = await listModels(
+        {
+          id: '_new',
+          name: name || provider,
+          provider,
+          baseUrl: baseUrl.trim(),
+          apiKey: apiKey.trim(),
+          model: model.trim(),
+          viaWorker,
+        },
+        { workerUrl, syncKey },
+      )
       setAddModels(list)
       if (!model && list[0]) setModel(list[0])
       setMsg(`拉到 ${list.length} 个模型，选一个`)
@@ -89,7 +94,7 @@ export default function ApiManager() {
     setBusy(id)
     setMsg('')
     try {
-      const list = await listModels(ch)
+      const list = await listModels(ch, { workerUrl, syncKey })
       setModels((m) => ({ ...m, [id]: list }))
       setPending((p) => ({ ...p, [id]: ch.model || list[0] || '' }))
       setMsg(`拉到 ${list.length} 个模型，选一个点「确认模型」`)
