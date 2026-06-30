@@ -674,117 +674,112 @@ export default function DramaRoom() {
         </div>
       )}
 
-      {/* 右侧面板：显示样式 + 世界观 + 剧情摘要（更新/压缩） */}
+      {/* 右侧面板：Tavo 风格分板块行式 —— 外观 / 剧情·记忆 */}
       {rightOpen && (
-        <div className="glass-strong mb-2 space-y-3 rounded-2xl p-3">
-          <div className="flex items-center justify-between">
-            <span className="label">显示样式</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFlat(false)}
-                className={`rounded-full px-3 py-1 text-[12px] ${!flat ? 'btn-primary' : 'glass text-muted'}`}
-              >
-                气泡式
-              </button>
-              <button
-                onClick={() => setFlat(true)}
-                className={`rounded-full px-3 py-1 text-[12px] ${flat ? 'btn-primary' : 'glass text-muted'}`}
-              >
-                平铺式
-              </button>
+        <div className="mb-2 space-y-2.5">
+          {/* 外观 */}
+          <div className="glass-strong rounded-2xl p-1.5">
+            <div className="label px-2.5 pb-0.5 pt-1.5">外观</div>
+            <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
+              <span className="text-sm text-ink">显示样式</span>
+              <div className="flex gap-1.5">
+                <button onClick={() => setFlat(false)} className={`rounded-full px-3 py-1 text-[12px] ${!flat ? 'btn-primary' : 'glass text-muted'}`}>气泡</button>
+                <button onClick={() => setFlat(true)} className={`rounded-full px-3 py-1 text-[12px] ${flat ? 'btn-primary' : 'glass text-muted'}`}>平铺</button>
+              </div>
             </div>
-          </div>
-          <button
-            onClick={() => nav('/settings/appearance')}
-            className="flex w-full items-center justify-between text-left"
-          >
-            <span className="label">背景图</span>
-            <span className="text-[12px] text-accent">🖼 去设置换图 ›</span>
-          </button>
-          <div>
-            <button
-              onClick={() => setWorldOpen((o) => !o)}
-              className="mb-1 flex w-full items-center gap-1 text-left"
-            >
-              <span className="text-[11px] text-muted">{worldOpen ? '▾' : '▸'}</span>
-              <span className="label">世界观 · 背景（所有角色共用）</span>
-              {!worldOpen && (sc.world || '').trim() && <span className="ml-1 truncate text-[10px] text-muted">· 已填</span>}
+            <div className="mx-2.5 border-t border-line/40" />
+            <button onClick={() => nav('/settings/appearance')} className="flex w-full items-center justify-between rounded-xl px-2.5 py-2.5 text-left hover:bg-white/40">
+              <span className="text-sm text-ink">背景图</span>
+              <span className="text-[12px] text-muted">去设置换图 ›</span>
             </button>
-            {worldOpen && (
-              <textarea
-                value={sc.world || ''}
-                onChange={(e) => setWorld(sc.id, e.target.value)}
-                rows={5}
-                placeholder="整体世界观、背景、人物关系…（注入给本剧场所有角色，让大家认知一致）"
-                className="w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] text-ink outline-none focus:border-accent"
-              />
-            )}
-          </div>
-          <div>
-            <div className="mb-1 flex items-center justify-between">
-              <button onClick={() => setSummaryOpen((o) => !o)} className="flex min-w-0 items-center gap-1 text-left">
-                <span className="text-[11px] text-muted">{summaryOpen ? '▾' : '▸'}</span>
-                <span className="label">剧情摘要（独立记忆）</span>
-                {!summaryOpen && sc.summary.trim() && <span className="ml-1 truncate text-[10px] text-muted">· 已有</span>}
-              </button>
-              <button onClick={() => genSummary()} disabled={summaryBusy} className="shrink-0 text-[12px] text-accent disabled:opacity-50">
-                {summaryBusy ? '处理中…' : '✨ 更新'}
-              </button>
-            </div>
-            {summaryOpen && (
-              <textarea
-                value={sc.summary}
-                onChange={(e) => setSummary(sc.id, e.target.value)}
-                rows={6}
-                placeholder="点「✨ 更新」让 AI 整理，或手写。会注入给角色，防止跑久了忘剧情。"
-                className="w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[12px] text-ink outline-none focus:border-accent"
-              />
-            )}
-            {/* 自动摘要：开关 + 频率 + 用哪个模型 */}
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-muted">
-              <label className="flex items-center gap-1.5 text-ink">
-                <input
-                  type="checkbox"
-                  checked={autoSummary}
-                  onChange={(e) => setAutoSummary(e.target.checked)}
-                  className="h-3.5 w-3.5 accent-accent"
-                />
-                自动更新
-              </label>
-              <span className="flex items-center gap-1">
-                每
-                <input
-                  type="number"
-                  min={2}
-                  max={50}
-                  value={autoSummaryEvery}
-                  disabled={!autoSummary}
-                  onChange={(e) => setAutoSummaryEvery(Number(e.target.value))}
-                  className="w-12 rounded-md border border-line bg-white/50 px-1.5 py-0.5 text-center text-ink outline-none focus:border-accent disabled:opacity-50"
-                />
-                条回复
-              </span>
-              <span className="text-[11px]">· 用{useMemModel ? '记忆模型' : '主渠道'}</span>
-            </div>
-            <p className="mt-1 text-[10px] leading-relaxed text-muted">
-              自动更新走「增量」——只读上次之后的新对话来合并，省 token；摘要保留人物/关系/关键剧情/悬念，帮角色不忘、不跑偏。
-            </p>
           </div>
 
-          {/* 各角色私人记忆 */}
-          <div className="border-t border-line/50 pt-2">
-            <label className="flex items-center gap-1.5 text-[12px] text-ink">
-              <input
-                type="checkbox"
-                checked={autoCharMemory}
-                onChange={(e) => setAutoCharMemory(e.target.checked)}
-                className="h-3.5 w-3.5 accent-accent"
-              />
-              各角色「私人记忆」自动更新
-            </label>
-            <p className="mt-1 text-[10px] leading-relaxed text-muted">
-              每个 AI 角色以第一人称记着自己知道/在意的事，只在 TA 接话时注入，让角色更像自己、不串味。
-              开了会按上面的频率给「刚发言的角色」增量更新（走记忆模型，省 token）；不开就在左侧 ☰ 角色列表点 🧠 手动让 TA 回顾。
+          {/* 剧情 · 记忆 */}
+          <div className="glass-strong rounded-2xl p-1.5">
+            <div className="label px-2.5 pb-0.5 pt-1.5">剧情 · 记忆</div>
+
+            {/* 世界观 */}
+            <button onClick={() => setWorldOpen((o) => !o)} className="flex w-full items-center justify-between rounded-xl px-2.5 py-2.5 text-left hover:bg-white/40">
+              <span className="text-sm text-ink">世界观 · 背景</span>
+              <span className="flex items-center gap-1.5 text-[12px] text-muted">
+                {(sc.world || '').trim() ? '已填' : '未填'}
+                <span>{worldOpen ? '▴' : '›'}</span>
+              </span>
+            </button>
+            {worldOpen && (
+              <div className="px-2.5 pb-2.5">
+                <textarea
+                  value={sc.world || ''}
+                  onChange={(e) => setWorld(sc.id, e.target.value)}
+                  rows={5}
+                  placeholder="整体世界观、背景、人物关系…"
+                  className="w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[13px] leading-relaxed text-ink outline-none focus:border-accent"
+                />
+                <p className="mt-1 text-[10px] text-muted">注入给本剧场所有角色，统一认知。</p>
+              </div>
+            )}
+            <div className="mx-2.5 border-t border-line/40" />
+
+            {/* 剧情摘要 */}
+            <button onClick={() => setSummaryOpen((o) => !o)} className="flex w-full items-center justify-between rounded-xl px-2.5 py-2.5 text-left hover:bg-white/40">
+              <span className="text-sm text-ink">剧情摘要</span>
+              <span className="flex items-center gap-1.5 text-[12px] text-muted">
+                {sc.summary.trim() ? '已有' : '空'}
+                <span>{summaryOpen ? '▴' : '›'}</span>
+              </span>
+            </button>
+            {summaryOpen && (
+              <div className="space-y-2 px-2.5 pb-2.5">
+                <div className="flex justify-end">
+                  <button onClick={() => genSummary()} disabled={summaryBusy} className="text-[12px] text-accent disabled:opacity-50">
+                    {summaryBusy ? '处理中…' : '✨ 让 AI 更新'}
+                  </button>
+                </div>
+                <textarea
+                  value={sc.summary}
+                  onChange={(e) => setSummary(sc.id, e.target.value)}
+                  rows={6}
+                  placeholder="点「✨ 让 AI 更新」整理，或手写。会注入给角色，防止跑久了忘剧情。"
+                  className="w-full resize-none rounded-xl border border-line bg-white/40 px-3 py-2 text-[13px] leading-relaxed text-ink outline-none focus:border-accent"
+                />
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] text-muted">
+                  <label className="flex items-center gap-1.5 text-ink">
+                    <input type="checkbox" checked={autoSummary} onChange={(e) => setAutoSummary(e.target.checked)} className="h-3.5 w-3.5 accent-accent" />
+                    自动更新
+                  </label>
+                  <span className="flex items-center gap-1">
+                    每
+                    <input
+                      type="number"
+                      min={2}
+                      max={50}
+                      value={autoSummaryEvery}
+                      disabled={!autoSummary}
+                      onChange={(e) => setAutoSummaryEvery(Number(e.target.value))}
+                      className="w-12 rounded-md border border-line bg-white/50 px-1.5 py-0.5 text-center text-ink outline-none focus:border-accent disabled:opacity-50"
+                    />
+                    条回复
+                  </span>
+                  <span className="text-[11px]">· 用{useMemModel ? '记忆模型' : '主渠道'}</span>
+                </div>
+                <p className="text-[10px] leading-relaxed text-muted">
+                  自动更新走「增量」——只读上次之后的新对话合并，省 token；保留人物/关系/关键剧情/悬念，帮角色不忘、不跑偏。
+                </p>
+              </div>
+            )}
+            <div className="mx-2.5 border-t border-line/40" />
+
+            {/* 各角色私人记忆 */}
+            <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
+              <span className="text-sm text-ink">各角色私人记忆</span>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input type="checkbox" checked={autoCharMemory} onChange={(e) => setAutoCharMemory(e.target.checked)} className="peer sr-only" />
+                <span className="h-5 w-9 rounded-full bg-black/15 transition peer-checked:bg-accent" />
+                <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
+              </label>
+            </div>
+            <p className="px-2.5 pb-1.5 text-[10px] leading-relaxed text-muted">
+              每个 AI 角色以第一人称记着自己在意的事，只在 TA 接话时注入，更像自己、不串味。开＝按上面频率给刚发言角色增量更新（走记忆模型）；不开就到 ☰ 角色列表点 🧠 手动回顾。
             </p>
           </div>
         </div>
