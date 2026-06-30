@@ -79,6 +79,7 @@ export default function DramaRoom() {
   const [memBusyId, setMemBusyId] = useState('') // 正在生成私人记忆的角色 id
   const fileRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
+  const taRef = useRef<HTMLTextAreaElement>(null)
   const mediaRecRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -89,6 +90,19 @@ export default function DramaRoom() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length, busyChar])
+
+  // 输入框自适应高度（随内容增高，最高 120px）
+  useEffect(() => {
+    const el = taRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(120, el.scrollHeight) + 'px'
+  }, [draft])
+
+  /** 聚焦输入框时滚到最新消息（停在底部，别卡在顶端） */
+  function scrollToEnd() {
+    setTimeout(() => endRef.current?.scrollIntoView({ block: 'end' }), 60)
+  }
 
   if (!scene) {
     return (
@@ -662,6 +676,13 @@ export default function DramaRoom() {
               </button>
             </div>
           </div>
+          <button
+            onClick={() => nav('/settings/appearance')}
+            className="flex w-full items-center justify-between text-left"
+          >
+            <span className="label">背景图</span>
+            <span className="text-[12px] text-accent">🖼 去设置换图 ›</span>
+          </button>
           <div>
             <button
               onClick={() => setWorldOpen((o) => !o)}
@@ -946,10 +967,12 @@ export default function DramaRoom() {
             )}
           </div>
           <textarea
+            ref={taRef}
             value={draft}
             rows={1}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder={meChar ? `以「${meChar.name}」说… 或 @角色名 让 TA 接话` : '@角色名 指定角色发言（建议先建「我」的角色卡）'}
+            onFocus={scrollToEnd}
+            placeholder={meChar ? '说话…或 @角色 让 TA 回复' : '@角色 让 TA 回复（建议先建「我」卡）'}
             className="max-h-[120px] min-h-[36px] min-w-0 flex-1 resize-none self-center bg-transparent py-1.5 text-sm leading-snug text-ink outline-none placeholder:text-muted"
           />
           {sttCfg.enabled && (
@@ -1084,9 +1107,6 @@ function CharEditor({
   const [isMe, setIsMe] = useState(base?.isMe ?? false)
   const [apiChannelId, setApiChannelId] = useState<string | undefined>(base?.apiChannelId)
   const [memory, setMemory] = useState(base?.memory ?? '')
-  const [personaOpen, setPersonaOpen] = useState(!base?.persona) // 有内容默认收起
-  const [greetingOpen, setGreetingOpen] = useState(!base?.greeting)
-  const [memoryOpen, setMemoryOpen] = useState(false)
   const [chanOpen, setChanOpen] = useState(false)
   const channels = useApiStore((s) => s.channels)
   const chanName = channels.find((c) => c.id === apiChannelId)?.name
@@ -1102,15 +1122,18 @@ function CharEditor({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3" onClick={onClose}>
-      <div
-        className="glass-strong max-h-[85vh] w-full max-w-md space-y-3 overflow-y-auto rounded-3xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="headline text-lg text-ink">{isNew ? '新角色卡' : '编辑角色'}</div>
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--bg-to, #f7f1f4)' }}>
+      {/* 顶栏：取消 / 标题 / 保存（整页编辑，键盘弹出也能滚动到字段） */}
+      <div className="glass-bar flex items-center justify-between gap-2 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <button onClick={onClose} className="px-2 py-1.5 text-sm text-muted">取消</button>
+        <div className="headline text-base text-ink">{isNew ? '新角色卡' : '编辑角色'}</div>
+        <button onClick={save} className="btn-primary rounded-full px-5 py-1.5 text-sm">保存</button>
+      </div>
 
+      {/* 可滚动正文：每个资料都是大框，方便录入 */}
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-3">
         <div className="flex items-center gap-3">
-          <Avatar img={avatarImg} emoji={avatar} className="h-14 w-14 rounded-full text-2xl" textCls="text-2xl" style={{ background: color + '33' }} />
+          <Avatar img={avatarImg} emoji={avatar} className="h-16 w-16 rounded-full text-2xl" textCls="text-2xl" style={{ background: color + '33' }} />
           <div className="flex flex-wrap items-center gap-2">
             <input
               ref={imgRef}
@@ -1134,58 +1157,43 @@ function CharEditor({
           </div>
         </div>
 
-        <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="角色名字，如 伯恩 / 旁白NPC" />
-
         <div>
-          <button onClick={() => setPersonaOpen((o) => !o)} className="mb-1 flex w-full items-center gap-1 text-left text-[12px] text-muted">
-            <span>{personaOpen ? '▾' : '▸'}</span>
-            <span>角色设定 / 人设</span>
-            {!personaOpen && persona.trim() && <span className="ml-1 truncate text-[11px] text-ink/60">{persona.trim().slice(0, 16)}…</span>}
-          </button>
-          {personaOpen && (
-            <textarea
-              className={inputCls}
-              rows={6}
-              value={persona}
-              onChange={(e) => setPersona(e.target.value)}
-              placeholder="身份、性别、年龄、性格、说话风格、背景关系…（NPC 卡可写：负责扮演各路 NPC 与旁白）"
-            />
-          )}
+          <div className="mb-1 text-[12px] text-muted">角色名字</div>
+          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="如 伯恩 / 旁白NPC" />
         </div>
 
         <div>
-          <button onClick={() => setGreetingOpen((o) => !o)} className="mb-1 flex w-full items-center gap-1 text-left text-[12px] text-muted">
-            <span>{greetingOpen ? '▾' : '▸'}</span>
-            <span>开场白（出场第一条 · 可留空）</span>
-            {!greetingOpen && greeting.trim() && <span className="ml-1 truncate text-[11px] text-ink/60">{greeting.trim().slice(0, 16)}…</span>}
-          </button>
-          {greetingOpen && (
-            <textarea
-              className={inputCls}
-              rows={3}
-              value={greeting}
-              onChange={(e) => setGreeting(e.target.value)}
-              placeholder="角色出场说的第一句/一段，用来开启剧情（如男主推门而入）。建好后在角色列表点「▶开场」发出。"
-            />
-          )}
+          <div className="mb-1 text-[12px] text-muted">角色设定 / 人设</div>
+          <textarea
+            className={inputCls + ' min-h-[220px] leading-relaxed'}
+            rows={12}
+            value={persona}
+            onChange={(e) => setPersona(e.target.value)}
+            placeholder="身份、性别、年龄、性格、说话风格、背景关系…（NPC 卡可写：负责扮演各路 NPC 与旁白）"
+          />
+        </div>
+
+        <div>
+          <div className="mb-1 text-[12px] text-muted">开场白（出场第一条 · 可留空）</div>
+          <textarea
+            className={inputCls + ' min-h-[120px] leading-relaxed'}
+            rows={6}
+            value={greeting}
+            onChange={(e) => setGreeting(e.target.value)}
+            placeholder="角色出场说的第一句/一段，用来开启剧情（如男主推门而入）。建好后在角色列表点「▶开场」发出。"
+          />
         </div>
 
         {!isMe && (
           <div>
-            <button onClick={() => setMemoryOpen((o) => !o)} className="mb-1 flex w-full items-center gap-1 text-left text-[12px] text-muted">
-              <span>{memoryOpen ? '▾' : '▸'}</span>
-              <span>TA 的私人记忆（第一人称 · 可手写/可让 TA 自己回顾）</span>
-              {!memoryOpen && memory.trim() && <span className="ml-1 truncate text-[11px] text-ink/60">{memory.trim().slice(0, 16)}…</span>}
-            </button>
-            {memoryOpen && (
-              <textarea
-                className={inputCls}
-                rows={4}
-                value={memory}
-                onChange={(e) => setMemory(e.target.value)}
-                placeholder="TA 自己知道/在意/想做的事（对别人的看法、心结、决定…）。也可以在角色列表点 🧠 让 TA 根据剧情自己回顾生成。"
-              />
-            )}
+            <div className="mb-1 text-[12px] text-muted">TA 的私人记忆（第一人称 · 可手写，或在列表点 🧠 让 TA 自己回顾）</div>
+            <textarea
+              className={inputCls + ' min-h-[120px] leading-relaxed'}
+              rows={6}
+              value={memory}
+              onChange={(e) => setMemory(e.target.value)}
+              placeholder="TA 自己知道/在意/想做的事（对别人的看法、心结、决定…）"
+            />
           </div>
         )}
 
@@ -1196,7 +1204,7 @@ function CharEditor({
               <button
                 key={c}
                 onClick={() => setColor(c)}
-                className={`h-7 w-7 rounded-full ${color === c ? 'ring-2 ring-accent ring-offset-1' : ''}`}
+                className={`h-8 w-8 rounded-full ${color === c ? 'ring-2 ring-accent ring-offset-1' : ''}`}
                 style={{ background: c }}
               />
             ))}
@@ -1217,7 +1225,7 @@ function CharEditor({
             {chanOpen && (
               <>
                 <div className="fixed inset-0 z-20" onClick={() => setChanOpen(false)} />
-                <div className="glass-strong absolute left-0 top-full z-30 mt-1 w-full max-h-52 overflow-y-auto rounded-2xl p-1.5 shadow-lg">
+                <div className="glass-strong absolute left-0 top-full z-30 mt-1 max-h-52 w-full overflow-y-auto rounded-2xl p-1.5 shadow-lg">
                   <button
                     type="button"
                     onClick={() => { setApiChannelId(undefined); setChanOpen(false) }}
@@ -1255,11 +1263,6 @@ function CharEditor({
           这是我（女主，由我发言）
           {existingMe && !base?.isMe && <span className="text-[10px] text-muted">已有「我」卡</span>}
         </label>
-
-        <div className="flex justify-end gap-2 pt-1">
-          <button onClick={onClose} className="glass rounded-full px-4 py-2 text-sm text-ink">取消</button>
-          <button onClick={save} className="btn-primary rounded-full px-5 py-2 text-sm">保存</button>
-        </div>
       </div>
     </div>
   )
