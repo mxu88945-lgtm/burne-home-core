@@ -7,6 +7,7 @@ import PhonePage from '@/pages/PhonePage'
 import ReadingRoom from '@/pages/ReadingRoom'
 import DramaList from '@/pages/DramaList'
 import DramaRoom from '@/pages/DramaRoom'
+import CharLibrary from '@/pages/CharLibrary'
 import CalendarPage from '@/pages/CalendarPage'
 import ReadingPage from '@/pages/settings/ReadingPage'
 import Persona from '@/pages/Persona'
@@ -38,6 +39,7 @@ export const router = createHashRouter([
       { path: 'reading', element: <ReadingRoom /> },
       { path: 'drama', element: <DramaList /> },
       { path: 'drama/room', element: <DramaRoom /> },
+      { path: 'characters', element: <CharLibrary /> },
       { path: 'calendar', element: <CalendarPage /> },
       { path: 'settings/reading', element: <ReadingPage /> },
       { path: 'persona', element: <Persona /> },

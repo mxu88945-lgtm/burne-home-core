@@ -4,7 +4,7 @@ import { useDramaStore } from '@/store/dramaStore'
 import { parseDramaTxt, type ParsedDrama } from '@/lib/dramaImport'
 import BackBar from '@/components/layout/BackBar'
 import DramaBg from '@/components/ui/DramaBg'
-import { GearIcon } from '@/components/ui/navIcons'
+import { GearIcon, UsersIcon } from '@/components/ui/navIcons'
 
 export default function DramaList() {
   const scenes = useDramaStore((s) => s.scenes)
@@ -96,8 +96,21 @@ export default function DramaList() {
       </div>
       <div className="px-1">
         <h2 className="headline text-2xl text-ink">戏剧</h2>
-        <p className="mt-1 text-xs text-muted">多角色群聊 · 角色扮演 · 每个剧场独立剧情</p>
+        <p className="mt-1 text-xs text-muted">你的对话 · 1v1 与群聊 · 每个独立剧情</p>
       </div>
+
+      {/* 角色库入口 */}
+      <button
+        onClick={() => nav('/characters')}
+        className="glass flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition active:scale-[0.99]"
+      >
+        <UsersIcon className="h-5 w-5 shrink-0 text-accent" />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium text-ink">角色库</div>
+          <div className="text-[11px] text-muted">导入/管理角色卡，选角色开 1v1，再加成员拉群</div>
+        </div>
+        <span className="text-muted">›</span>
+      </button>
 
       <input
         ref={fileRef}

@@ -9,8 +9,9 @@ import { chatComplete } from '@/api/llm'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { cleanReply } from '@/lib/cleanReply'
 import { fileToDataUrl } from '@/lib/image'
-import { parseCardFile, buildLoreText } from '@/lib/charCard'
+import { buildLoreText } from '@/lib/charCard'
 import { DramaRich } from '@/lib/dramaRich'
+import { useCharLibStore } from '@/store/charLibStore'
 import { useSttStore } from '@/store/sttStore'
 import { transcribe } from '@/api/stt'
 import { useTtsStore } from '@/store/ttsStore'
@@ -38,6 +39,7 @@ export default function DramaRoom() {
   const addLore = useDramaStore((s) => s.addLore)
   const updateLoreEntry = useDramaStore((s) => s.updateLoreEntry)
   const removeLoreEntry = useDramaStore((s) => s.removeLoreEntry)
+  const libChars = useCharLibStore((s) => s.chars)
   const setMessages = useDramaStore((s) => s.setMessages)
   const setSummary = useDramaStore((s) => s.setSummary)
   const setSummaryAt = useDramaStore((s) => s.setSummaryAt)
@@ -72,7 +74,7 @@ export default function DramaRoom() {
   const [worldOpen, setWorldOpen] = useState(false) // 世界观框 折叠/展开
   const [summaryOpen, setSummaryOpen] = useState(false) // 剧情摘要框 折叠/展开
   const [loreOpen, setLoreOpen] = useState(false) // 世界书 折叠/展开
-  const cardRef = useRef<HTMLInputElement>(null) // 角色卡文件选择
+  const [addMemberOpen, setAddMemberOpen] = useState(false) // 从角色库加成员
   const [plusOpen, setPlusOpen] = useState(false) // 输入栏 ＋ 菜单
   const [editing, setEditing] = useState<DramaChar | 'new' | null>(null)
   const [summaryBusy, setSummaryBusy] = useState(false)
@@ -535,22 +537,24 @@ export default function DramaRoom() {
     }
   }
 
-  /** 导入角色卡（JSON/PNG，V1/V2/V3）→ 当前剧场建角色 + 并入世界书 */
-  async function importCard(file: File) {
-    setErr('')
-    try {
-      const card = await parseCardFile(file)
-      addChar(sc.id, {
-        name: card.name,
-        persona: card.persona,
-        greeting: card.greeting,
-        avatarImg: card.avatarImg,
-      })
-      if (card.lore.length) addLore(sc.id, card.lore)
-      flashToast(`已导入「${card.name}」${card.lore.length ? ` · 世界书 ${card.lore.length} 条` : ''}`)
-    } catch (e) {
-      setErr(`导入角色卡失败：${(e as Error).message}`)
+  /** 从角色库把一个角色加进当前对话（变群聊）+ 并入其世界书 */
+  function addMemberFromLib(lcId: string) {
+    const lc = libChars.find((c) => c.id === lcId)
+    if (!lc) return
+    addChar(sc.id, {
+      name: lc.name,
+      avatar: lc.avatar,
+      avatarImg: lc.avatarImg,
+      persona: lc.persona,
+      greeting: lc.greeting,
+      color: lc.color,
+      apiChannelId: lc.apiChannelId,
+    })
+    if (lc.lore?.length) {
+      addLore(sc.id, lc.lore.map((e) => ({ ...e, id: dramaMsgId() })))
     }
+    setAddMemberOpen(false)
+    flashToast(`已加入「${lc.name}」`)
   }
 
   // 长按消息 → 弹操作菜单
@@ -699,23 +703,12 @@ export default function DramaRoom() {
             <button onClick={() => setEditing('new')} className="btn-primary flex-1 rounded-xl py-2 text-[13px]">
               ＋ 新角色卡
             </button>
-            <button onClick={() => cardRef.current?.click()} className="glass flex-1 rounded-xl py-2 text-[13px] text-ink">
-              📇 导入角色卡
+            <button onClick={() => setAddMemberOpen(true)} className="glass flex-1 rounded-xl py-2 text-[13px] text-ink">
+              ＋ 从角色库加成员
             </button>
           </div>
-          <input
-            ref={cardRef}
-            type="file"
-            accept=".json,.png,application/json,image/png"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0]
-              e.target.value = ''
-              if (f) importCard(f)
-            }}
-          />
           <p className="text-[10px] leading-relaxed text-muted">
-            建一张勾「这是我」的女主卡（你来发言）；其余是 AI 角色。「导入角色卡」支持 Tavern V1/V2/V3 的 JSON 或 PNG（连世界书一起进），导入后可在 ⚙ 里看世界书。
+            建一张勾「这是我」的女主卡（你来发言）；其余是 AI 角色。想加现成角色就「从角色库加成员」；导入角色卡请到 角色库（戏剧首页 → 角色库）。
           </p>
         </div>
       )}
@@ -1135,6 +1128,30 @@ export default function DramaRoom() {
           onAdd={addChar}
           onUpdate={updateChar}
         />
+      )}
+
+      {/* 从角色库加成员 */}
+      {addMemberOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3" onClick={() => setAddMemberOpen(false)}>
+          <div className="glass-strong max-h-[72vh] w-full max-w-md space-y-1.5 overflow-y-auto rounded-3xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
+            <div className="headline text-lg text-ink">从角色库加成员</div>
+            {libChars.length === 0 ? (
+              <p className="py-2 text-[12px] text-muted">角色库还没角色。去「戏剧首页 → 角色库」导入或新建角色卡。</p>
+            ) : (
+              libChars.map((lc) => (
+                <button key={lc.id} onClick={() => addMemberFromLib(lc.id)} className="flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left hover:bg-white/40">
+                  <Avatar img={lc.avatarImg} emoji={lc.avatar} className="h-10 w-10 shrink-0 rounded-full text-lg" textCls="text-lg" style={{ background: lc.color + '33' }} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm text-ink">{lc.name}</div>
+                    <div className="truncate text-[11px] text-muted">{(lc.persona || '').replace(/\s+/g, ' ').trim().slice(0, 24) || '（没填人设）'}</div>
+                  </div>
+                  <span className="shrink-0 text-[12px] text-accent">加入 ＋</span>
+                </button>
+              ))
+            )}
+            <button onClick={() => { setAddMemberOpen(false); nav('/characters') }} className="mt-1 w-full rounded-xl py-2 text-[12px] text-accent">去角色库管理 ›</button>
+          </div>
+        </div>
       )}
 
       {/* 轻提示（复制成功等） */}
