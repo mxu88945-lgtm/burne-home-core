@@ -134,9 +134,10 @@ export default function Home() {
         to="/calendar"
         className="glass flex items-center justify-center gap-5 rounded-3xl px-6 py-5 transition active:scale-[0.99]"
       >
-        <HeartIcon className="h-5 w-5 text-accent" />
         <div className="text-right">
-          <div className="label">生理期</div>
+          <div className="label flex items-center justify-end gap-1.5">
+            生理期 <HeartIcon className="h-3.5 w-3.5 text-accent" />
+          </div>
           <div className="mt-1 text-[11px] text-muted">{pSub}</div>
         </div>
         <div className="text-2xl font-semibold text-accent">{pMain}</div>

@@ -4,6 +4,7 @@ import { useDramaStore } from '@/store/dramaStore'
 import { parseDramaTxt, type ParsedDrama } from '@/lib/dramaImport'
 import BackBar from '@/components/layout/BackBar'
 import DramaBg from '@/components/ui/DramaBg'
+import { GearIcon } from '@/components/ui/navIcons'
 
 export default function DramaList() {
   const scenes = useDramaStore((s) => s.scenes)
@@ -71,32 +72,31 @@ export default function DramaList() {
   return (
     <div className="space-y-4">
       <DramaBg />
-      <div className="flex items-center justify-between">
+      {/* 顶行：返回 · 操作（新剧场/导入/设置）都收到上面 */}
+      <div className="flex items-center justify-between gap-2">
         <BackBar />
-        <button
-          onClick={() => nav('/settings')}
-          aria-label="设置"
-          className="glass mb-3 flex h-9 w-9 items-center justify-center rounded-full text-base text-muted hover:text-accent"
-        >
-          ⚙️
-        </button>
-      </div>
-      <div className="flex items-end justify-between gap-2 px-1">
-        <div className="min-w-0">
-          <h2 className="headline text-2xl text-ink">戏剧</h2>
-          <p className="mt-1 text-xs text-muted">多角色群聊 · 角色扮演 · 每个剧场独立剧情</p>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <button onClick={create} className="btn-primary rounded-full px-4 py-2 text-sm">
             ＋ 新剧场
           </button>
           <button
             onClick={() => fileRef.current?.click()}
-            className="glass rounded-full px-4 py-1.5 text-[13px] text-ink"
+            className="glass rounded-full px-3.5 py-2 text-[13px] text-ink"
           >
             导入 TXT
           </button>
+          <button
+            onClick={() => nav('/settings')}
+            aria-label="设置"
+            className="glass flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted hover:text-accent"
+          >
+            <GearIcon className="h-5 w-5" />
+          </button>
         </div>
+      </div>
+      <div className="px-1">
+        <h2 className="headline text-2xl text-ink">戏剧</h2>
+        <p className="mt-1 text-xs text-muted">多角色群聊 · 角色扮演 · 每个剧场独立剧情</p>
       </div>
 
       <input
