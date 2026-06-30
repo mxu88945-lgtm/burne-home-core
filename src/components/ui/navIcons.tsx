@@ -170,3 +170,64 @@ export function LockIcon({ className }: P) {
     </svg>
   )
 }
+
+/** 小手机 · 手机 */
+export function PhoneIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <rect x="6.5" y="2.5" width="11" height="19" rx="2.5" />
+      <path d="M10.5 18.5h3" />
+    </svg>
+  )
+}
+
+/** 今天聊聊 · 对话气泡 */
+export function ChatIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M21 11.5a7.5 7.5 0 0 1-10.9 6.7L4 20l1.8-4.9A7.5 7.5 0 1 1 21 11.5z" />
+    </svg>
+  )
+}
+
+/** 记忆库 · 数据筒 */
+export function DatabaseIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <ellipse cx="12" cy="6" rx="7" ry="3" />
+      <path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6" />
+      <path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3" />
+    </svg>
+  )
+}
+
+/** 戏剧 · 多角色（群像） */
+export function UsersIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3 19c0-3 2.7-4.5 6-4.5s6 1.5 6 4.5" />
+      <path d="M16 5.5a3 3 0 0 1 0 5.2" />
+      <path d="M21 19c0-2.3-1.5-3.8-3.7-4.3" />
+    </svg>
+  )
+}
+
+/** 设置 · 齿轮 */
+export function GearIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v3M12 19v3M22 12h-3M5 12H2M19.1 4.9l-2.1 2.1M7 17l-2.1 2.1M19.1 19.1L17 17M7 7L4.9 4.9" />
+    </svg>
+  )
+}
+
+/** 生理期 · 心 */
+export function HeartIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M12 20s-7-4.3-7-9.5A3.5 3.5 0 0 1 12 7a3.5 3.5 0 0 1 7 3.5C19 15.7 12 20 12 20z" />
+    </svg>
+  )
+}

@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom'
+import type { ComponentType } from 'react'
 import { useProfileStore, daysTogether } from '@/store/profileStore'
 import { useChatStore } from '@/store/chatStore'
 import { usePeriodStore } from '@/store/periodStore'
 import { computeStat } from '@/lib/period'
 import { EditIcon } from '@/components/ui/icons'
+import { PhoneIcon, ChatIcon, DatabaseIcon, BookIcon, UsersIcon, GearIcon, HeartIcon } from '@/components/ui/navIcons'
 import Avatar from '@/components/ui/Avatar'
 
 const avatarStyle = {
@@ -14,11 +16,13 @@ const avatarStyle = {
 
 function QuickEntry({
   to,
+  Icon,
   title,
   sub,
   onClick,
 }: {
   to: string
+  Icon: ComponentType<{ className?: string }>
   title: string
   sub: string
   onClick?: () => void
@@ -27,8 +31,9 @@ function QuickEntry({
     <Link
       to={to}
       onClick={onClick}
-      className="glass flex flex-col items-center gap-1 rounded-2xl px-4 py-5 text-center transition active:scale-[0.98]"
+      className="glass flex flex-col items-center gap-1.5 rounded-2xl px-4 py-5 text-center transition active:scale-[0.98]"
     >
+      <Icon className="h-6 w-6 text-accent" />
       <span className="text-sm font-medium text-ink">{title}</span>
       <span className="text-[11px] text-muted">{sub}</span>
     </Link>
@@ -129,6 +134,7 @@ export default function Home() {
         to="/calendar"
         className="glass flex items-center justify-center gap-5 rounded-3xl px-6 py-5 transition active:scale-[0.99]"
       >
+        <HeartIcon className="h-5 w-5 text-accent" />
         <div className="text-right">
           <div className="label">生理期</div>
           <div className="mt-1 text-[11px] text-muted">{pSub}</div>
@@ -138,16 +144,16 @@ export default function Home() {
 
       {/* 小手机 + 今天聊聊（并排两块） */}
       <section className="grid grid-cols-2 gap-3">
-        <QuickEntry to="/phone" title="小手机" sub="像发消息一样聊 · 短句" />
-        <QuickEntry to="/chat" title="今天聊聊" sub="说点什么吧" onClick={startBlank} />
+        <QuickEntry to="/phone" Icon={PhoneIcon} title="小手机" sub="像发消息一样聊 · 短句" />
+        <QuickEntry to="/chat" Icon={ChatIcon} title="今天聊聊" sub="说点什么吧" onClick={startBlank} />
       </section>
 
       {/* 快捷入口（四个平铺） */}
       <section className="grid grid-cols-2 gap-3">
-        <QuickEntry to="/memories" title="我们的记忆" sub="摘要 · 核心 · 全部" />
-        <QuickEntry to="/reading" title="一起看书" sub="和 TA 共读一本书" />
-        <QuickEntry to="/drama" title="戏剧" sub="多角色群聊 · 扮演" />
-        <QuickEntry to="/settings" title="设置" sub="同步 · 备份 · 隐私" />
+        <QuickEntry to="/memories" Icon={DatabaseIcon} title="我们的记忆" sub="摘要 · 核心 · 全部" />
+        <QuickEntry to="/reading" Icon={BookIcon} title="一起看书" sub="和 TA 共读一本书" />
+        <QuickEntry to="/drama" Icon={UsersIcon} title="戏剧" sub="多角色群聊 · 扮演" />
+        <QuickEntry to="/settings" Icon={GearIcon} title="设置" sub="同步 · 备份 · 隐私" />
       </section>
 
       <button
