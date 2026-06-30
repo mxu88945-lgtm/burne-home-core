@@ -95,6 +95,9 @@ export default function DramaRoom() {
   const charById = (id: string) => sc.chars.find((c) => c.id === id)
   const nameOf = (id: string) => charById(id)?.name ?? '我'
   const connected = Boolean(activeChannel || workerUrl)
+  // 输入框里正在打「@…」时，弹出可点名的角色列表
+  const atMatch = draft.match(/@(\S*)$/)
+  const atList = atMatch ? aiChars.filter((c) => c.name.includes(atMatch[1])) : []
 
   /** 发送我（女主）的一条 */
   function sendMine() {
@@ -109,6 +112,30 @@ export default function DramaRoom() {
     })
     setDraft('')
     setPendingImage('')
+  }
+
+  /** 发送：输入「@角色名」（单独）＝让该角色接话；否则当作「我」发言 */
+  function onSend() {
+    const t = draft.trim()
+    const m = t.match(/^@(\S+)$/)
+    if (m && !pendingImage) {
+      const nm = m[1]
+      const c = aiChars.find((x) => x.name === nm) || aiChars.find((x) => x.name.startsWith(nm))
+      if (c) {
+        setDraft('')
+        void respond(c)
+        return
+      }
+      setErr(`没找到角色「${nm}」，@后面填角色名`)
+      return
+    }
+    sendMine()
+  }
+
+  /** 点 @ 弹层里的角色：清掉输入框里的 @词，直接让 TA 接话 */
+  function pickAt(c: DramaChar) {
+    setDraft((d) => d.replace(/@(\S*)$/, ''))
+    void respond(c)
   }
 
   /** 让某角色用开场白出场（把开场白作为一条消息发出来） */
@@ -166,7 +193,7 @@ export default function DramaRoom() {
         const r = await chatComplete(ch, apiMsgs, sys, {
           workerUrl,
           syncKey: config.syncKey,
-          maxTokens: 800,
+          maxTokens: 4096,
         })
         reply = r.text
         if (r.usage)
@@ -185,7 +212,7 @@ export default function DramaRoom() {
           syncKey: config.syncKey,
           messages: apiMsgs,
           system: sys,
-          maxTokens: 800,
+          maxTokens: 4096,
         })
       }
       reply = cleanReply(reply).trim()
@@ -418,7 +445,6 @@ export default function DramaRoom() {
         </button>
         <div className="min-w-0 flex-1 text-center">
           <div className="headline truncate text-lg leading-none text-ink">{sc.title}</div>
-          <div className="mt-0.5 text-[10px] text-muted">🎭 {sc.chars.length} 个角色</div>
         </div>
         <button
           onClick={() => { setRightOpen((o) => !o); setLeftOpen(false) }}
@@ -528,7 +554,7 @@ export default function DramaRoom() {
             建好角色后，在下面说一句开场，再点角色名让 TA 接话吧～
           </div>
         ) : (
-          messages.map((m) => {
+          messages.map((m, i) => {
             const c = charById(m.who)
             const mine = !c || c.isMe
             const editingThis = editMsgId === m.id
@@ -570,7 +596,14 @@ export default function DramaRoom() {
             // 平铺式：无气泡、铺满、像小说
             if (flat) {
               return (
-                <div key={m.id} className="border-b border-line/40 pb-3" {...longPress}>
+                <div key={m.id} className="pb-1" {...longPress}>
+                  {i > 0 && (
+                    <div className="flex items-center justify-center gap-2 py-3 text-[11px] text-muted/50" aria-hidden>
+                      <span className="h-px w-14 bg-gradient-to-r from-transparent to-line" />
+                      <span>❖</span>
+                      <span className="h-px w-14 bg-gradient-to-l from-transparent to-line" />
+                    </div>
+                  )}
                   <div className="mb-1 flex items-center gap-1.5">
                     <Avatar
                       img={c?.avatarImg}
@@ -633,25 +666,25 @@ export default function DramaRoom() {
         <div ref={endRef} />
       </div>
 
-      {/* 点名条 */}
-      {aiChars.length > 0 && (
-        <div className="flex flex-wrap gap-2 px-0.5 pt-2">
-          {aiChars.map((c) => (
-            <button
-              key={c.id}
-              onClick={() => respond(c)}
-              disabled={!!busyChar}
-              className="rounded-full px-3 py-1.5 text-[12px] text-ink disabled:opacity-50"
-              style={{ background: c.color + '33' }}
-            >
-              {c.avatar} {c.name} 接话
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* 输入栏（你 = 女主） */}
       <div className="flex-none pt-2">
+        {/* @ 点名弹层：输入「@」时浮出角色名，点一下让 TA 接话 */}
+        {atMatch && aiChars.length > 0 && (
+          <div className="glass-strong mb-2 flex flex-wrap gap-2 rounded-2xl p-2">
+            {(atList.length ? atList : aiChars).map((c) => (
+              <button
+                key={c.id}
+                onClick={() => pickAt(c)}
+                disabled={!!busyChar}
+                className="flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] text-ink disabled:opacity-50"
+                style={{ background: c.color + '33' }}
+              >
+                <Avatar img={c.avatarImg} emoji={c.avatar} className="h-5 w-5 rounded-full text-[11px]" textCls="text-[11px]" style={{ background: c.color + '44' }} />
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
         {pendingImage && (
           <div className="mb-2 flex items-center gap-2 px-1">
             <div className="relative">
@@ -710,7 +743,7 @@ export default function DramaRoom() {
             value={draft}
             rows={1}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder={meChar ? `以「${meChar.name}」的身份说…` : '说点什么（建议先建一张「我」的角色卡）…'}
+            placeholder={meChar ? `以「${meChar.name}」说… 或 @角色名 让 TA 接话` : '@角色名 指定角色发言（建议先建「我」的角色卡）'}
             className="max-h-[120px] min-h-[36px] min-w-0 flex-1 resize-none self-center bg-transparent py-1.5 text-sm leading-snug text-ink outline-none placeholder:text-muted"
           />
           {sttCfg.enabled && (
@@ -733,7 +766,7 @@ export default function DramaRoom() {
             </button>
           )}
           <button
-            onClick={sendMine}
+            onClick={onSend}
             aria-label="发送"
             className="btn-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
           >

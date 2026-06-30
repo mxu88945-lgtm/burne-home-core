@@ -80,6 +80,12 @@ interface DramaState extends Persisted {
   setSummary: (sceneId: string, summary: string) => void
   setWorld: (sceneId: string, world: string) => void
   setFlat: (flat: boolean) => void
+  /** 从导入的对话整本建一个新剧场（角色 + 消息一次性建好） */
+  importScene: (input: {
+    title: string
+    speakers: { name: string; isMe?: boolean; color?: string; avatar?: string }[]
+    turns: { name: string; text: string }[]
+  }) => DramaScene
 }
 
 export const useDramaStore = create<DramaState>((set, get) => {
@@ -166,6 +172,42 @@ export const useDramaStore = create<DramaState>((set, get) => {
     setFlat: (flat) => {
       writeJSON(STORAGE_KEYS.drama, { scenes: get().scenes, activeId: get().activeId, flat })
       set({ flat })
+    },
+
+    importScene: (input) => {
+      const idByName = new Map<string, string>()
+      const chars: DramaChar[] = input.speakers.map((sp, i) => {
+        const id = uid()
+        idByName.set(sp.name, id)
+        return {
+          id,
+          name: sp.name,
+          avatar: sp.avatar || (sp.isMe ? '🙂' : '🎭'),
+          persona: '',
+          greeting: '',
+          color: sp.color || PALETTE[i % PALETTE.length],
+          isMe: sp.isMe ?? false,
+        }
+      })
+      const messages: DramaMsg[] = input.turns.map((t) => ({
+        id: uid(),
+        who: idByName.get(t.name) ?? chars[0]?.id ?? '__me__',
+        text: t.text,
+        at: '',
+      }))
+      const scene: DramaScene = {
+        id: uid(),
+        title: input.title.trim() || '导入的剧场',
+        chars,
+        messages,
+        world: '',
+        summary: '',
+        createdAt: new Date().toISOString(),
+      }
+      const scenes = [scene, ...get().scenes]
+      persist(scenes, scene.id)
+      set({ scenes, activeId: scene.id })
+      return scene
     },
   }
 })
