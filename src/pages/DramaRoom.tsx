@@ -84,7 +84,6 @@ export default function DramaRoom() {
   const mediaRecRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const sinceSummaryRef = useRef(0) // 距上次摘要的 AI 回复数，攒够自动更新
   const charMemTurnRef = useRef<Record<string, number>>({}) // 各角色距上次私人记忆更新的发言数
 
   const messages = scene?.messages ?? []
@@ -99,6 +98,22 @@ export default function DramaRoom() {
     el.style.height = 'auto'
     el.style.height = Math.min(120, el.scrollHeight) + 'px'
   }, [draft])
+
+  // 自动更新剧情摘要：累计未并入摘要的新消息够 N 条就后台增量刷新。
+  // 基于持久化的 summaryAt 计数（退出/刷新都不丢），并跳过刚进入时的误触发。
+  const prevLenRef = useRef<number | null>(null)
+  useEffect(() => {
+    const len = scene?.messages.length ?? 0
+    if (prevLenRef.current === null) {
+      prevLenRef.current = len
+      return // 首次挂载不触发，避免一进剧场就烧 token
+    }
+    const grew = len > prevLenRef.current
+    prevLenRef.current = len
+    if (!grew || !autoSummary || summaryBusy || busyChar) return
+    if (len - (scene?.summaryAt ?? 0) >= autoSummaryEvery) void genSummary(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene?.messages.length, autoSummary, autoSummaryEvery, summaryBusy, busyChar])
 
   /** 滚到最新消息底部。键盘弹出有动画 + 视口缩放，分几次补滚才稳。 */
   function scrollToEnd() {
@@ -262,12 +277,7 @@ export default function DramaRoom() {
         text: reply || '……',
         at: now(),
       })
-      // 摘要自动更新（可在 ⚙ 里关/调频）：每攒够 N 条 AI 回复，后台静默增量刷新
-      sinceSummaryRef.current += 1
-      if (autoSummary && sinceSummaryRef.current >= autoSummaryEvery) {
-        sinceSummaryRef.current = 0
-        void genSummary(true)
-      }
+      // 剧情摘要的自动更新已改由上面的 useEffect（基于持久化 summaryAt）统一触发，这里不再计数。
       // 该角色私人记忆自动更新（默认关）：每攒够 N 条「自己的」发言，后台增量刷新
       if (autoCharMemory) {
         charMemTurnRef.current[char.id] = (charMemTurnRef.current[char.id] || 0) + 1
@@ -337,8 +347,8 @@ export default function DramaRoom() {
       if (text) {
         setSummary(sc.id, cleanReply(text).trim())
         setSummaryAt(sc.id, total)
-        sinceSummaryRef.current = 0
-        if (!silent) setRightOpen(true)
+        if (silent) flashToast('🪄 剧情摘要已更新')
+        else setRightOpen(true)
       }
     } catch (e) {
       if (!silent) setErr(`生成摘要失败：${(e as Error).message}`)
@@ -371,12 +381,15 @@ export default function DramaRoom() {
         .map((m) => `${nameOf(m.who)}：${m.text}${m.image ? '［图片］' : ''}`)
         .join('\n')
       const sys =
-        `你在维护角色【${char.name}】的私人记忆。以 ${char.name} 的第一人称视角，` +
-        `记下 TA 自己知道 / 在意 / 想做的事：对其他人的看法与关系、自己的处境与目标、心结与情绪、做过的重要决定。` +
-        `只写 ${char.name} 立场上会记得的，别写 TA 不可能知道的事，别复述客观旁白。简洁，200 字内，只输出记忆正文。`
+        `你在为角色【${char.name}】整理 TA 的「私人记忆」。用 ${char.name} 的第一人称，` +
+        `把对话提炼成 TA 自己的【认知与心理状态】，而不是复述剧情。要点（有则写、无则略）：` +
+        `我和谁是什么关系、我怎么看 TA；我现在的处境、想做的事/目标；我的心结、在意的事、情绪；我做过/决定过的重要的事。\n` +
+        `硬性要求：① 必须是概括性的自述句（例如「我开始相信她是真心的」「我决定不再逼她」），` +
+        `严禁照抄或引用任何对白台词原句、动作神态旁白；② 只写 ${char.name} 立场上会知道的，别写 TA 不可能知道的；` +
+        `③ 150~200 字，可分点，只输出记忆正文，不要标题、不要解释。`
       const ask = incremental
-        ? `这是 ${char.name} 已有的私人记忆：\n${old}\n\n以下是新发生的对话，请把 ${char.name} 新记住 / 新在意的合并进去，输出更新后的完整私人记忆：\n\n${transcript}`
-        : `根据下面的对话，整理出 ${char.name} 的私人记忆${old ? `（与已有合并：${old}）` : ''}：\n\n${transcript}`
+        ? `这是【${char.name}】已有的私人记忆：\n${old}\n\n下面是新发生的对话，请把 ${char.name} 新形成的认知/情绪/决定合并进去（第一人称概括，不要照抄台词），输出更新后的完整私人记忆：\n\n${transcript}`
+        : `请根据下面这段对话，提炼出【${char.name}】此刻的私人记忆（按要求第一人称概括，不要照抄台词）${old ? '。已有旧记忆，请在其基础上更新合并、保留仍成立的部分：\n旧记忆：' + old : '：'}\n\n对话：\n${transcript}`
       let text = ''
       if (summaryChannel) {
         text = (
@@ -453,7 +466,6 @@ export default function DramaRoom() {
       setSummary(sc.id, cleanReply(text).trim())
       setMessages(sc.id, tail)
       setSummaryAt(sc.id, 0) // 留下的 tail 还没并入摘要，下次增量从头算
-      sinceSummaryRef.current = 0
       setRightOpen(true)
     } catch (e) {
       setErr(`压缩失败：${(e as Error).message}`)
