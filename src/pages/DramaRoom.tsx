@@ -1213,43 +1213,39 @@ function CharEditor({
 
         <div>
           <div className="mb-1 text-[12px] text-muted">独立 API（这个角色单独用哪个模型）</div>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setChanOpen((o) => !o)}
-              className={inputCls + ' flex items-center justify-between text-left'}
-            >
-              <span className="truncate">{chanName || '跟随当前激活渠道'}</span>
-              <span className="shrink-0 text-muted">▾</span>
-            </button>
-            {chanOpen && (
-              <>
-                <div className="fixed inset-0 z-20" onClick={() => setChanOpen(false)} />
-                <div className="glass-strong absolute left-0 top-full z-30 mt-1 max-h-52 w-full overflow-y-auto rounded-2xl p-1.5 shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => { setApiChannelId(undefined); setChanOpen(false) }}
-                    className="block w-full rounded-xl px-3 py-1.5 text-left text-[12px] text-ink hover:bg-white/40"
-                  >
-                    跟随当前激活渠道{!apiChannelId ? ' ✓' : ''}
-                  </button>
-                  {channels.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => { setApiChannelId(c.id); setChanOpen(false) }}
-                      className="block w-full truncate rounded-xl px-3 py-1.5 text-left text-[12px] text-ink hover:bg-white/40"
-                    >
-                      {c.name || c.model}{apiChannelId === c.id ? ' ✓' : ''}
-                    </button>
-                  ))}
-                  {channels.length === 0 && (
-                    <div className="px-3 py-1.5 text-[11px] text-muted">还没渠道，去「设置 → API / 模型」加</div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => setChanOpen((o) => !o)}
+            className={inputCls + ' flex items-center justify-between text-left'}
+          >
+            <span className="truncate">{chanName || '跟随当前激活渠道'}</span>
+            <span className="shrink-0 text-muted">{chanOpen ? '▴' : '▾'}</span>
+          </button>
+          {/* 就地展开（在页面流里，跟着整页一起滚，不会掉到屏幕外） */}
+          {chanOpen && (
+            <div className="mt-1 max-h-60 overflow-y-auto rounded-2xl border border-line bg-white/70 p-1.5">
+              <button
+                type="button"
+                onClick={() => { setApiChannelId(undefined); setChanOpen(false) }}
+                className="block w-full rounded-xl px-3 py-2 text-left text-[13px] text-ink hover:bg-white/50"
+              >
+                跟随当前激活渠道{!apiChannelId ? ' ✓' : ''}
+              </button>
+              {channels.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => { setApiChannelId(c.id); setChanOpen(false) }}
+                  className="block w-full truncate rounded-xl px-3 py-2 text-left text-[13px] text-ink hover:bg-white/50"
+                >
+                  {c.name || c.model}{apiChannelId === c.id ? ' ✓' : ''}
+                </button>
+              ))}
+              {channels.length === 0 && (
+                <div className="px-3 py-1.5 text-[11px] text-muted">还没渠道，去「设置 → API / 模型」加</div>
+              )}
+            </div>
+          )}
         </div>
 
         <label className="flex items-center gap-2 text-[13px] text-ink">
