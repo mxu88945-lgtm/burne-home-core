@@ -79,6 +79,7 @@ export default function DramaRoom() {
   const [memBusyId, setMemBusyId] = useState('') // 正在生成私人记忆的角色 id
   const fileRef = useRef<HTMLInputElement>(null)
   const endRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
   const mediaRecRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
@@ -99,9 +100,14 @@ export default function DramaRoom() {
     el.style.height = Math.min(120, el.scrollHeight) + 'px'
   }, [draft])
 
-  /** 聚焦输入框时滚到最新消息（停在底部，别卡在顶端） */
+  /** 滚到最新消息底部。键盘弹出有动画 + 视口缩放，分几次补滚才稳。 */
   function scrollToEnd() {
-    setTimeout(() => endRef.current?.scrollIntoView({ block: 'end' }), 60)
+    const jump = () => {
+      const el = listRef.current
+      if (el) el.scrollTop = el.scrollHeight
+    }
+    requestAnimationFrame(jump)
+    ;[120, 300, 500].forEach((t) => setTimeout(jump, t))
   }
 
   if (!scene) {
@@ -775,7 +781,7 @@ export default function DramaRoom() {
       {err && <div className="mb-1 px-1 text-[11px] text-red-500">{err}</div>}
 
       {/* 群聊消息 */}
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-0.5 py-1">
+      <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-0.5 py-1">
         {messages.length === 0 ? (
           <div className="glass rounded-3xl px-6 py-10 text-center text-sm text-muted">
             建好角色后，在下面说一句开场，再点角色名让 TA 接话吧～

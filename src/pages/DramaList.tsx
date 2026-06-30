@@ -71,7 +71,16 @@ export default function DramaList() {
   return (
     <div className="space-y-4">
       <DramaBg />
-      <BackBar />
+      <div className="flex items-center justify-between">
+        <BackBar />
+        <button
+          onClick={() => nav('/settings')}
+          aria-label="设置"
+          className="glass mb-3 flex h-9 w-9 items-center justify-center rounded-full text-base text-muted hover:text-accent"
+        >
+          ⚙️
+        </button>
+      </div>
       <div className="flex items-end justify-between gap-2 px-1">
         <div className="min-w-0">
           <h2 className="headline text-2xl text-ink">戏剧 🎭</h2>
