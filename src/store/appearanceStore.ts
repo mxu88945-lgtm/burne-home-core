@@ -18,6 +18,12 @@ export interface Appearance {
   chatBgBlur: number
   /** 铺法：cover=铺满 / contain=完整显示 */
   chatBgFit: 'cover' | 'contain'
+  /** 主页背景图（dataURL，空则跟随主题底色） */
+  homeBg: string
+  /** 主页背景模糊 0~20 px */
+  homeBgBlur: number
+  /** 主页毛玻璃度（白纱不透明度）0~0.7：越大越朦胧、卡片越清楚 */
+  homeBgFrost: number
 }
 
 const DEFAULT_APPEARANCE: Appearance = {
@@ -26,6 +32,9 @@ const DEFAULT_APPEARANCE: Appearance = {
   chatBgOpacity: 1,
   chatBgBlur: 0,
   chatBgFit: 'cover',
+  homeBg: '',
+  homeBgBlur: 0,
+  homeBgFrost: 0.15,
 }
 
 interface AppearanceState {

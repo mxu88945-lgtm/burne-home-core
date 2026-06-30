@@ -604,7 +604,7 @@ export default function DramaRoom() {
                       <span className="h-px w-14 bg-gradient-to-l from-transparent to-line" />
                     </div>
                   )}
-                  <div className="mb-1 flex items-center gap-1.5">
+                  <div className={`mb-1 flex items-center gap-1.5 ${mine ? 'flex-row-reverse' : ''}`}>
                     <Avatar
                       img={c?.avatarImg}
                       emoji={c?.avatar || '🙂'}

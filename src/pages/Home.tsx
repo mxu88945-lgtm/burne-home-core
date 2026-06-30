@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useProfileStore, daysTogether } from '@/store/profileStore'
 import { useChatStore } from '@/store/chatStore'
+import { useAppearanceStore } from '@/store/appearanceStore'
 import { usePeriodStore } from '@/store/periodStore'
 import { computeStat } from '@/lib/period'
 import { EditIcon } from '@/components/ui/icons'
@@ -40,6 +41,7 @@ function QuickEntry({
 
 export default function Home() {
   const { profile, setProfile } = useProfileStore()
+  const { homeBg, homeBgBlur, homeBgFrost } = useAppearanceStore((s) => s.appearance)
   const startBlank = useChatStore((s) => s.startBlank)
   const periodDays = usePeriodStore((s) => s.days)
   const periodLen = usePeriodStore((s) => s.periodLen)
@@ -81,6 +83,25 @@ export default function Home() {
 
   return (
     <div className="home-glassy space-y-5">
+      {/* 主页自定义背景：图层(可模糊) + 一层毛玻璃白纱，铺满视口、在内容之下 */}
+      {homeBg && (
+        <>
+          <div
+            className="pointer-events-none fixed inset-0 -z-10 bg-cover bg-center"
+            style={{
+              backgroundImage: `url(${homeBg})`,
+              filter: homeBgBlur ? `blur(${homeBgBlur}px)` : undefined,
+            }}
+          />
+          {homeBgFrost > 0 && (
+            <div
+              className="pointer-events-none fixed inset-0 -z-10"
+              style={{ background: `rgba(255,255,255,${homeBgFrost})` }}
+            />
+          )}
+        </>
+      )}
+
       {/* 情侣主视觉 */}
       <section className="glass-strong rounded-3xl px-6 py-7 text-center">
         <div className="flex items-center justify-center gap-5">
