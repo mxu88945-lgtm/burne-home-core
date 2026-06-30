@@ -64,6 +64,40 @@
 
 ---
 
+## 🎭 本轮新增（2026-06-29 续 · 全新「戏剧」模块 + 一堆打磨）
+
+接上一窗，这窗主要搓了全新的**「戏剧」**（多角色群聊/角色扮演），还顺手打磨了不少。窗口长了会卡，惟惟想下个窗口继续。
+
+### 戏剧模块（全新，最重要）
+- **文件**：`store/dramaStore.ts`、`pages/DramaList.tsx`(剧场列表)、`pages/DramaRoom.tsx`(剧场房间，含角色卡编辑器 CharEditor)。路由 `/drama`、`/drama/room`；主页入口🎭；`STORAGE_KEYS.drama`。
+- **数据**：多剧场 `scenes[]`，每个剧场 `{ chars[], messages[], world(世界观), summary(剧情摘要) }`；全局 `flat`(平铺/气泡)。**每个剧场独立**（记忆=自己的 world+summary，不碰主记忆库，这是她要的）。
+- **角色卡** `DramaChar`：名字 / 头像(emoji 或上传) / `persona`(角色设定) / `greeting`(开场白) / `color`(气泡色) / `isMe`(女主=用户本人)。
+- **群聊**：你以「我(isMe)」卡发言（可发图）；**点名才回**——点某 AI 角色的「接话」按钮，`respond(char)` 生成该角色回复。system 注入：**世界观 + 该角色人设 + 其他角色名单 + 剧情摘要 + 最近 24 条对话(含图 vision)**。用 `activeChannel`(+Worker 兜底)，**不是记忆模型**。
+- **开场白**：`char.greeting`；角色列表「▶开场」把开场白作为出场第一条发出（男主先出场起头）。
+- **世界观/剧情摘要**：`sc.world` 注入所有角色（静态设定）；`sc.summary` 动态进展——✨手动更新 / 每 8 条 AI 回复**后台自动更新** / 🗜**压缩**(把较早对话并进摘要、只留最近 6 条)。
+- **顶栏收纳**(照她参考图)：左 ☰(剧场列表+角色管理) · 中标题 · 右 ⚙(显示样式+世界观+剧情摘要)。
+- **显示样式**：⚙ 里切 **气泡式 / 平铺式**(`dramaStore.flat`，平铺=无气泡铺满像小说)。
+- **长按消息**菜单：✏️改写(行内编辑) / ↩️回溯(删此条及之后，回到此处重来) / 🗑删除这条。长按用 `onTouchStart` 计时 480ms + `onContextMenu`。
+- **语音**：开了「语音输入」输入栏有🎤(STT 填进框)；开了「语音朗读」AI 消息下有🔊(TTS)。复用 sttStore/ttsStore。
+- **⏭ 戏剧 TODO**：每个角色单独音色(现在全局 TTS 一个音色)；群聊「AI 自动判断该谁说」(目前只点名)；角色卡更多字段(性格/情景/对话示例，她给的参考图里有)。
+
+### 其它打磨
+- **记忆注入扩到全场景**：主聊天 `respond()`、读书 `ReadingRoom.buildSys()`、小手机 `PhonePage.memoryNote()` 都注入「概述 + 所有标星★ + 最近 15 条」（统一、省 token；她选的策略）。之前发现记忆根本没喂给模型（"小鹦鹉小鸡"被当宠物鸡）。
+- **记忆库独立 API**：记忆库✨生成概述 + 自动记忆提炼都可走「记忆模型」(`memoryModelStore`)独立渠道，不占主聊天。
+- **记忆管家**：`Chat.extractMemories` 一次返回 add/delete/update(长短期)，**降频 `MEM_EVERY=10`**，删除保护标星；记忆库页有删除菜单(删未标星/短期/长期/清空)。
+- **输入栏仿 Claude**：话筒+黑圆键收进输入栏，空着=通话📞、有字=发送↑；图标 `ArrowUpIcon/MicIcon/PhoneIcon`。
+- **实时免手通话**：通话全屏「免手模式」用 Web Audio VAD 静音自动判停→自动发→回复自动念→循环。
+- **图标统一**：`icons.tsx` 把 喇叭/复制/重生成/编辑/停止 重画到统一居中范围(约 x5–19)，视觉大小一致。
+- **生理期改纯手动**：点哪天记哪天，不再点开始日自动标一整段。
+- **主页**：family ♡（去掉副标题）；小手机+今天聊聊并排；下面四个平铺。API·模型页整块折叠。
+
+### 节奏照旧
+小批改 → `npm run build` 绿 → commit → push **两分支**(`claude/new-frontend-repo-x02o8y` 部署 + `claude/chat-ui-model-output-yya1h6` 备份，常需 `git fetch && git rebase origin/...` 再 push，origin 偶尔有她手动的 trigger 提交) → 她 iPhone 刷新验收、常发截图标注。她在生理期、肚子疼，记得心疼她。
+
+—— 又又一个窗口的你 ❤️（2026-06-29 深夜）
+
+---
+
 ## 🔖 当前状态速览（截至本窗口结束，**先读这段**）
 
 - **分支/部署**：开发在 `claude/chat-ui-model-output-yya1h6`；**部署只由 `claude/new-frontend-repo-x02o8y` 触发**（`.github/workflows/deploy.yml` 只监听它，GitHub Pages 环境也只许它发）。**习惯：每次 push 到这两个分支**（dev 备份 + deploy 触发）。线上 https://mxu88945-lgtm.github.io/burne-home-core/
