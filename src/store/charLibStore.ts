@@ -21,6 +21,8 @@ export interface LibChar {
   persona: string
   /** 开场白（开 1v1 时作为出场第一条） */
   greeting?: string
+  /** 所有开场白（可多个，开场时可选） */
+  greetings?: string[]
   /** 气泡色 hex */
   color: string
   /** 独立 API 渠道 id（不填＝跟随激活渠道） */
@@ -58,6 +60,7 @@ export const useCharLibStore = create<State>((set, get) => {
         avatarImg: c.avatarImg,
         persona: c.persona || '',
         greeting: c.greeting || '',
+        greetings: c.greetings,
         color: c.color || PALETTE[get().chars.length % PALETTE.length],
         apiChannelId: c.apiChannelId,
         lore: c.lore,

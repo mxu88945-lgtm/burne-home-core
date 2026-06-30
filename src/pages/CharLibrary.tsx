@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCharLibStore, type LibChar } from '@/store/charLibStore'
-import { useDramaStore, type LoreEntry } from '@/store/dramaStore'
+import { useDramaStore, dramaMsgId, type LoreEntry } from '@/store/dramaStore'
 import { useProfileStore } from '@/store/profileStore'
 import { useApiStore } from '@/store/apiStore'
 import { parseCardFile } from '@/lib/charCard'
@@ -41,6 +41,7 @@ export default function CharLibrary() {
         name: card.name,
         persona: card.persona,
         greeting: card.greeting,
+        greetings: card.greetings,
         avatarImg: card.avatarImg,
         lore: card.lore,
       })
@@ -64,10 +65,25 @@ export default function CharLibrary() {
       avatarImg: lc.avatarImg,
       persona: lc.persona,
       greeting: lc.greeting,
+      greetings: lc.greetings,
       color: lc.color,
       apiChannelId: lc.apiChannelId,
     })
     if (lc.lore?.length) addLore(scene.id, freshLore(lc.lore))
+    // 自动把第一条开场白发出来（让你一进去就看到美化的开场）
+    const opening = (lc.greetings?.[0] || lc.greeting || '').trim()
+    if (opening) {
+      const st = useDramaStore.getState()
+      const aiChar = st.scenes.find((s) => s.id === scene.id)?.chars.find((c) => !c.isMe)
+      if (aiChar) {
+        st.addMessage(scene.id, {
+          id: dramaMsgId(),
+          who: aiChar.id,
+          text: opening,
+          at: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        })
+      }
+    }
     nav('/drama/room')
   }
 

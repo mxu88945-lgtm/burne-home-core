@@ -20,6 +20,8 @@ export interface DramaChar {
   persona: string
   /** 开场白：作为出场第一条消息发出（可留空） */
   greeting?: string
+  /** 所有开场白（可多个，开场时可选） */
+  greetings?: string[]
   /** 气泡色 hex */
   color: string
   /** 是否是「我」（女主，用户本人，由你发言） */
@@ -192,6 +194,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
           avatarImg: char.avatarImg,
           persona: char.persona || '',
           greeting: char.greeting || '',
+          greetings: char.greetings,
           color,
           isMe: char.isMe ?? false,
           apiChannelId: char.apiChannelId,

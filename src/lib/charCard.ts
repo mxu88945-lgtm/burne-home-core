@@ -13,6 +13,8 @@ export interface ParsedCard {
   name: string
   persona: string
   greeting: string
+  /** 所有开场白（first_mes + alternate_greetings），可多个 */
+  greetings: string[]
   avatarImg?: string
   lore: LoreEntry[]
 }
@@ -157,9 +159,12 @@ function normalize(obj: unknown): ParsedCard {
   // V2/V3 包在 data 里；V1 是平铺
   const d = (o.data && typeof o.data === 'object' ? (o.data as AnyObj) : o) as AnyObj
   const name = str(d.name) || str(o.name) || '角色'
-  const greeting = str(d.first_mes) || str(o.first_mes)
+  const first = str(d.first_mes) || str(o.first_mes)
+  const altRaw = (d.alternate_greetings ?? o.alternate_greetings) as unknown
+  const alts = Array.isArray(altRaw) ? altRaw.map((g) => str(g)) : []
+  const greetings = [first, ...alts].map((g) => g.trim()).filter(Boolean)
   const lore = parseBook(d.character_book ?? o.character_book)
-  return { name, persona: buildPersona(d), greeting, lore }
+  return { name, persona: buildPersona(d), greeting: greetings[0] || '', greetings, lore }
 }
 
 /** 解析一个角色卡文件（.json 或 .png） */

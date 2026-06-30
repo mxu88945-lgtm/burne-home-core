@@ -8,6 +8,7 @@
  */
 
 import { useState, type ReactNode } from 'react'
+import { HtmlCard, isRichHtml } from '@/lib/htmlCard'
 
 /** 状态栏行的起始标记（emoji） */
 const STATUS_RE = /^\s*(⏰|⏱|🕐|🕒|🕛|🍊|🏠|🏡|🗺️?|📍|📌|📅|🎬|🎭|💬|❤️|🩷)/
@@ -90,6 +91,9 @@ function renderPlain(text: string, key: () => string): ReactNode[] {
 
 /** 解析一段消息文本 → 美化后的 React 节点 */
 export function DramaRich({ text }: { text: string }) {
+  // 整页 HTML（带 <style>/<div> 的角色卡开场白/消息）→ 沙箱 iframe 真渲染
+  if (isRichHtml(text)) return <HtmlCard html={text} />
+
   let n = 0
   const key = () => `r${n++}` // 确定性序号：同文本每次一致，折叠状态稳定
   const nodes: ReactNode[] = []

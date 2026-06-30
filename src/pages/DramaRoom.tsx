@@ -75,6 +75,7 @@ export default function DramaRoom() {
   const [summaryOpen, setSummaryOpen] = useState(false) // 剧情摘要框 折叠/展开
   const [loreOpen, setLoreOpen] = useState(false) // 世界书 折叠/展开
   const [addMemberOpen, setAddMemberOpen] = useState(false) // 从角色库加成员
+  const [greetPick, setGreetPick] = useState<{ char: DramaChar; list: string[] } | null>(null) // 多开场白选择
   const [plusOpen, setPlusOpen] = useState(false) // 输入栏 ＋ 菜单
   const [editing, setEditing] = useState<DramaChar | 'new' | null>(null)
   const [summaryBusy, setSummaryBusy] = useState(false)
@@ -202,14 +203,25 @@ export default function DramaRoom() {
     void respond(c)
   }
 
-  /** 让某角色用开场白出场（把开场白作为一条消息发出来） */
+  /** 让某角色用开场白出场。多个开场白时弹出来选一个。 */
   function openWith(char: DramaChar) {
-    const g = (char.greeting || '').trim()
-    if (!g) {
+    const list = (char.greetings && char.greetings.length ? char.greetings : char.greeting ? [char.greeting] : [])
+      .map((g) => g.trim())
+      .filter(Boolean)
+    if (!list.length) {
       setErr(`${char.name} 还没填开场白`)
       return
     }
-    addMessage(sc.id, { id: dramaMsgId(), who: char.id, text: g, at: now() })
+    if (list.length === 1) {
+      addMessage(sc.id, { id: dramaMsgId(), who: char.id, text: list[0], at: now() })
+      return
+    }
+    setGreetPick({ char, list })
+  }
+  /** 选定某条开场白发出 */
+  function sendGreeting(char: DramaChar, text: string) {
+    addMessage(sc.id, { id: dramaMsgId(), who: char.id, text, at: now() })
+    setGreetPick(null)
   }
 
   /** 点名某角色，让 TA 接话 */
@@ -547,6 +559,7 @@ export default function DramaRoom() {
       avatarImg: lc.avatarImg,
       persona: lc.persona,
       greeting: lc.greeting,
+      greetings: lc.greetings,
       color: lc.color,
       apiChannelId: lc.apiChannelId,
     })
@@ -1128,6 +1141,25 @@ export default function DramaRoom() {
           onAdd={addChar}
           onUpdate={updateChar}
         />
+      )}
+
+      {/* 多开场白选择 */}
+      {greetPick && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3" onClick={() => setGreetPick(null)}>
+          <div className="glass-strong max-h-[72vh] w-full max-w-md space-y-2 overflow-y-auto rounded-3xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
+            <div className="headline text-lg text-ink">{greetPick.char.name} · 选一个开场白（{greetPick.list.length}）</div>
+            {greetPick.list.map((g, i) => (
+              <button
+                key={i}
+                onClick={() => sendGreeting(greetPick.char, g)}
+                className="block w-full rounded-2xl border border-line bg-white/50 px-3 py-2.5 text-left text-[13px] text-ink hover:border-accent"
+              >
+                <span className="mr-1 text-[11px] text-accent">开场 {i + 1}</span>
+                {g.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60) || '（空）'}…
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* 从角色库加成员 */}
