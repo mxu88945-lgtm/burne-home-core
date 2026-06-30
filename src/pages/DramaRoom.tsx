@@ -9,6 +9,7 @@ import { chatComplete } from '@/api/llm'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { cleanReply } from '@/lib/cleanReply'
 import { fileToDataUrl } from '@/lib/image'
+import { parseCardFile, buildLoreText } from '@/lib/charCard'
 import { useSttStore } from '@/store/sttStore'
 import { transcribe } from '@/api/stt'
 import { useTtsStore } from '@/store/ttsStore'
@@ -33,6 +34,9 @@ export default function DramaRoom() {
   const updateChar = useDramaStore((s) => s.updateChar)
   const removeChar = useDramaStore((s) => s.removeChar)
   const addMessage = useDramaStore((s) => s.addMessage)
+  const addLore = useDramaStore((s) => s.addLore)
+  const updateLoreEntry = useDramaStore((s) => s.updateLoreEntry)
+  const removeLoreEntry = useDramaStore((s) => s.removeLoreEntry)
   const setMessages = useDramaStore((s) => s.setMessages)
   const setSummary = useDramaStore((s) => s.setSummary)
   const setSummaryAt = useDramaStore((s) => s.setSummaryAt)
@@ -66,6 +70,8 @@ export default function DramaRoom() {
   const [rightOpen, setRightOpen] = useState(false) // 右⚙：世界观/剧情摘要
   const [worldOpen, setWorldOpen] = useState(false) // 世界观框 折叠/展开
   const [summaryOpen, setSummaryOpen] = useState(false) // 剧情摘要框 折叠/展开
+  const [loreOpen, setLoreOpen] = useState(false) // 世界书 折叠/展开
+  const cardRef = useRef<HTMLInputElement>(null) // 角色卡文件选择
   const [plusOpen, setPlusOpen] = useState(false) // 输入栏 ＋ 菜单
   const [editing, setEditing] = useState<DramaChar | 'new' | null>(null)
   const [summaryBusy, setSummaryBusy] = useState(false)
@@ -220,9 +226,13 @@ export default function DramaRoom() {
         .map((c) => (c.isMe ? `${c.name}（用户本人/女主）` : c.name))
         .join('、')
       const world = (sc.world || '').trim()
+      // 世界书：按最近对话挑出常驻 + 命中关键词的条目注入（省 token）
+      const loreHay = sc.messages.slice(-24).map((m) => m.text).join('\n') + '\n' + (draft || '')
+      const loreText = buildLoreText(sc.lore, loreHay)
       const sys =
         `你在一个多人角色扮演群聊里，只扮演角色【${char.name}】。\n` +
         (world ? `【世界观 / 背景设定（所有角色共同遵守）】\n${world}\n\n` : '') +
+        (loreText ? `【世界书 · 相关设定】\n${loreText}\n\n` : '') +
         `【${char.name}的人设】\n${char.persona || '（未填，请贴合名字与剧情合理发挥）'}\n` +
         ((char.memory || '').trim() ? `\n【你（${char.name}）自己记得 / 在意的（第一人称私人记忆）】\n${(char.memory || '').trim()}\n` : '') +
         (others ? `\n群里其他人：${others}。\n` : '') +
@@ -524,6 +534,24 @@ export default function DramaRoom() {
     }
   }
 
+  /** 导入角色卡（JSON/PNG，V1/V2/V3）→ 当前剧场建角色 + 并入世界书 */
+  async function importCard(file: File) {
+    setErr('')
+    try {
+      const card = await parseCardFile(file)
+      addChar(sc.id, {
+        name: card.name,
+        persona: card.persona,
+        greeting: card.greeting,
+        avatarImg: card.avatarImg,
+      })
+      if (card.lore.length) addLore(sc.id, card.lore)
+      flashToast(`已导入「${card.name}」${card.lore.length ? ` · 世界书 ${card.lore.length} 条` : ''}`)
+    } catch (e) {
+      setErr(`导入角色卡失败：${(e as Error).message}`)
+    }
+  }
+
   // 长按消息 → 弹操作菜单
   function pressStart(id: string) {
     pressTimer.current = setTimeout(() => setMenuMsgId(id), 480)
@@ -666,11 +694,27 @@ export default function DramaRoom() {
               <button onClick={() => removeChar(sc.id, c.id)} className="px-1.5 text-[13px] text-muted hover:text-red-500">删</button>
             </div>
           ))}
-          <button onClick={() => setEditing('new')} className="btn-primary w-full rounded-xl py-2 text-[13px]">
-            ＋ 新角色卡
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setEditing('new')} className="btn-primary flex-1 rounded-xl py-2 text-[13px]">
+              ＋ 新角色卡
+            </button>
+            <button onClick={() => cardRef.current?.click()} className="glass flex-1 rounded-xl py-2 text-[13px] text-ink">
+              📇 导入角色卡
+            </button>
+          </div>
+          <input
+            ref={cardRef}
+            type="file"
+            accept=".json,.png,application/json,image/png"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              e.target.value = ''
+              if (f) importCard(f)
+            }}
+          />
           <p className="text-[10px] leading-relaxed text-muted">
-            建一张勾「这是我」的女主卡（你来发言）；其余是 AI 角色（男主、NPC 等）。给角色填开场白可「▶开场」让 TA 先出场。
+            建一张勾「这是我」的女主卡（你来发言）；其余是 AI 角色。「导入角色卡」支持 Tavern V1/V2/V3 的 JSON 或 PNG（连世界书一起进），导入后可在 ⚙ 里看世界书。
           </p>
         </div>
       )}
@@ -782,6 +826,37 @@ export default function DramaRoom() {
             <p className="px-2.5 pb-1.5 text-[10px] leading-relaxed text-muted">
               每个 AI 角色以第一人称记着自己在意的事，只在 TA 接话时注入，更像自己、不串味。开＝按上面频率给刚发言角色增量更新（走记忆模型）；不开就到 ☰ 角色列表点 🧠 手动回顾。
             </p>
+            <div className="mx-2.5 border-t border-line/40" />
+
+            {/* 世界书 */}
+            <button onClick={() => setLoreOpen((o) => !o)} className="flex w-full items-center justify-between rounded-xl px-2.5 py-2.5 text-left hover:bg-white/40">
+              <span className="text-sm text-ink">世界书</span>
+              <span className="flex items-center gap-1.5 text-[12px] text-muted">
+                {(sc.lore?.length ?? 0) > 0 ? `${sc.lore!.filter((e) => e.enabled).length}/${sc.lore!.length} 条` : '空'}
+                <span>{loreOpen ? '▴' : '›'}</span>
+              </span>
+            </button>
+            {loreOpen && (
+              <div className="space-y-1.5 px-2.5 pb-2">
+                {(sc.lore?.length ?? 0) === 0 ? (
+                  <p className="text-[11px] text-muted">还没有世界书。导入角色卡（PNG/JSON）时会自动带进来。</p>
+                ) : (
+                  sc.lore!.map((e) => (
+                    <div key={e.id} className="flex items-center gap-2 rounded-xl bg-white/40 px-2.5 py-1.5">
+                      <span className="shrink-0 text-[11px]">{e.constant ? '📌' : '🔑'}</span>
+                      <span className="min-w-0 flex-1 truncate text-[12px] text-ink">{e.name}</span>
+                      <label className="relative inline-flex shrink-0 cursor-pointer items-center">
+                        <input type="checkbox" checked={e.enabled} onChange={(ev) => updateLoreEntry(sc.id, e.id, { enabled: ev.target.checked })} className="peer sr-only" />
+                        <span className="h-4 w-7 rounded-full bg-black/15 transition peer-checked:bg-accent" />
+                        <span className="absolute left-0.5 h-3 w-3 rounded-full bg-white shadow transition peer-checked:translate-x-3" />
+                      </label>
+                      <button onClick={() => removeLoreEntry(sc.id, e.id)} className="shrink-0 px-1 text-[13px] text-muted hover:text-red-500">✕</button>
+                    </div>
+                  ))
+                )}
+                <p className="text-[10px] leading-relaxed text-muted">📌常驻＝每次都注入；🔑关键词＝对话里出现关键词才注入（省 token）。</p>
+              </div>
+            )}
           </div>
         </div>
       )}

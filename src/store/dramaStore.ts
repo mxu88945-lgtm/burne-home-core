@@ -32,6 +32,21 @@ export interface DramaChar {
   memoryAt?: number
 }
 
+/** 世界书条目（Lorebook entry，参考 Tavern 角色卡） */
+export interface LoreEntry {
+  id: string
+  /** 条目名/备注 */
+  name: string
+  /** 触发关键词（命中才注入）；constant=true 时忽略，常驻注入 */
+  keys: string[]
+  /** 条目内容（设定正文） */
+  content: string
+  /** 常驻：每次都注入（📌）；否则按关键词触发（🔑） */
+  constant: boolean
+  /** 是否启用 */
+  enabled: boolean
+}
+
 export interface DramaMsg {
   id: string
   /** 发言者：角色卡 id（含「我」那张） */
@@ -53,6 +68,8 @@ export interface DramaScene {
   summary: string
   /** 已经并入摘要的消息条数（增量摘要用：下次只读这个数之后的新对话） */
   summaryAt?: number
+  /** 世界书：常驻条目always注入、关键词条目命中才注入（省 token） */
+  lore?: LoreEntry[]
   createdAt: string
 }
 
@@ -96,6 +113,10 @@ interface DramaState extends Persisted {
   setAutoSummary: (on: boolean) => void
   setAutoSummaryEvery: (n: number) => void
   setAutoCharMemory: (on: boolean) => void
+  /** 世界书：追加条目 / 改单条 / 删单条 */
+  addLore: (sceneId: string, entries: LoreEntry[]) => void
+  updateLoreEntry: (sceneId: string, entryId: string, patch: Partial<LoreEntry>) => void
+  removeLoreEntry: (sceneId: string, entryId: string) => void
   /** 从导入的对话整本建一个新剧场（角色 + 消息一次性建好） */
   importScene: (input: {
     title: string
@@ -217,6 +238,18 @@ export const useDramaStore = create<DramaState>((set, get) => {
       set({ autoCharMemory: on })
       persist(get().scenes)
     },
+
+    addLore: (sceneId, entries) =>
+      patchScene(sceneId, (s) => ({ ...s, lore: [...(s.lore || []), ...entries] })),
+
+    updateLoreEntry: (sceneId, entryId, patch) =>
+      patchScene(sceneId, (s) => ({
+        ...s,
+        lore: (s.lore || []).map((e) => (e.id === entryId ? { ...e, ...patch } : e)),
+      })),
+
+    removeLoreEntry: (sceneId, entryId) =>
+      patchScene(sceneId, (s) => ({ ...s, lore: (s.lore || []).filter((e) => e.id !== entryId) })),
 
     importScene: (input) => {
       const idByName = new Map<string, string>()
