@@ -179,7 +179,7 @@ export default function DramaRoom() {
     setPendingImage('')
   }
 
-  /** 发送：输入「@角色名」（单独）＝让该角色接话；否则当作「我」发言 */
+  /** 发送：@角色名＝让该角色接话；1v1 发完自动让那个 AI 回；群聊照旧 */
   function onSend() {
     const t = draft.trim()
     const m = t.match(/^@(\S+)$/)
@@ -194,7 +194,10 @@ export default function DramaRoom() {
       setErr(`没找到角色「${nm}」，@后面填角色名`)
       return
     }
+    const had = !!(t || pendingImage)
     sendMine()
+    // 1v1（只有一个 AI 角色）：发完自动让 TA 回
+    if (had && aiChars.length === 1 && !busyChar) void respond(aiChars[0])
   }
 
   /** 点 @ 弹层里的角色：清掉输入框里的 @词，直接让 TA 接话 */
@@ -240,9 +243,11 @@ export default function DramaRoom() {
         .filter((c) => c.id !== char.id)
         .map((c) => (c.isMe ? `${c.name}（用户本人/女主）` : c.name))
         .join('、')
+      // 读「最新」消息（自动回复紧跟在用户发送之后，闭包里的 sc.messages 是旧的）
+      const freshMsgs = useDramaStore.getState().scenes.find((s) => s.id === sc.id)?.messages ?? sc.messages
       const world = (sc.world || '').trim()
       // 世界书：按最近对话挑出常驻 + 命中关键词的条目注入（省 token）
-      const loreHay = sc.messages.slice(-24).map((m) => m.text).join('\n') + '\n' + (draft || '')
+      const loreHay = freshMsgs.slice(-24).map((m) => m.text).join('\n') + '\n' + (draft || '')
       const loreText = buildLoreText(sc.lore, loreHay)
       const sys =
         `你在一个多人角色扮演群聊里，只扮演角色【${char.name}】。\n` +
@@ -255,7 +260,7 @@ export default function DramaRoom() {
         `\n规则：只输出【${char.name}】这一条的发言/动作，第一人称、贴合人设与当前剧情、自然推进剧情；` +
         `这是角色扮演，可以有动作/神态/对话描写。不要替别人说话、不要写成剧本去标注别人的台词、不要复述以上摘要。简洁自然，别太长。`
 
-      const recent = sc.messages.slice(-24)
+      const recent = freshMsgs.slice(-24)
       const transcript =
         recent.map((m) => `${nameOf(m.who)}：${m.text}${m.image ? '［图片］' : ''}`).join('\n') ||
         '（还没人说话，由你开场）'
@@ -1070,7 +1075,7 @@ export default function DramaRoom() {
             rows={1}
             onChange={(e) => setDraft(e.target.value)}
             onFocus={scrollToEnd}
-            placeholder="@角色 回复"
+            placeholder={aiChars.length === 1 ? `和 ${aiChars[0].name} 说点什么…` : '@角色 回复'}
             className="max-h-[120px] min-h-[36px] min-w-0 flex-1 resize-none self-center bg-transparent py-1.5 text-sm leading-snug text-ink outline-none placeholder:text-muted"
           />
           {sttCfg.enabled && (
