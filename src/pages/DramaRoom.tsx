@@ -641,7 +641,7 @@ export default function DramaRoom() {
                 <textarea
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
-                  className="min-h-[64px] w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                  className="min-h-[64px] w-full select-text rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none [-webkit-user-select:text] focus:border-accent"
                 />
                 <div className="mt-1 flex justify-end gap-2">
                   <button onClick={() => { setEditMsgId(''); setEditText('') }} className="glass rounded-full px-3 py-1 text-[12px] text-ink">取消</button>
@@ -653,7 +653,7 @@ export default function DramaRoom() {
             // 平铺式：无气泡、铺满、像小说
             if (flat) {
               return (
-                <div key={m.id} className="pb-1" {...longPress}>
+                <div key={m.id} className="select-none pb-1 [-webkit-touch-callout:none] [-webkit-user-select:none]" {...longPress}>
                   {i > 0 && (
                     <div className="flex items-center justify-center gap-2 py-3 text-[11px] text-muted/50" aria-hidden>
                       <span className="h-px w-14 bg-gradient-to-r from-transparent to-line" />
@@ -693,7 +693,7 @@ export default function DramaRoom() {
                   textCls="text-base"
                   style={{ background: (c?.color || '#999') + '33' }}
                 />
-                <div className={`flex min-w-0 max-w-[78%] flex-col ${mine ? 'items-end' : 'items-start'}`} {...longPress}>
+                <div className={`flex min-w-0 max-w-[78%] flex-col select-none [-webkit-touch-callout:none] [-webkit-user-select:none] ${mine ? 'items-end' : 'items-start'}`} {...longPress}>
                   <span className="px-1 text-[10px] text-muted">{nameOf(m.who)}</span>
                   {m.image && (
                     <img src={m.image} alt="" className="mt-0.5 max-h-52 max-w-full rounded-2xl object-cover" />
