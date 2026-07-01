@@ -199,5 +199,5 @@ export function DramaRich({ text: raw, user, char }: { text: string; user?: stri
       }
     })
   }
-  return <div className="space-y-1.5">{nodes}</div>
+  return <div className="space-y-2.5">{nodes}</div>
 }
