@@ -18,11 +18,11 @@ export interface PetState {
   y: number
 }
 
-/** 手绘 Claude 风格小生物的标记值（造型选它时渲染 SVG，而非 emoji） */
+/** Claude 风格手绘小生物的标记值（默认造型） */
 export const PET_CLAUDE = 'claude'
 
-/** 可选造型（第一个是默认：Claude 风格手绘小家伙，会自己爬来爬去） */
-export const PET_CHOICES = [PET_CLAUDE, '🦎', '🐈', '🐹', '🦖', '🐸', '🐥', '🐙', '🦊', '🐧', '🦉', '🐬', '🦋']
+/** 可选造型（全部手绘 SVG：Claude 小家伙 / 八爪鱼 / 小鸟） */
+export const PET_CHOICES = [PET_CLAUDE, 'octo', 'bird']
 
 const DEFAULT: PetState = { enabled: true, emoji: PET_CLAUDE, x: 0.86, y: 0.7 }
 

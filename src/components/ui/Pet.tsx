@@ -9,10 +9,10 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { usePetStore, PET_CLAUDE } from '@/store/petStore'
+import { usePetStore, PET_CHOICES } from '@/store/petStore'
 import { useDramaStore } from '@/store/dramaStore'
 import { useChatStore } from '@/store/chatStore'
-import PetCritter from '@/components/ui/PetCritter'
+import PetCritter, { type PetVariant } from '@/components/ui/PetCritter'
 
 const BUBBLES = ['💕', '✨', '👀', '嗯？', '来啦~', '😺', '么么', '🎵', '❤️', '在呢~']
 const HEARTS = ['💕', '✨', '❤️', '💗', '🌸']
@@ -157,7 +157,7 @@ export default function Pet() {
 
   if (!enabled) return null
 
-  const isClaude = emoji === PET_CLAUDE
+  const isCritter = (PET_CHOICES as string[]).includes(emoji)
 
   return (
     <div
@@ -196,8 +196,8 @@ export default function Pet() {
         className="pointer-events-auto grid h-12 w-12 cursor-grab touch-none place-items-center rounded-full active:cursor-grabbing"
         style={{ transform: `scaleX(${facing})` }}
       >
-        {isClaude ? (
-          <PetCritter walking={walking} className={`h-11 w-11 ${hop ? 'pet-hop' : 'pet-idle'}`} />
+        {isCritter ? (
+          <PetCritter variant={emoji as PetVariant} walking={walking} className={`h-11 w-11 ${hop ? 'pet-hop' : 'pet-idle'}`} />
         ) : (
           <span className={`text-2xl ${hop ? 'pet-hop' : 'pet-idle'} inline-block`}>{emoji}</span>
         )}

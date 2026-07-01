@@ -3,10 +3,10 @@ import { useProfileStore } from '@/store/profileStore'
 import { useAppearanceStore } from '@/store/appearanceStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { usePersonaStore } from '@/store/personaStore'
-import { usePetStore, PET_CHOICES, PET_CLAUDE } from '@/store/petStore'
+import { usePetStore, PET_CHOICES } from '@/store/petStore'
 import { fileToDataUrl } from '@/lib/image'
 import Avatar from '@/components/ui/Avatar'
-import PetCritter from '@/components/ui/PetCritter'
+import PetCritter, { type PetVariant } from '@/components/ui/PetCritter'
 
 const inputCls =
   'w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent'
@@ -299,12 +299,12 @@ export default function AppearanceManager() {
                 <button
                   key={e}
                   onClick={() => pet.setEmoji(e)}
-                  aria-label={e === PET_CLAUDE ? 'Claude 小家伙' : e}
-                  className={`grid h-10 w-10 place-items-center rounded-xl text-xl transition ${
+                  aria-label={e}
+                  className={`grid h-12 w-12 place-items-center rounded-xl transition ${
                     pet.emoji === e ? 'bg-accent/20 ring-2 ring-accent' : 'bg-white/40'
                   }`}
                 >
-                  {e === PET_CLAUDE ? <PetCritter className="h-8 w-8" /> : e}
+                  <PetCritter variant={e as PetVariant} className="h-9 w-9" />
                 </button>
               ))}
             </div>
