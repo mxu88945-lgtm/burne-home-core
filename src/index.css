@@ -223,3 +223,32 @@ body {
     font-size: 16px !important;
   }
 }
+
+/* 桌宠 / 小挂件 */
+@keyframes pet-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-6px) rotate(3deg); }
+}
+@keyframes pet-hop {
+  0% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-18px) scale(1.18) rotate(-8deg); }
+  55% { transform: translateY(0) scale(0.96); }
+  75% { transform: translateY(-6px) scale(1.05) rotate(6deg); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes pet-bubble-in {
+  0% { transform: translate(-50%, 4px) scale(0.6); opacity: 0; }
+  100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
+}
+@keyframes pet-heart {
+  0% { transform: translate(-50%, 0) scale(0.6); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translate(-50%, -46px) scale(1.1); opacity: 0; }
+}
+.pet-idle { animation: pet-float 3.4s ease-in-out infinite; }
+.pet-hop { animation: pet-hop 0.6s ease; }
+.pet-bubble { animation: pet-bubble-in 0.22s ease both; }
+.pet-heart { animation: pet-heart 0.9s ease-out forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .pet-idle { animation: none; }
+}

@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import AppHeader from './AppHeader'
+import Pet from '@/components/ui/Pet'
 
 export default function AppLayout() {
   const { pathname } = useLocation()
@@ -20,8 +21,9 @@ export default function AppLayout() {
         transform: 'translateY(var(--app-offset, 0px))',
       }}
     >
-      <div className="mx-auto flex h-full w-full max-w-[440px] flex-col border-line sm:border-x">
+      <div className="relative mx-auto flex h-full w-full max-w-[440px] flex-col border-line sm:border-x">
         {isHome && <AppHeader />}
+        <Pet />
         <main
           className={
             isChat

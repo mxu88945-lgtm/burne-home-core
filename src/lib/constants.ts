@@ -35,6 +35,7 @@ export const STORAGE_KEYS = {
   phone: `${NS}:phone`,
   stickers: `${NS}:stickers`,
   charLib: `${NS}:char-lib`,
+  pet: `${NS}:pet`,
 } as const
 
 /** 本设备 ID（多端同步用）—— 生成一次后持久化在本地 */

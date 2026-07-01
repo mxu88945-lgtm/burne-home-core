@@ -3,6 +3,7 @@ import { useProfileStore } from '@/store/profileStore'
 import { useAppearanceStore } from '@/store/appearanceStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { usePersonaStore } from '@/store/personaStore'
+import { usePetStore, PET_CHOICES } from '@/store/petStore'
 import { fileToDataUrl } from '@/lib/image'
 import Avatar from '@/components/ui/Avatar'
 
@@ -64,6 +65,7 @@ export default function AppearanceManager() {
   const setChatStyle = useChatPrefsStore((s) => s.setChatStyle)
   const persona = usePersonaStore((s) => s.persona)
   const setPersona = usePersonaStore((s) => s.setPersona)
+  const pet = usePetStore()
   const [err, setErr] = useState('')
 
   return (
@@ -270,6 +272,47 @@ export default function AppearanceManager() {
               </div>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* 桌宠 / 小挂件（浮在所有页面） */}
+      <div className="glass rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="label">桌宠 · 小挂件</div>
+          <label className="relative inline-flex cursor-pointer items-center">
+            <input
+              type="checkbox"
+              checked={pet.enabled}
+              onChange={(e) => pet.setEnabled(e.target.checked)}
+              className="peer sr-only"
+            />
+            <span className="h-5 w-9 rounded-full bg-black/15 transition peer-checked:bg-accent" />
+            <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
+          </label>
+        </div>
+        {pet.enabled && (
+          <>
+            <p className="text-[11px] text-muted">浮在所有页面上：可拖着换位置、点一下有反应、有新消息会冒小气泡。挑个造型：</p>
+            <div className="flex flex-wrap gap-2">
+              {PET_CHOICES.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => pet.setEmoji(e)}
+                  className={`grid h-10 w-10 place-items-center rounded-xl text-xl transition ${
+                    pet.emoji === e ? 'bg-accent/20 ring-2 ring-accent' : 'bg-white/40'
+                  }`}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => pet.setPos(0.86, 0.7)}
+              className="glass rounded-full px-3 py-1 text-[12px] text-ink"
+            >
+              重置位置
+            </button>
+          </>
         )}
       </div>
 
