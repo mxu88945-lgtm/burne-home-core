@@ -1041,9 +1041,10 @@ export default function DramaRoom() {
                     <span className="text-[9px] text-muted">{m.at}</span>
                     {ttsBtn}
                   </div>
-                  {m.image && <img src={m.image} alt="" className="mb-1 max-h-60 max-w-full rounded-xl object-cover" />}
+                  {m.image && <img src={m.image} alt="" className={`mb-1 max-h-60 max-w-full rounded-xl object-cover ${mine ? 'ml-auto' : ''}`} />}
                   {editingThis ? editArea : m.text && (
-                    <div className="text-[15px] leading-relaxed text-ink">
+                    // 「我」的消息贴右、宽度随内容自适应（短就缩右边、长撑到 ~82%）；对方仍铺满左侧
+                    <div className={`text-[15px] leading-relaxed text-ink ${mine ? 'ml-auto w-fit max-w-[82%] text-left' : ''}`}>
                       <DramaRich text={applyRegexScripts(m.text, mine ? aiChars[0]?.regex : c?.regex, { isUser: !!mine })} user={meChar?.name} char={c?.name} />
                     </div>
                   )}
