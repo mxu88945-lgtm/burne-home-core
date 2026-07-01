@@ -1043,7 +1043,7 @@ export default function DramaRoom() {
                   </div>
                   {m.image && <img src={m.image} alt="" className="mb-1 max-h-60 max-w-full rounded-xl object-cover" />}
                   {editingThis ? editArea : m.text && (
-                    <div className="text-[15px] leading-relaxed text-ink">
+                    <div className="text-[15px] leading-normal text-ink">
                       <DramaRich text={applyRegexScripts(m.text, mine ? aiChars[0]?.regex : c?.regex, { isUser: !!mine })} user={meChar?.name} char={c?.name} />
                     </div>
                   )}

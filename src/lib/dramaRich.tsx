@@ -106,13 +106,16 @@ function renderPlain(text: string, key: () => string): ReactNode[] {
   let buf: string[] = []
   let stat: string[] = []
   const flushBuf = () => {
-    const s = buf.join('\n').trim()
-    if (s)
-      out.push(
-        <div key={key()} className="whitespace-pre-wrap [overflow-wrap:anywhere]">
-          {renderInline(s, key)}
-        </div>,
-      )
+    // 段落之间的空行不再原样保留成整行空白，改成拆段、由容器给固定小间距（行距更紧凑）
+    for (const para of buf.join('\n').split(/\n{2,}/)) {
+      const p = para.trim()
+      if (p)
+        out.push(
+          <div key={key()} className="whitespace-pre-wrap [overflow-wrap:anywhere]">
+            {renderInline(p, key)}
+          </div>,
+        )
+    }
     buf = []
   }
   const flushStat = () => {
@@ -196,5 +199,5 @@ export function DramaRich({ text: raw, user, char }: { text: string; user?: stri
       }
     })
   }
-  return <div className="space-y-0.5">{nodes}</div>
+  return <div className="space-y-1.5">{nodes}</div>
 }
