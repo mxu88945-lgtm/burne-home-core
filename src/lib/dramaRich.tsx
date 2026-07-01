@@ -59,7 +59,42 @@ function Panel({ label, body }: { label: string; body: string }) {
 }
 
 function panelLabel(body: string): string {
-  return /时间|地点|事件|状态|HP|好感|属性/.test(body) ? '状态栏' : '心声'
+  if (/好感|爱意|情绪|HP|属性|性欲|数值/.test(body)) return '状态栏'
+  if (/时间|地点|⏰|🗺️?/.test(body)) return '时间 · 地点'
+  if (/状态|事件/.test(body)) return '状态栏'
+  return '心声'
+}
+
+/**
+ * 内联美化（角色扮演通用写法，无需正则）：
+ *  **粗体** / `心理独白`（灰字）/ *动作*（斜体上色）/ “对话”「对话」(主题色) / LaTeX 公式
+ */
+function renderEmphasis(s: string, key: () => string): ReactNode[] {
+  const re = /\*\*([^*\n]+?)\*\*|`([^`\n]+?)`|\*([^*\n]+?)\*|[“"]([^”"\n]+?)[”"]|「([^」\n]+?)」/g
+  const out: ReactNode[] = []
+  let last = 0
+  let m: RegExpExecArray | null
+  while ((m = re.exec(s))) {
+    if (m.index > last) out.push(s.slice(last, m.index))
+    if (m[1] != null) out.push(<strong key={key()}>{m[1]}</strong>)
+    else if (m[2] != null) out.push(<span key={key()} className="italic text-muted">{m[2]}</span>)
+    else if (m[3] != null) out.push(<span key={key()} className="italic text-accent/80">{m[3]}</span>)
+    else if (m[4] != null) out.push(<span key={key()} className="text-accent">“{m[4]}”</span>)
+    else if (m[5] != null) out.push(<span key={key()} className="text-accent">「{m[5]}」</span>)
+    last = m.index + m[0].length
+  }
+  if (last < s.length) out.push(s.slice(last))
+  return out
+}
+
+/** 一段普通文字 → 先解析公式，再对纯文本片段做内联美化 */
+function renderInline(text: string, key: () => string): ReactNode[] {
+  const out: ReactNode[] = []
+  for (const p of renderMath(text, key)) {
+    if (typeof p === 'string') out.push(...renderEmphasis(p, key))
+    else out.push(p)
+  }
+  return out
 }
 
 /** 普通文本：把连续的状态栏行收进折叠面板，其余按段落显示 */
@@ -74,7 +109,7 @@ function renderPlain(text: string, key: () => string): ReactNode[] {
     if (s)
       out.push(
         <div key={key()} className="whitespace-pre-wrap [overflow-wrap:anywhere]">
-          {renderMath(s, key)}
+          {renderInline(s, key)}
         </div>,
       )
     buf = []
