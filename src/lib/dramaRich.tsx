@@ -10,6 +10,7 @@
 import { useState, type ReactNode } from 'react'
 import { HtmlCard, isRichHtml } from '@/lib/htmlCard'
 import { Math, renderMath } from '@/lib/mathRender'
+import { applyMacros } from '@/lib/macros'
 
 /** 状态栏行的起始标记（emoji） */
 const STATUS_RE = /^\s*(⏰|⏱|🕐|🕒|🕛|🍊|🏠|🏡|🗺️?|📍|📌|📅|🎬|🎭|💬|❤️|🩷)/
@@ -95,10 +96,19 @@ function renderPlain(text: string, key: () => string): ReactNode[] {
   return out
 }
 
+/** 整条消息就是一个 ```html``` 代码围栏包着的 HTML → 剥掉围栏，取里面的 HTML */
+function unwrapHtmlFence(s: string): string {
+  const m = s.trim().match(/^```(?:html|xml|markdown|md)?\s*\n([\s\S]*?)\n?```$/i)
+  return m && isRichHtml(m[1]) ? m[1] : s
+}
+
 /** 解析一段消息文本 → 美化后的 React 节点 */
-export function DramaRich({ text }: { text: string }) {
-  // 整页 HTML（带 <style>/<div> 的角色卡开场白/消息）→ 沙箱 iframe 真渲染
-  if (isRichHtml(text)) return <HtmlCard html={text} />
+export function DramaRich({ text: raw, user, char }: { text: string; user?: string; char?: string }) {
+  // 先把 {{user}}/{{char}} 换成真实名字（卡里常用，尤其开场白 HTML）
+  const text = applyMacros(unwrapHtmlFence(raw), { user, char })
+  // 整条就是一段 HTML（无 ``` 围栏）→ 沙箱 iframe 真渲染；
+  // 若还夹着 ``` 围栏（HTML 卡 + 后续旁白的混合消息），交给下面的分段解析
+  if (!text.includes('```') && isRichHtml(text)) return <HtmlCard html={text} />
 
   let n = 0
   const key = () => `r${n++}` // 确定性序号：同文本每次一致，折叠状态稳定
@@ -131,6 +141,12 @@ export function DramaRich({ text }: { text: string }) {
         if (mFence) {
           const tex = mFence[2].trim()
           if (tex) nodes.push(<Math key={key()} tex={tex} display />)
+          return
+        }
+        // ```html 围栏（或围栏内就是整页 HTML）→ 沙箱 iframe 真渲染
+        const inner = part.replace(/^(html|xml|markdown|md)\s*\n/i, '')
+        if (isRichHtml(inner)) {
+          nodes.push(<HtmlCard key={key()} html={inner} />)
           return
         }
         const body = stripTags(part)

@@ -11,6 +11,7 @@ import { cleanReply } from '@/lib/cleanReply'
 import { fileToDataUrl } from '@/lib/image'
 import { buildLoreText } from '@/lib/charCard'
 import { DramaRich } from '@/lib/dramaRich'
+import { applyMacros } from '@/lib/macros'
 import { useCharLibStore } from '@/store/charLibStore'
 import { useSttStore } from '@/store/sttStore'
 import { transcribe } from '@/api/stt'
@@ -264,7 +265,9 @@ export default function DramaRoom() {
       // 世界书：按最近对话挑出常驻 + 命中关键词的条目注入（省 token）
       const loreHay = freshMsgs.slice(-24).map((m) => m.text).join('\n') + '\n' + (draft || '')
       const loreText = buildLoreText(sc.lore, loreHay)
-      const sys =
+      // 卡里用 {{user}}/{{char}} 的地方，喂模型前也替换成真实名字
+      const mac = { user: meChar?.name, char: char.name }
+      const sys = applyMacros(
         `你在一个多人角色扮演群聊里，只扮演角色【${char.name}】。\n` +
         (world ? `【世界观 / 背景设定（所有角色共同遵守）】\n${world}\n\n` : '') +
         (loreText ? `【世界书 · 相关设定】\n${loreText}\n\n` : '') +
@@ -273,13 +276,15 @@ export default function DramaRoom() {
         (others ? `\n群里其他人：${others}。\n` : '') +
         (sc.summary.trim() ? `\n【到目前为止的剧情摘要】\n${sc.summary.trim()}\n` : '') +
         `\n规则：只输出【${char.name}】这一条的发言/动作，第一人称、贴合人设与当前剧情、自然推进剧情；` +
-        `这是角色扮演，可以有动作/神态/对话描写。不要替别人说话、不要写成剧本去标注别人的台词、不要复述以上摘要。简洁自然，别太长。`
+        `这是角色扮演，可以有动作/神态/对话描写。不要替别人说话、不要写成剧本去标注别人的台词、不要复述以上摘要。简洁自然，别太长。`,
+        mac,
+      )
 
       const recent = freshMsgs.slice(-24)
       const transcript =
         recent.map((m) => `${nameOf(m.who)}：${m.text}${m.image ? '［图片］' : ''}`).join('\n') ||
         '（还没人说话，由你开场）'
-      const textPart = `【最近对话】\n${transcript}\n\n请现在以【${char.name}】的身份回复下一句。`
+      const textPart = applyMacros(`【最近对话】\n${transcript}\n\n请现在以【${char.name}】的身份回复下一句。`, mac)
       const imgs = recent.filter((m) => m.image).slice(-2).map((m) => m.image!)
       const content: ChatApiMessage['content'] = imgs.length
         ? [
@@ -976,7 +981,7 @@ export default function DramaRoom() {
                   {m.image && <img src={m.image} alt="" className="mb-1 max-h-60 max-w-full rounded-xl object-cover" />}
                   {editingThis ? editArea : m.text && (
                     <div className="text-[15px] leading-relaxed text-ink">
-                      <DramaRich text={m.text} />
+                      <DramaRich text={m.text} user={meChar?.name} char={c?.name} />
                     </div>
                   )}
                 </div>
@@ -1003,7 +1008,7 @@ export default function DramaRoom() {
                       className="mt-0.5 rounded-2xl px-3.5 py-2 text-sm text-ink"
                       style={{ background: (c?.color || '#bb9af7') + (mine ? '40' : '22') }}
                     >
-                      <DramaRich text={m.text} />
+                      <DramaRich text={m.text} user={meChar?.name} char={c?.name} />
                     </div>
                   )}
                   <div className="flex items-center gap-2 px-1 text-muted">
