@@ -7,6 +7,7 @@
 import { create } from 'zustand'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS, CURRENT_WINDOW_ID } from '@/lib/constants'
+import type { RegexScript } from '@/lib/regexScript'
 
 /** 角色卡 */
 export interface DramaChar {
@@ -32,6 +33,8 @@ export interface DramaChar {
   memory?: string
   /** 已并入该角色私人记忆的消息条数（增量更新用） */
   memoryAt?: number
+  /** 卡自带的正则脚本（展示时把输出美化成带样式 HTML） */
+  regex?: RegexScript[]
 }
 
 /** 世界书条目（Lorebook entry，参考 Tavern 角色卡） */
@@ -201,6 +204,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
           color,
           isMe: char.isMe ?? false,
           apiChannelId: char.apiChannelId,
+          regex: char.regex,
         }
         return { ...s, chars: [...s.chars, c] }
       }),

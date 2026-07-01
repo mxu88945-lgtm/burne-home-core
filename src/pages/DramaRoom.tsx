@@ -12,6 +12,7 @@ import { fileToDataUrl } from '@/lib/image'
 import { buildLoreText } from '@/lib/charCard'
 import { DramaRich } from '@/lib/dramaRich'
 import { applyMacros } from '@/lib/macros'
+import { applyRegexScripts } from '@/lib/regexScript'
 import { useCharLibStore } from '@/store/charLibStore'
 import { useSttStore } from '@/store/sttStore'
 import { transcribe } from '@/api/stt'
@@ -76,6 +77,7 @@ export default function DramaRoom() {
   const [worldOpen, setWorldOpen] = useState(false) // 世界观框 折叠/展开
   const [summaryOpen, setSummaryOpen] = useState(false) // 剧情摘要框 折叠/展开
   const [loreOpen, setLoreOpen] = useState(false) // 世界书 折叠/展开
+  const [regexOpen, setRegexOpen] = useState(false) // 正则 折叠/展开
   const [addMemberOpen, setAddMemberOpen] = useState(false) // 从角色库加成员
   const [greetPick, setGreetPick] = useState<{ char: DramaChar; list: string[] } | null>(null) // 多开场白选择
   const [plusOpen, setPlusOpen] = useState(false) // 输入栏 ＋ 菜单
@@ -587,6 +589,7 @@ export default function DramaRoom() {
       greetings: lc.greetings,
       color: lc.color,
       apiChannelId: lc.apiChannelId,
+      regex: lc.regex,
     })
     if (lc.lore?.length) {
       addLore(sc.id, lc.lore.map((e) => ({ ...e, id: dramaMsgId() })))
@@ -901,6 +904,56 @@ export default function DramaRoom() {
                 <p className="text-[10px] leading-relaxed text-muted">📌常驻＝每次都注入；🔑关键词＝对话里出现关键词才注入（省 token）。</p>
               </div>
             )}
+
+            {/* 正则（展示美化：把输出转成带样式 HTML） */}
+            {(() => {
+              const rx = aiChars.flatMap((c) => (c.regex || []).map((r) => ({ owner: c, r })))
+              return (
+                <>
+                  <button onClick={() => setRegexOpen((o) => !o)} className="flex w-full items-center justify-between rounded-xl px-2.5 py-2.5 text-left hover:bg-white/40">
+                    <span className="text-sm text-ink">正则 · 美化</span>
+                    <span className="flex items-center gap-1.5 text-[12px] text-muted">
+                      {rx.length > 0 ? `${rx.filter((x) => !x.r.disabled).length}/${rx.length} 条` : '空'}
+                      <span>{regexOpen ? '▴' : '›'}</span>
+                    </span>
+                  </button>
+                  {regexOpen && (
+                    <div className="space-y-1.5 px-2.5 pb-2">
+                      {rx.length === 0 ? (
+                        <p className="text-[11px] text-muted">还没有正则。导入带正则的角色卡（PNG/JSON）时会自动带进来。</p>
+                      ) : (
+                        rx.map(({ owner, r }) => (
+                          <div key={r.id} className="flex items-center gap-2 rounded-xl bg-white/40 px-2.5 py-1.5">
+                            <span className="min-w-0 flex-1 truncate text-[12px] text-ink">{r.name}</span>
+                            <label className="relative inline-flex shrink-0 cursor-pointer items-center">
+                              <input
+                                type="checkbox"
+                                checked={!r.disabled}
+                                onChange={(ev) =>
+                                  updateChar(sc.id, owner.id, {
+                                    regex: (owner.regex || []).map((x) => (x.id === r.id ? { ...x, disabled: !ev.target.checked } : x)),
+                                  })
+                                }
+                                className="peer sr-only"
+                              />
+                              <span className="h-4 w-7 rounded-full bg-black/15 transition peer-checked:bg-accent" />
+                              <span className="absolute left-0.5 h-3 w-3 rounded-full bg-white shadow transition peer-checked:translate-x-3" />
+                            </label>
+                            <button
+                              onClick={() => updateChar(sc.id, owner.id, { regex: (owner.regex || []).filter((x) => x.id !== r.id) })}
+                              className="shrink-0 px-1 text-[13px] text-muted hover:text-red-500"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))
+                      )}
+                      <p className="text-[10px] leading-relaxed text-muted">正则把角色输出替换成带样式 HTML（对话上色、状态栏面板等）。产出的 HTML 会消毒后再显示。</p>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
         </div>
       )}
@@ -981,7 +1034,7 @@ export default function DramaRoom() {
                   {m.image && <img src={m.image} alt="" className="mb-1 max-h-60 max-w-full rounded-xl object-cover" />}
                   {editingThis ? editArea : m.text && (
                     <div className="text-[15px] leading-relaxed text-ink">
-                      <DramaRich text={m.text} user={meChar?.name} char={c?.name} />
+                      <DramaRich text={applyRegexScripts(m.text, mine ? aiChars[0]?.regex : c?.regex, { isUser: !!mine })} user={meChar?.name} char={c?.name} />
                     </div>
                   )}
                 </div>
@@ -1008,7 +1061,7 @@ export default function DramaRoom() {
                       className="mt-0.5 rounded-2xl px-3.5 py-2 text-sm text-ink"
                       style={{ background: (c?.color || '#bb9af7') + (mine ? '40' : '22') }}
                     >
-                      <DramaRich text={m.text} user={meChar?.name} char={c?.name} />
+                      <DramaRich text={applyRegexScripts(m.text, mine ? aiChars[0]?.regex : c?.regex, { isUser: !!mine })} user={meChar?.name} char={c?.name} />
                     </div>
                   )}
                   <div className="flex items-center gap-2 px-1 text-muted">

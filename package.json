@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
+    "dompurify": "^3.2.4",
     "html2canvas": "^1.4.1",
     "katex": "^0.16.11",
     "pdfjs-dist": "^6.0.227",
@@ -21,6 +22,7 @@
     "zustand": "^4.5.5"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.0.5",
     "@types/katex": "^0.16.7",
     "@types/node": "^20.19.43",
     "@types/react": "^18.3.11",

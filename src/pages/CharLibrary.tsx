@@ -45,6 +45,7 @@ export default function CharLibrary() {
         greetings: card.greetings,
         avatarImg: card.avatarImg,
         lore: card.lore,
+        regex: card.regex,
       })
     } catch (e) {
       setErr(`导入角色卡失败：${(e as Error).message}`)
@@ -70,6 +71,7 @@ export default function CharLibrary() {
       greetings: lc.greetings,
       color: lc.color,
       apiChannelId: lc.apiChannelId,
+      regex: lc.regex,
     })
     if (lc.lore?.length) addLore(scene.id, freshLore(lc.lore))
     // 自动把第一条开场白发出来（让你一进去就看到美化的开场）
@@ -135,6 +137,7 @@ export default function CharLibrary() {
                 <div className="truncate text-[11px] text-muted">
                   {(c.persona || '').replace(/\s+/g, ' ').trim().slice(0, 28) || '（没填人设）'}
                   {c.lore?.length ? ` · 世界书 ${c.lore.length}` : ''}
+                  {c.regex?.length ? ` · 正则 ${c.regex.length}` : ''}
                 </div>
               </div>
               <button onClick={() => startChat(c)} className="btn-primary shrink-0 rounded-full px-3.5 py-1.5 text-[12px]">

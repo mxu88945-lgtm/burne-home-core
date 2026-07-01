@@ -8,6 +8,7 @@
 
 import type { LoreEntry } from '@/store/dramaStore'
 import { fileToDataUrl } from '@/lib/image'
+import { parseRegexScripts, type RegexScript } from '@/lib/regexScript'
 
 export interface ParsedCard {
   name: string
@@ -17,6 +18,8 @@ export interface ParsedCard {
   greetings: string[]
   avatarImg?: string
   lore: LoreEntry[]
+  /** 卡自带的正则脚本（展示美化用） */
+  regex: RegexScript[]
 }
 
 function uid(): string {
@@ -164,7 +167,8 @@ function normalize(obj: unknown): ParsedCard {
   const alts = Array.isArray(altRaw) ? altRaw.map((g) => str(g)) : []
   const greetings = [first, ...alts].map((g) => g.trim()).filter(Boolean)
   const lore = parseBook(d.character_book ?? o.character_book)
-  return { name, persona: buildPersona(d), greeting: greetings[0] || '', greetings, lore }
+  const regex = parseRegexScripts(d.extensions ?? o.extensions)
+  return { name, persona: buildPersona(d), greeting: greetings[0] || '', greetings, lore, regex }
 }
 
 /** 解析一个角色卡文件（.json 或 .png） */

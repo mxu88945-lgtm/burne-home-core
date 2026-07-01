@@ -9,6 +9,7 @@ import { create } from 'zustand'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
 import type { LoreEntry } from '@/store/dramaStore'
+import type { RegexScript } from '@/lib/regexScript'
 
 export interface LibChar {
   id: string
@@ -29,6 +30,8 @@ export interface LibChar {
   apiChannelId?: string
   /** 随角色卡带来的世界书 */
   lore?: LoreEntry[]
+  /** 随角色卡带来的正则脚本（展示美化） */
+  regex?: RegexScript[]
   createdAt: string
 }
 
@@ -64,6 +67,7 @@ export const useCharLibStore = create<State>((set, get) => {
         color: c.color || PALETTE[get().chars.length % PALETTE.length],
         apiChannelId: c.apiChannelId,
         lore: c.lore,
+        regex: c.regex,
         createdAt: new Date().toISOString(),
       }
       const chars = [char, ...get().chars]

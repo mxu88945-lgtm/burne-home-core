@@ -11,6 +11,7 @@ import { useState, type ReactNode } from 'react'
 import { HtmlCard, isRichHtml } from '@/lib/htmlCard'
 import { Math, renderMath } from '@/lib/mathRender'
 import { applyMacros } from '@/lib/macros'
+import { SafeHtml, hasInlineHtml, isFullHtmlDoc } from '@/lib/safeHtml'
 
 /** 状态栏行的起始标记（emoji） */
 const STATUS_RE = /^\s*(⏰|⏱|🕐|🕒|🕛|🍊|🏠|🏡|🗺️?|📍|📌|📅|🎬|🎭|💬|❤️|🩷)/
@@ -106,9 +107,12 @@ function unwrapHtmlFence(s: string): string {
 export function DramaRich({ text: raw, user, char }: { text: string; user?: string; char?: string }) {
   // 先把 {{user}}/{{char}} 换成真实名字（卡里常用，尤其开场白 HTML）
   const text = applyMacros(unwrapHtmlFence(raw), { user, char })
-  // 整条就是一段 HTML（无 ``` 围栏）→ 沙箱 iframe 真渲染；
-  // 若还夹着 ``` 围栏（HTML 卡 + 后续旁白的混合消息），交给下面的分段解析
-  if (!text.includes('```') && isRichHtml(text)) return <HtmlCard html={text} />
+  const fenced = text.includes('```')
+  // 整段 HTML 文档（带 <style>/<html>/<script> 的开场白/播放器）→ 沙箱 iframe 真渲染
+  if (!fenced && isFullHtmlDoc(text)) return <HtmlCard html={text} />
+  // 带样式的内联/块级 HTML（正则美化产出：对话上色、心理灰底、<details> 状态栏）
+  // → 消毒后就地渲染，继承主题配色、自然随文流动
+  if (!fenced && !/<audio\b/i.test(text) && hasInlineHtml(text)) return <SafeHtml html={text} />
 
   let n = 0
   const key = () => `r${n++}` // 确定性序号：同文本每次一致，折叠状态稳定
