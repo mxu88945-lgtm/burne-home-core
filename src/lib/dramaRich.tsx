@@ -9,6 +9,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { HtmlCard, isRichHtml } from '@/lib/htmlCard'
+import { Math, renderMath } from '@/lib/mathRender'
 
 /** 状态栏行的起始标记（emoji） */
 const STATUS_RE = /^\s*(⏰|⏱|🕐|🕒|🕛|🍊|🏠|🏡|🗺️?|📍|📌|📅|🎬|🎭|💬|❤️|🩷)/
@@ -68,7 +69,12 @@ function renderPlain(text: string, key: () => string): ReactNode[] {
   let stat: string[] = []
   const flushBuf = () => {
     const s = buf.join('\n').trim()
-    if (s) out.push(<div key={key()} className="whitespace-pre-wrap [overflow-wrap:anywhere]">{s}</div>)
+    if (s)
+      out.push(
+        <div key={key()} className="whitespace-pre-wrap [overflow-wrap:anywhere]">
+          {renderMath(s, key)}
+        </div>,
+      )
     buf = []
   }
   const flushStat = () => {
@@ -120,6 +126,13 @@ export function DramaRich({ text }: { text: string }) {
     const parts = seg.val.split(/```/)
     parts.forEach((part, i) => {
       if (i % 2 === 1) {
+        // ```latex / ```math 围栏 → 块公式
+        const mFence = part.match(/^(latex|math|tex)\s*\n([\s\S]*)$/i)
+        if (mFence) {
+          const tex = mFence[2].trim()
+          if (tex) nodes.push(<Math key={key()} tex={tex} display />)
+          return
+        }
         const body = stripTags(part)
         nodes.push(<Panel key={key()} label={panelLabel(body)} body={body} />)
       } else {
