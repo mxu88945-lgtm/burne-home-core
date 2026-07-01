@@ -252,3 +252,26 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .pet-idle { animation: none; }
 }
+
+/* 桌宠：Claude 风格小生物走路 */
+@keyframes pet-body-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1.5px); }
+}
+@keyframes pet-leg-a {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(16deg); }
+}
+@keyframes pet-leg-b {
+  0%, 100% { transform: rotate(16deg); }
+  50% { transform: rotate(0deg); }
+}
+.pet-critter { display: block; }
+.pet-critter.walk { animation: pet-body-bob 0.34s ease-in-out infinite; }
+.pet-leg { transform-box: fill-box; transform-origin: top center; }
+.pet-critter.walk .leg-a { animation: pet-leg-a 0.34s ease-in-out infinite; }
+.pet-critter.walk .leg-b { animation: pet-leg-b 0.34s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .pet-critter.walk { animation: none; }
+  .pet-critter.walk .leg-a, .pet-critter.walk .leg-b { animation: none; }
+}

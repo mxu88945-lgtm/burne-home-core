@@ -18,10 +18,13 @@ export interface PetState {
   y: number
 }
 
-/** 可选造型（第一个是默认，偏可爱的爬宠/小动物） */
-export const PET_CHOICES = ['🦎', '🐈', '🐹', '🦖', '🐸', '🐥', '🐙', '🦊', '🐧', '🦉', '🐬', '🦋']
+/** 手绘 Claude 风格小生物的标记值（造型选它时渲染 SVG，而非 emoji） */
+export const PET_CLAUDE = 'claude'
 
-const DEFAULT: PetState = { enabled: true, emoji: '🦎', x: 0.86, y: 0.7 }
+/** 可选造型（第一个是默认：Claude 风格手绘小家伙，会自己爬来爬去） */
+export const PET_CHOICES = [PET_CLAUDE, '🦎', '🐈', '🐹', '🦖', '🐸', '🐥', '🐙', '🦊', '🐧', '🦉', '🐬', '🦋']
+
+const DEFAULT: PetState = { enabled: true, emoji: PET_CLAUDE, x: 0.86, y: 0.7 }
 
 interface Store extends PetState {
   setEnabled: (on: boolean) => void

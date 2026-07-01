@@ -3,9 +3,10 @@ import { useProfileStore } from '@/store/profileStore'
 import { useAppearanceStore } from '@/store/appearanceStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { usePersonaStore } from '@/store/personaStore'
-import { usePetStore, PET_CHOICES } from '@/store/petStore'
+import { usePetStore, PET_CHOICES, PET_CLAUDE } from '@/store/petStore'
 import { fileToDataUrl } from '@/lib/image'
 import Avatar from '@/components/ui/Avatar'
+import PetCritter from '@/components/ui/PetCritter'
 
 const inputCls =
   'w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent'
@@ -292,17 +293,18 @@ export default function AppearanceManager() {
         </div>
         {pet.enabled && (
           <>
-            <p className="text-[11px] text-muted">浮在所有页面上：可拖着换位置、点一下有反应、有新消息会冒小气泡。挑个造型：</p>
+            <p className="text-[11px] text-muted">浮在所有页面上：会自己慢慢爬来爬去、可拖着换位置、点一下有反应、有新消息会冒小气泡。挑个造型：</p>
             <div className="flex flex-wrap gap-2">
               {PET_CHOICES.map((e) => (
                 <button
                   key={e}
                   onClick={() => pet.setEmoji(e)}
+                  aria-label={e === PET_CLAUDE ? 'Claude 小家伙' : e}
                   className={`grid h-10 w-10 place-items-center rounded-xl text-xl transition ${
                     pet.emoji === e ? 'bg-accent/20 ring-2 ring-accent' : 'bg-white/40'
                   }`}
                 >
-                  {e}
+                  {e === PET_CLAUDE ? <PetCritter className="h-8 w-8" /> : e}
                 </button>
               ))}
             </div>
