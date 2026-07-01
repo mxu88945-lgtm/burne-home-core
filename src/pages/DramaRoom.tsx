@@ -131,10 +131,13 @@ export default function DramaRoom() {
     }
     const grew = len > prevLenRef.current
     prevLenRef.current = len
-    if (!grew || !autoSummary || summaryBusy || busyChar) return
+    // 注意：AI 回复入库时 busyChar 仍为真，所以这里不能因 busyChar 而跳过，
+    // 否则新增长在 busy 期间被吞掉、busy 结束后又没增长 → 自动摘要永远不触发。
+    // 摘要走独立记忆渠道、summaryBusy 防重入，与回复并发无妨。
+    if (!grew || !autoSummary || summaryBusy) return
     if (len - (scene?.summaryAt ?? 0) >= autoSummaryEvery) void genSummary(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene?.messages.length, autoSummary, autoSummaryEvery, summaryBusy, busyChar])
+  }, [scene?.messages.length, autoSummary, autoSummaryEvery, summaryBusy])
 
   /** 滚到最新消息底部。键盘弹出有动画 + 视口缩放，分几次补滚才稳。 */
   function scrollToEnd() {
