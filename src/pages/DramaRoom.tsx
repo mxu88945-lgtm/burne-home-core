@@ -21,6 +21,7 @@ import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import Avatar from '@/components/ui/Avatar'
 import BackBar from '@/components/layout/BackBar'
 import DramaBg from '@/components/ui/DramaBg'
+import { useAppearanceStore } from '@/store/appearanceStore'
 import { GearIcon } from '@/components/ui/navIcons'
 import { SendIcon, SpeakerIcon, StopIcon, MicIcon } from '@/components/ui/icons'
 
@@ -96,6 +97,11 @@ export default function DramaRoom() {
   const endRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
+  // 设了背景图时，给文字加一圈白色描边光晕，让字在图上更清楚（不改文字颜色本身）
+  const hasBg = useAppearanceStore((s) => !!s.appearance.dramaBg)
+  const bgTextGlow = hasBg
+    ? { textShadow: '0 0 4px rgba(255,255,255,0.95), 0 1px 2px rgba(255,255,255,0.9)' }
+    : undefined
   const mediaRecRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -962,7 +968,7 @@ export default function DramaRoom() {
       {err && <div className="mb-1 px-1 text-[11px] text-red-500">{err}</div>}
 
       {/* 群聊消息 */}
-      <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-0.5 py-1">
+      <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-0.5 py-1" style={bgTextGlow}>
         {messages.length === 0 ? (
           <div className="glass rounded-3xl px-6 py-10 text-center text-sm text-muted">
             建好角色后，在下面说一句开场，再点角色名让 TA 接话吧～

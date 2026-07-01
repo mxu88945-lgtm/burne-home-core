@@ -34,7 +34,7 @@ const DEFAULT_APPEARANCE: Appearance = {
   chatBgFit: 'cover',
   dramaBg: '',
   dramaBgBlur: 0,
-  dramaBgFrost: 0.15,
+  dramaBgFrost: 0.28,
 }
 
 interface AppearanceState {

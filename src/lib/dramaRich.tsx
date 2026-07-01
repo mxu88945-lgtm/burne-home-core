@@ -67,7 +67,8 @@ function panelLabel(body: string): string {
 
 /**
  * 内联美化（角色扮演通用写法，无需正则）：
- *  **粗体** / `心理独白`（灰字）/ *动作*（斜体上色）/ “对话”「对话」(主题色) / LaTeX 公式
+ *  **粗体** / `心理独白`（灰字）/ *动作*（正常文段，只去掉星号）/ “对话”「对话」(主题色) / LaTeX 公式
+ *  —— 动作描写按普通正式文段显示，不加斜体/颜色，避免整段歪斜难读。
  */
 function renderEmphasis(s: string, key: () => string): ReactNode[] {
   const re = /\*\*([^*\n]+?)\*\*|`([^`\n]+?)`|\*([^*\n]+?)\*|[“"]([^”"\n]+?)[”"]|「([^」\n]+?)」/g
@@ -78,7 +79,7 @@ function renderEmphasis(s: string, key: () => string): ReactNode[] {
     if (m.index > last) out.push(s.slice(last, m.index))
     if (m[1] != null) out.push(<strong key={key()}>{m[1]}</strong>)
     else if (m[2] != null) out.push(<span key={key()} className="italic text-muted">{m[2]}</span>)
-    else if (m[3] != null) out.push(<span key={key()} className="italic text-accent/80">{m[3]}</span>)
+    else if (m[3] != null) out.push(m[3]) // 动作：正常文段，仅去掉 * 号
     else if (m[4] != null) out.push(<span key={key()} className="text-accent">“{m[4]}”</span>)
     else if (m[5] != null) out.push(<span key={key()} className="text-accent">「{m[5]}」</span>)
     last = m.index + m[0].length
