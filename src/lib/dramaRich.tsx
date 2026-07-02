@@ -77,11 +77,12 @@ function renderEmphasis(s: string, key: () => string): ReactNode[] {
   let m: RegExpExecArray | null
   while ((m = re.exec(s))) {
     if (m.index > last) out.push(s.slice(last, m.index))
+    // 颜色走 CSS 变量（--drama-inner/--drama-quote，由 ⚙「文字样式」注入），没设就回落主题色
     if (m[1] != null) out.push(<strong key={key()}>{m[1]}</strong>)
-    else if (m[2] != null) out.push(<span key={key()} className="italic text-muted">{m[2]}</span>)
+    else if (m[2] != null) out.push(<span key={key()} className="italic" style={{ color: 'var(--drama-inner, var(--text-soft))' }}>{m[2]}</span>)
     else if (m[3] != null) out.push(m[3]) // 动作：正常文段，仅去掉 * 号
-    else if (m[4] != null) out.push(<span key={key()} className="text-accent">“{m[4]}”</span>)
-    else if (m[5] != null) out.push(<span key={key()} className="text-accent">「{m[5]}」</span>)
+    else if (m[4] != null) out.push(<span key={key()} style={{ color: 'var(--drama-quote, var(--accent))' }}>“{m[4]}”</span>)
+    else if (m[5] != null) out.push(<span key={key()} style={{ color: 'var(--drama-quote, var(--accent))' }}>「{m[5]}」</span>)
     last = m.index + m[0].length
   }
   if (last < s.length) out.push(s.slice(last))

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDramaStore, dramaMsgId, type DramaChar, type LoreEntry } from '@/store/dramaStore'
 import { useApiStore, type ApiChannel } from '@/store/apiStore'
@@ -64,6 +64,8 @@ export default function DramaRoom() {
   const setHistCount = useDramaStore((s) => s.setHistCount)
   const summaryTrim = useDramaStore((s) => s.summaryTrim)
   const setSummaryTrim = useDramaStore((s) => s.setSummaryTrim)
+  const textStyle = useDramaStore((s) => s.textStyle)
+  const setTextStyle = useDramaStore((s) => s.setTextStyle)
   const setAutoCharMemory = useDramaStore((s) => s.setAutoCharMemory)
 
   const activeChannel = useApiStore((s) => s.getActive())
@@ -1087,6 +1089,49 @@ export default function DramaRoom() {
               </div>
             </div>
             <div className="mx-2.5 border-t border-line/40" />
+            {/* 文字样式（她要的小主题：字号 + 三个颜色） */}
+            <div className="rounded-xl px-2.5 py-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-ink">字号</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => setTextStyle({ size: Math.max(12, textStyle.size - 1) })} className="glass flex h-7 w-7 items-center justify-center rounded-full text-ink">
+                    −
+                  </button>
+                  <span className="w-7 text-center text-[13px] tabular-nums text-ink">{textStyle.size}</span>
+                  <button onClick={() => setTextStyle({ size: Math.min(20, textStyle.size + 1) })} className="glass flex h-7 w-7 items-center justify-center rounded-full text-ink">
+                    ＋
+                  </button>
+                </div>
+              </div>
+              <div className="mt-2 space-y-1.5">
+                {(
+                  [
+                    ['正文颜色', 'text', '#3a3a40'],
+                    ['对话颜色', 'quote', '#d585a6'],
+                    ['心理颜色', 'inner', '#8a8a93'],
+                  ] as const
+                ).map(([label, k, fallback]) => (
+                  <div key={k} className="flex items-center justify-between">
+                    <span className="text-[13px] text-ink">{label}</span>
+                    <div className="flex items-center gap-1.5">
+                      {textStyle[k] && (
+                        <button onClick={() => setTextStyle({ [k]: '' })} className="text-[11px] text-muted hover:text-accent">
+                          跟随主题
+                        </button>
+                      )}
+                      <input
+                        type="color"
+                        value={textStyle[k] || fallback}
+                        onChange={(e) => setTextStyle({ [k]: e.target.value })}
+                        className="h-7 w-9 cursor-pointer rounded-md border border-line bg-transparent"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-1.5 text-[10px] leading-relaxed text-muted">对话＝“…”「…」的上色；心理＝`…`的灰字。不选＝跟随主题色。</p>
+            </div>
+            <div className="mx-2.5 border-t border-line/40" />
             <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
               <span className="text-sm text-ink">发完自动回复</span>
               <label className="relative inline-flex cursor-pointer items-center">
@@ -1318,8 +1363,16 @@ export default function DramaRoom() {
 
       {err && <div className="mb-1 px-1 pt-[3.2rem] text-[11px] text-red-500">{err}</div>}
 
-      {/* 群聊消息（pt 给悬浮顶栏让位，滚动时文字从毛玻璃下穿过） */}
-      <div ref={listRef} className={`min-h-0 flex-1 space-y-3 overflow-y-auto px-0.5 pb-1 ${err ? 'pt-1' : 'pt-[3.2rem]'}`} style={bgTextGlow}>
+      {/* 群聊消息（pt 给悬浮顶栏让位，滚动时文字从毛玻璃下穿过；--drama-* 是 ⚙「文字样式」的颜色变量） */}
+      <div
+        ref={listRef}
+        className={`min-h-0 flex-1 space-y-3 overflow-y-auto px-0.5 pb-1 ${err ? 'pt-1' : 'pt-[3.2rem]'}`}
+        style={{
+          ...bgTextGlow,
+          ...(textStyle.quote ? ({ '--drama-quote': textStyle.quote } as CSSProperties) : {}),
+          ...(textStyle.inner ? ({ '--drama-inner': textStyle.inner } as CSSProperties) : {}),
+        }}
+      >
         {messages.length === 0 ? (
           <div className="glass rounded-3xl px-6 py-10 text-center text-sm text-muted">
             建好角色后，在下面说一句开场，再点角色名让 TA 接话吧～
@@ -1392,7 +1445,10 @@ export default function DramaRoom() {
                   {m.image && <img src={m.image} alt="" className={`mb-1 max-h-60 max-w-full rounded-xl object-cover ${mine ? 'ml-auto' : ''}`} />}
                   {editingThis ? editArea : m.text && (
                     // 「我」的消息贴右、宽度随内容自适应（短就缩右边、长撑到 ~82%）；对方仍铺满左侧
-                    <div className={`text-[15px] leading-relaxed text-ink ${mine ? 'ml-auto w-fit max-w-[82%] text-left' : ''}`}>
+                    <div
+                      className={`leading-relaxed ${mine ? 'ml-auto w-fit max-w-[82%] text-left' : ''}`}
+                      style={{ fontSize: textStyle.size, color: textStyle.text || 'var(--text)' }}
+                    >
                       <DramaRich text={applyRegexScripts(m.text, mine ? aiChars[0]?.regex : c?.regex, { isUser: !!mine })} user={meChar?.name} char={c?.name} />
                     </div>
                   )}
@@ -1417,8 +1473,8 @@ export default function DramaRoom() {
                   )}
                   {editingThis ? editArea : m.text && (
                     <div
-                      className="mt-0.5 rounded-2xl px-3.5 py-2 text-sm text-ink"
-                      style={{ background: (c?.color || '#bb9af7') + (mine ? '40' : '22') }}
+                      className="mt-0.5 rounded-2xl px-3.5 py-2"
+                      style={{ background: (c?.color || '#bb9af7') + (mine ? '40' : '22'), fontSize: textStyle.size - 1, color: textStyle.text || 'var(--text)' }}
                     >
                       <DramaRich text={applyRegexScripts(m.text, mine ? aiChars[0]?.regex : c?.regex, { isUser: !!mine })} user={meChar?.name} char={c?.name} />
                     </div>

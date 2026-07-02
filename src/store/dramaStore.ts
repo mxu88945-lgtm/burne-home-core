@@ -101,9 +101,12 @@ interface Persisted {
   histCount: number
   /** 摘要顶替旧对话（省 token）：已并入摘要的旧消息不再发，只带摘要之后的新对话（保底最近 8 条） */
   summaryTrim: boolean
+  /** 文字小主题：字号 + 正文/对话/心理颜色（空字符串＝跟随主题） */
+  textStyle: { size: number; text: string; quote: string; inner: string }
 }
 
-const DEFAULT: Persisted = { scenes: [], activeId: '', flat: false, autoSummary: true, autoSummaryEvery: 8, autoCharMemory: false, histCount: 24, summaryTrim: false }
+const DEFAULT_TEXT_STYLE = { size: 15, text: '', quote: '', inner: '' }
+const DEFAULT: Persisted = { scenes: [], activeId: '', flat: false, autoSummary: true, autoSummaryEvery: 8, autoCharMemory: false, histCount: 24, summaryTrim: false, textStyle: DEFAULT_TEXT_STYLE }
 const init = { ...DEFAULT, ...readJSON<Partial<Persisted>>(STORAGE_KEYS.drama, {}) }
 
 function uid(): string {
@@ -135,6 +138,7 @@ interface DramaState extends Persisted {
   setAutoCharMemory: (on: boolean) => void
   setHistCount: (n: number) => void
   setSummaryTrim: (on: boolean) => void
+  setTextStyle: (patch: Partial<Persisted['textStyle']>) => void
   /** 世界书：追加条目 / 改单条 / 删单条 */
   addLore: (sceneId: string, entries: LoreEntry[]) => void
   updateLoreEntry: (sceneId: string, entryId: string, patch: Partial<LoreEntry>) => void
@@ -158,6 +162,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
       autoCharMemory: get().autoCharMemory,
       histCount: get().histCount,
       summaryTrim: get().summaryTrim,
+      textStyle: get().textStyle,
     })
 
   const patchScene = (sceneId: string, fn: (s: DramaScene) => DramaScene) => {
@@ -175,6 +180,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
     autoCharMemory: init.autoCharMemory,
     histCount: init.histCount,
     summaryTrim: init.summaryTrim,
+    textStyle: { ...DEFAULT_TEXT_STYLE, ...init.textStyle },
 
     createScene: (title) => {
       const scene: DramaScene = {
@@ -287,6 +293,11 @@ export const useDramaStore = create<DramaState>((set, get) => {
 
     setSummaryTrim: (on) => {
       set({ summaryTrim: on })
+      persist(get().scenes)
+    },
+
+    setTextStyle: (patch) => {
+      set({ textStyle: { ...get().textStyle, ...patch } })
       persist(get().scenes)
     },
 
