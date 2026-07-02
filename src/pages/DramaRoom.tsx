@@ -65,6 +65,10 @@ export default function DramaRoom() {
   const autoCharMemory = useDramaStore((s) => s.autoCharMemory)
   const histCount = useDramaStore((s) => s.histCount)
   const setHistCount = useDramaStore((s) => s.setHistCount)
+  const autoCompress = useDramaStore((s) => s.autoCompress)
+  const setAutoCompress = useDramaStore((s) => s.setAutoCompress)
+  const autoCompressOver = useDramaStore((s) => s.autoCompressOver)
+  const setAutoCompressOver = useDramaStore((s) => s.setAutoCompressOver)
   const summaryTrim = useDramaStore((s) => s.summaryTrim)
   const setSummaryTrim = useDramaStore((s) => s.setSummaryTrim)
   const textStyle = useDramaStore((s) => s.textStyle)
@@ -189,6 +193,14 @@ export default function DramaRoom() {
     const el = listRef.current
     if (streamText && el) el.scrollTop = el.scrollHeight
   }, [streamText])
+
+  // 自动压缩：消息超过阈值就把较早对话并进摘要（留最近 24 条），省 token + 给存储减负
+  useEffect(() => {
+    const len = scene?.messages.length ?? 0
+    if (!autoCompress || summaryBusy || busyChar) return
+    if (len >= Math.max(40, autoCompressOver)) void compress(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene?.messages.length, autoCompress, autoCompressOver, summaryBusy, busyChar])
 
   // 一次性迁移：把历史消息里的 dataURL 图片搬进 IndexedDB，腾出 localStorage 配额
   // （5MB 配额写满会静默丢对话——这次事故的根因，别删这段）
@@ -702,20 +714,21 @@ export default function DramaRoom() {
     }
   }
 
-  /** 压缩对话：把较早的对话并进剧情摘要，只留最近几条，省 token、防忘 */
-  async function compress() {
+  /** 压缩对话：把较早的对话并进剧情摘要，省 token、防忘、给存储减负。
+   *  手动＝留最近 6 条并弹确认；auto＝留最近 24 条、静默执行（超过阈值自动触发）。 */
+  async function compress(auto = false) {
     if (busyChar || summaryBusy) return
-    const keep = 6
+    const keep = auto ? 24 : 6
     if (sc.messages.length <= keep + 2) {
-      setErr('对话还短，先不用压缩～')
+      if (!auto) setErr('对话还短，先不用压缩～')
       return
     }
     if (!summaryChannel && !workerUrl) {
-      setErr('请先在「设置 → API / 模型」配置渠道')
+      if (!auto) setErr('请先在「设置 → API / 模型」配置渠道')
       return
     }
-    if (!window.confirm('把较早的对话压缩进「剧情摘要」？只保留最近几条，不可恢复。')) return
-    setErr('')
+    if (!auto && !window.confirm('把较早的对话压缩进「剧情摘要」？只保留最近几条，不可恢复。')) return
+    if (!auto) setErr('')
     setSummaryBusy(true)
     try {
       const head = sc.messages.slice(0, sc.messages.length - keep)
@@ -750,9 +763,11 @@ export default function DramaRoom() {
       setSummary(sc.id, cleanReply(text).trim())
       setMessages(sc.id, tail)
       setSummaryAt(sc.id, 0) // 留下的 tail 还没并入摘要，下次增量从头算
-      setRightOpen(true)
+      if (!auto) setRightOpen(true)
+      if (auto) flashToast('🗜 已自动压缩较早剧情进摘要')
     } catch (e) {
-      setErr(`压缩失败：${(e as Error).message}`)
+      if (auto) console.warn('[drama] 自动压缩失败，下次再试', e)
+      else setErr(`压缩失败：${(e as Error).message}`)
     } finally {
       setSummaryBusy(false)
     }
@@ -1446,6 +1461,35 @@ export default function DramaRoom() {
             </div>
             <p className="px-2.5 pb-1 text-[10px] leading-relaxed text-muted">
               开＝已写进剧情摘要的旧对话不再重复发，只带摘要之后的新对话（保底最近 8 条）。前情靠摘要扛，长剧场省很多；建议配合「自动更新」一起开。
+            </p>
+            <div className="mx-2.5 border-t border-line/40" />
+
+            {/* 自动压缩 */}
+            <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
+              <span className="text-sm text-ink">自动压缩对话</span>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input type="checkbox" checked={autoCompress} onChange={(e) => setAutoCompress(e.target.checked)} className="peer sr-only" />
+                <span className="h-5 w-9 rounded-full bg-black/15 transition peer-checked:bg-accent" />
+                <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
+              </label>
+            </div>
+            <div className="flex items-center gap-1.5 px-2.5 pb-1 text-[12px] text-muted">
+              超过
+              <input
+                type="text"
+                inputMode="numeric"
+                value={autoCompressOver}
+                disabled={!autoCompress}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/\D/g, '').slice(0, 3)
+                  if (v) setAutoCompressOver(Number(v))
+                }}
+                className="w-14 rounded-md border border-line bg-white/50 px-1.5 py-0.5 text-center text-ink outline-none focus:border-accent disabled:opacity-50"
+              />
+              条时自动把较早对话并进摘要（留最近 24 条 · 走{useMemModel ? '记忆模型' : '主渠道'}）
+            </div>
+            <p className="px-2.5 pb-1 text-[10px] leading-relaxed text-muted">
+              和手动 🗜 一样但更温柔：留得多、不打断、完成飘个小提示。对话瘦身也顺便给手机存储减负。
             </p>
             <div className="mx-2.5 border-t border-line/40" />
 

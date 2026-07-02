@@ -107,10 +107,14 @@ interface Persisted {
   summaryTrim: boolean
   /** 文字小主题：字号 + 正文/对话/心理颜色（空字符串＝跟随主题） */
   textStyle: { size: number; text: string; quote: string; inner: string }
+  /** 自动压缩：消息条数超过阈值时，自动把较早对话并进剧情摘要（留最近 24 条） */
+  autoCompress: boolean
+  /** 自动压缩的触发阈值（消息条数） */
+  autoCompressOver: number
 }
 
 const DEFAULT_TEXT_STYLE = { size: 15, text: '', quote: '', inner: '' }
-const DEFAULT: Persisted = { scenes: [], activeId: '', flat: false, autoSummary: true, autoSummaryEvery: 8, autoCharMemory: false, histCount: 24, summaryTrim: false, textStyle: DEFAULT_TEXT_STYLE }
+const DEFAULT: Persisted = { scenes: [], activeId: '', flat: false, autoSummary: true, autoSummaryEvery: 8, autoCharMemory: false, histCount: 24, summaryTrim: false, textStyle: DEFAULT_TEXT_STYLE, autoCompress: false, autoCompressOver: 80 }
 const init = { ...DEFAULT, ...readJSON<Partial<Persisted>>(STORAGE_KEYS.drama, {}) }
 
 function uid(): string {
@@ -143,6 +147,8 @@ interface DramaState extends Persisted {
   setHistCount: (n: number) => void
   setSummaryTrim: (on: boolean) => void
   setTextStyle: (patch: Partial<Persisted['textStyle']>) => void
+  setAutoCompress: (on: boolean) => void
+  setAutoCompressOver: (n: number) => void
   /** 世界书：追加条目 / 改单条 / 删单条 */
   addLore: (sceneId: string, entries: LoreEntry[]) => void
   updateLoreEntry: (sceneId: string, entryId: string, patch: Partial<LoreEntry>) => void
@@ -167,6 +173,8 @@ export const useDramaStore = create<DramaState>((set, get) => {
       histCount: get().histCount,
       summaryTrim: get().summaryTrim,
       textStyle: get().textStyle,
+      autoCompress: get().autoCompress,
+      autoCompressOver: get().autoCompressOver,
     })
 
   const patchScene = (sceneId: string, fn: (s: DramaScene) => DramaScene) => {
@@ -185,6 +193,8 @@ export const useDramaStore = create<DramaState>((set, get) => {
     histCount: init.histCount,
     summaryTrim: init.summaryTrim,
     textStyle: { ...DEFAULT_TEXT_STYLE, ...init.textStyle },
+    autoCompress: init.autoCompress,
+    autoCompressOver: init.autoCompressOver,
 
     createScene: (title) => {
       const scene: DramaScene = {
@@ -304,6 +314,16 @@ export const useDramaStore = create<DramaState>((set, get) => {
 
     setTextStyle: (patch) => {
       set({ textStyle: { ...get().textStyle, ...patch } })
+      persist(get().scenes)
+    },
+
+    setAutoCompress: (on) => {
+      set({ autoCompress: on })
+      persist(get().scenes)
+    },
+
+    setAutoCompressOver: (n) => {
+      set({ autoCompressOver: Math.max(40, Math.min(200, Math.round(n) || 80)) })
       persist(get().scenes)
     },
 
