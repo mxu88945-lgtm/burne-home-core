@@ -128,7 +128,7 @@ export default function DramaRoom() {
   const [loreOpen, setLoreOpen] = useState(false) // 世界书 折叠/展开
   const [regexOpen, setRegexOpen] = useState(false) // 正则 折叠/展开
   const [addMemberOpen, setAddMemberOpen] = useState(false) // 从角色库加成员
-  const [greetPick, setGreetPick] = useState<{ char: DramaChar; list: string[] } | null>(null) // 多开场白选择
+  const [greetPick, setGreetPick] = useState<{ char: DramaChar; list: string[]; replaceId?: string } | null>(null) // 多开场白选择（replaceId＝替换那条而不是追加）
   const [plusOpen, setPlusOpen] = useState(false) // 输入栏 ＋ 菜单
   const [editing, setEditing] = useState<DramaChar | 'new' | null>(null)
   const [summaryBusy, setSummaryBusy] = useState(false)
@@ -389,8 +389,8 @@ export default function DramaRoom() {
     void respond(c)
   }
 
-  /** 让某角色用开场白出场。多个开场白时弹出来选一个。 */
-  function openWith(char: DramaChar) {
+  /** 让某角色用开场白出场。多个开场白时弹出来选一个；传 replaceId＝替换那条消息（换开场白）。 */
+  function openWith(char: DramaChar, replaceId?: string) {
     const list = (char.greetings && char.greetings.length ? char.greetings : char.greeting ? [char.greeting] : [])
       .map((g) => g.trim())
       .filter(Boolean)
@@ -398,15 +398,20 @@ export default function DramaRoom() {
       setErr(`${char.name} 还没填开场白`)
       return
     }
-    if (list.length === 1) {
+    if (list.length === 1 && !replaceId) {
       addMessage(sc.id, { id: dramaMsgId(), who: char.id, text: list[0], at: now() })
       return
     }
-    setGreetPick({ char, list })
+    setGreetPick({ char, list, replaceId })
   }
-  /** 选定某条开场白发出 */
+  /** 选定某条开场白：默认追加；换开场白模式则替换原来那条 */
   function sendGreeting(char: DramaChar, text: string) {
-    addMessage(sc.id, { id: dramaMsgId(), who: char.id, text, at: now() })
+    const rid = greetPick?.replaceId
+    if (rid) {
+      setMessages(sc.id, sc.messages.map((m) => (m.id === rid ? { ...m, text } : m)))
+    } else {
+      addMessage(sc.id, { id: dramaMsgId(), who: char.id, text, at: now() })
+    }
     setGreetPick(null)
   }
 
@@ -1631,6 +1636,17 @@ export default function DramaRoom() {
               onTouchEnd: pressEnd,
               onTouchMove: pressEnd,
             }
+            // 刚开场只有这一条时，给「换开场白」入口（很多卡第一条是装饰菜单，点不动，靠这个换）
+            const swapBtn =
+              i === 0 && sc.messages.length === 1 && c && !c.isMe && (c.greetings?.length ?? 0) > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => openWith(c, m.id)}
+                  className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] text-accent"
+                >
+                  🎬 换开场白（{c.greetings!.length}）
+                </button>
+              ) : null
             const ttsBtn =
               !mine && ttsEnabled && m.text.trim() ? (
                 <button type="button" onClick={() => play(m.id, m.text, { voiceId: c?.voiceId })} aria-label="朗读" className="hover:text-accent">
@@ -1681,6 +1697,7 @@ export default function DramaRoom() {
                     </span>
                     <span className="text-[9px] text-muted">{m.at}</span>
                     {ttsBtn}
+                    {swapBtn}
                   </div>
                   {m.image && <IdbImg src={m.image} alt="" className={`mb-1 max-h-60 max-w-full rounded-xl object-cover ${mine ? 'ml-auto' : ''}`} />}
                   {editingThis ? editArea : m.text && (
@@ -1722,6 +1739,7 @@ export default function DramaRoom() {
                   <div className="flex items-center gap-2 px-1 text-muted">
                     <span className="text-[9px]">{m.at}</span>
                     {ttsBtn}
+                    {swapBtn}
                   </div>
                 </div>
               </div>
