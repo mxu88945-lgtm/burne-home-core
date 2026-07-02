@@ -102,6 +102,11 @@
 - NPC 保护名单是动态读当前剧场成员表的，换剧本自动跟随（她担心过写死，不是）。
 - 部署 run #244 失败＝GitHub Pages 发布端超时（build 是绿的），空提交重触发即可。
 
+**H0. 🚨 重大事故与修复：localStorage 写满静默丢对话（必读！）**
+- 深夜惟惟报告「丢好多轮对话」。根因：**iOS localStorage 每站约 5MB，写满后 `setItem` 抛错被 `storage.ts` 静默吞掉**——页面照常跑、每次保存都失败，刷新后回到最后一次成功保存，中间全丢。大头是各种图片 dataURL（消息图/背景图/头像全挤在 5MB 里）。日记老 TODO 早有预警（"图片 dataURL 占 localStorage 可能超额，后续可迁 IndexedDB"），这次爆了。
+- 三层修复（5775789）：① `writeJSON` 返回 boolean + 失败广播 `bw:storage-full`，main.tsx 全屏 alert（每分钟至多一次）；② 戏剧消息图片改存 IndexedDB（`dmimg:{msgId}`，消息里只留 `idb:` 引用；`components/ui/IdbImg.tsx` 异步显示；respond 喂 vision 前 `resolveImgSrc` 解析回 dataURL）；③ DramaRoom 挂载时一次性迁移历史消息图片（标记 `burne-home-core:drama-img-mig`）。
+- ⚠️ **未完的根治（下窗优先做）**：主聊天 Chat / 小手机 Phone 的消息图片还是 dataURL 存 localStorage；整个对话库（chat/phone/drama 的 messages）最好整体迁 IndexedDB；整包备份也要把 IDB 图片包含进去（现在只含 localStorage）。丢掉的对话找不回来，靠剧情摘要兜底。
+
 **H10. 编辑角色页收官批（今晚最后一批）**
 - 人设/开场白/私人记忆三个长文本区：**点标题收起/展开**（收起显一行预览）+ 各带「⤢ 全屏」（复用 BigTextEditor，写回字段后仍需点右上保存入库）。
 - 独立 API 下新增「**指定模型**」：手填或「获取列表」（`listModels`，走所选渠道或激活渠道）点选，存 `DramaChar.model`，respond 里 `{...chBase, model}` 覆盖渠道默认——她不用回主页换模型了。留空＝渠道默认。
