@@ -78,6 +78,12 @@
 - **文字样式小主题**（⚙ 外观）：字号 12-20（平铺 size / 气泡 size-1）+ 正文/对话/心理三色取色器（空＝跟随主题）。存 `dramaStore.textStyle`；`dramaRich` 引号/反引号上色改走 `--drama-quote/--drama-inner` CSS 变量（列表容器注入），正文色/字号内联在两处消息文字容器上。
 - ⚙ 里背景图可就地「换图/移除」；音乐小唱片收起时半张缩进屏幕右缘（不挡输入文字）；抽屉遮罩顶部渐浅（状态栏是系统画的压不暗——default 模式的规矩，只能缓解，别再试 black-translucent）。
 
+**H5. 尾批小功能（都她点名）**
+- 世界观/剧情摘要「⤢ 全屏编辑」（`BigTextEditor` 整页大 textarea，保存才生效）。
+- ⚙ 三板块（成员/外观/剧情·记忆）可收起展开（`secOpen` state）。
+- 顶栏铺满：悬浮毛玻璃条被 main 的 px-5/pt 内边距框住露缝 → 负边距 `-left-5 -right-5 top-[calc(-1*max(0.75rem,env(safe-area-inset-top)))]` 顶出去。
+- 长按 AI 消息「🔄 重写」：删这条(及之后)让同一角色重新生成（`regenMsg`，同步回卷 summaryAt）。
+
 **H. 动线收尾（都她点名要的）**
 - 剧场管理页（原 DramaList）：左上改「← 返回对话」（回 /drama/room；没剧场才回主页），右上设置键移除。
 - ☰ 会话列表每行 ⋮ → **底部弹层菜单**（Tavo 式）：置顶（`moveSceneTop`）/ 改名 / 删除（红字带确认）+ 取消。
