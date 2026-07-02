@@ -22,7 +22,7 @@ import Avatar from '@/components/ui/Avatar'
 import BackBar from '@/components/layout/BackBar'
 import DramaBg from '@/components/ui/DramaBg'
 import { useAppearanceStore } from '@/store/appearanceStore'
-import { GearIcon } from '@/components/ui/navIcons'
+import { GearIcon, HeartIcon, UsersIcon, ChatIcon } from '@/components/ui/navIcons'
 import { SendIcon, SpeakerIcon, StopIcon, MicIcon, EditIcon, TrashIcon, PlayIcon } from '@/components/ui/icons'
 
 function now() {
@@ -35,6 +35,8 @@ export default function DramaRoom() {
   const nav = useNavigate()
   const scenes = useDramaStore((s) => s.scenes)
   const activeId = useDramaStore((s) => s.activeId)
+  const setActive = useDramaStore((s) => s.setActive)
+  const createScene = useDramaStore((s) => s.createScene)
   const addChar = useDramaStore((s) => s.addChar)
   const updateChar = useDramaStore((s) => s.updateChar)
   const removeChar = useDramaStore((s) => s.removeChar)
@@ -807,67 +809,73 @@ export default function DramaRoom() {
         </button>
       </div>
 
-      {/* 左侧抽屉：剧场导航 + 成员管理（滑入浮层，不再挤压对话） */}
+      {/* 左侧抽屉：会话列表（Tavo 式）——所有剧场随点随切 + 底部导航 */}
       {leftOpen && (
         <div className="fixed inset-0 z-40" onClick={() => setLeftOpen(false)}>
           <div className="drawer-backdrop absolute inset-0 bg-black/25" />
           <div
-            className="drawer-left glass-strong absolute left-0 top-0 flex h-full w-[82%] max-w-[320px] flex-col rounded-r-3xl pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.9rem,env(safe-area-inset-top))]"
+            className="drawer-left glass-strong absolute left-0 top-0 flex h-full w-[82%] max-w-[320px] flex-col rounded-r-3xl pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.9rem,env(safe-area-inset-top))]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-2 px-4 pb-2">
-              <div className="headline min-w-0 truncate text-base text-ink">{sc.title}</div>
-              <button onClick={() => nav('/drama')} className="glass shrink-0 rounded-full px-3 py-1 text-[12px] text-ink">
-                ‹ 剧场列表
+              <div className="headline text-base text-ink">全部剧场 · {scenes.length}</div>
+              <button
+                onClick={() => {
+                  const t = window.prompt('新剧场名字')
+                  if (t !== null) {
+                    createScene(t)
+                    setLeftOpen(false)
+                  }
+                }}
+                aria-label="新建剧场"
+                className="glass flex h-8 w-8 items-center justify-center rounded-full text-base text-ink"
+              >
+                ＋
               </button>
             </div>
-            <div className="label px-4 pb-1">成员 · {sc.chars.length}</div>
             <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2">
-              {sc.chars.map((c) => (
-                <div key={c.id} className="flex items-center gap-1.5 rounded-2xl px-2 py-2">
-                  <Avatar img={c.avatarImg} emoji={c.avatar} className="h-9 w-9 shrink-0 rounded-full text-lg" textCls="text-lg" style={{ background: c.color + '33' }} />
-                  <span className="ml-1 min-w-0 flex-1 truncate text-sm text-ink">
-                    {c.name}
-                    {c.isMe && <span className="ml-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] text-accent">我</span>}
-                  </span>
-                  {!c.isMe && (c.greeting || '').trim() && (
-                    <button onClick={() => openWith(c)} title="用开场白出场" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-accent hover:bg-white/60">
-                      <PlayIcon className="h-[15px] w-[15px]" />
-                    </button>
-                  )}
-                  {!c.isMe && (
-                    <button
-                      onClick={() => genCharMemory(c)}
-                      disabled={!!memBusyId}
-                      title="让 TA 回顾、更新私人记忆"
-                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] hover:bg-white/60 disabled:opacity-50"
-                    >
-                      {memBusyId === c.id ? '⏳' : '🧠'}
-                    </button>
-                  )}
-                  <button onClick={() => setEditing(c)} title="编辑角色" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted hover:bg-white/60 hover:text-accent">
-                    <EditIcon className="h-[15px] w-[15px]" />
-                  </button>
+              {scenes.map((s) => {
+                const lead = s.chars.find((c) => !c.isMe) || s.chars[0]
+                const last = s.messages[s.messages.length - 1]
+                const preview = last ? (last.text || '［图片］').replace(/\s+/g, ' ').slice(0, 26) : '（还没开场）'
+                const active = s.id === sc.id
+                return (
                   <button
-                    onClick={() => { if (window.confirm(`把「${c.name}」移出这个剧场？`)) removeChar(sc.id, c.id) }}
-                    title="移出剧场"
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted hover:bg-white/60 hover:text-red-500"
+                    key={s.id}
+                    onClick={() => {
+                      setActive(s.id)
+                      setLeftOpen(false)
+                    }}
+                    className={`flex w-full items-center gap-2.5 rounded-2xl px-2 py-2 text-left ${active ? 'bg-accent/10' : 'hover:bg-white/40'}`}
                   >
-                    <TrashIcon className="h-[15px] w-[15px]" />
+                    <Avatar
+                      img={lead?.avatarImg}
+                      emoji={lead?.avatar || '🎭'}
+                      className="h-11 w-11 shrink-0 rounded-full text-xl"
+                      textCls="text-xl"
+                      style={{ background: (lead?.color || '#bb9af7') + '33' }}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className={`block truncate text-sm ${active ? 'font-medium text-accent' : 'text-ink'}`}>{s.title}</span>
+                      <span className="block truncate text-[11px] text-muted">{preview}</span>
+                    </span>
                   </button>
-                </div>
-              ))}
+                )
+              })}
             </div>
-            <div className="space-y-2 px-4 pt-2">
-              <button onClick={() => setEditing('new')} className="btn-primary w-full rounded-xl py-2 text-[13px]">
-                ＋ 新角色卡
+            <div className="mx-3 mt-1 flex items-center justify-around border-t border-line/40 pt-1.5">
+              <button onClick={() => nav('/')} className="flex flex-col items-center gap-0.5 rounded-2xl px-4 py-1.5 text-muted hover:text-accent">
+                <HeartIcon className="h-5 w-5" />
+                <span className="text-[10px]">主页</span>
               </button>
-              <button onClick={() => setAddMemberOpen(true)} className="glass w-full rounded-xl py-2 text-[13px] text-ink">
-                ＋ 从角色库加成员
+              <button onClick={() => nav('/characters')} className="flex flex-col items-center gap-0.5 rounded-2xl px-4 py-1.5 text-muted hover:text-accent">
+                <UsersIcon className="h-5 w-5" />
+                <span className="text-[10px]">角色库</span>
               </button>
-              <p className="text-[10px] leading-relaxed text-muted">
-                勾「这是我」的卡由你发言，其余是 AI 角色；导入现成角色卡请到 戏剧首页 → 角色库。
-              </p>
+              <button onClick={() => nav('/drama')} className="flex flex-col items-center gap-0.5 rounded-2xl px-4 py-1.5 text-muted hover:text-accent">
+                <ChatIcon className="h-5 w-5" />
+                <span className="text-[10px]">剧场管理</span>
+              </button>
             </div>
           </div>
         </div>
@@ -882,6 +890,55 @@ export default function DramaRoom() {
             onClick={(e) => e.stopPropagation()}
           >
           <div className="headline px-1 text-base text-ink">本剧场设置</div>
+          {/* 成员（从左抽屉并进来的：左边现在是会话列表） */}
+          <div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
+            <div className="label px-2.5 pb-0.5 pt-1.5">成员 · {sc.chars.length}</div>
+            {sc.chars.map((c) => (
+              <div key={c.id} className="flex items-center gap-1.5 rounded-xl px-2 py-1.5">
+                <Avatar img={c.avatarImg} emoji={c.avatar} className="h-8 w-8 shrink-0 rounded-full text-base" textCls="text-base" style={{ background: c.color + '33' }} />
+                <span className="ml-0.5 min-w-0 flex-1 truncate text-sm text-ink">
+                  {c.name}
+                  {c.isMe && <span className="ml-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] text-accent">我</span>}
+                </span>
+                {!c.isMe && (c.greeting || '').trim() && (
+                  <button onClick={() => openWith(c)} title="用开场白出场" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-accent hover:bg-white/60">
+                    <PlayIcon className="h-[15px] w-[15px]" />
+                  </button>
+                )}
+                {!c.isMe && (
+                  <button
+                    onClick={() => genCharMemory(c)}
+                    disabled={!!memBusyId}
+                    title="让 TA 回顾、更新私人记忆"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] hover:bg-white/60 disabled:opacity-50"
+                  >
+                    {memBusyId === c.id ? '⏳' : '🧠'}
+                  </button>
+                )}
+                <button onClick={() => setEditing(c)} title="编辑角色" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted hover:bg-white/60 hover:text-accent">
+                  <EditIcon className="h-[15px] w-[15px]" />
+                </button>
+                <button
+                  onClick={() => { if (window.confirm(`把「${c.name}」移出这个剧场？`)) removeChar(sc.id, c.id) }}
+                  title="移出剧场"
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted hover:bg-white/60 hover:text-red-500"
+                >
+                  <TrashIcon className="h-[15px] w-[15px]" />
+                </button>
+              </div>
+            ))}
+            <div className="space-y-1.5 px-1 pb-1 pt-1">
+              <button onClick={() => setEditing('new')} className="btn-primary w-full rounded-xl py-2 text-[13px]">
+                ＋ 新角色卡
+              </button>
+              <button onClick={() => setAddMemberOpen(true)} className="glass w-full rounded-xl py-2 text-[13px] text-ink">
+                ＋ 从角色库加成员
+              </button>
+              <p className="text-[10px] leading-relaxed text-muted">
+                勾「这是我」的卡由你发言，其余是 AI 角色；导入现成卡请到 角色库。
+              </p>
+            </div>
+          </div>
           {/* 外观 */}
           <div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
             <div className="label px-2.5 pb-0.5 pt-1.5">外观</div>
