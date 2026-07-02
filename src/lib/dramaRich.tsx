@@ -7,7 +7,7 @@
  * 注意：key 用确定性序号（同一段文本每次渲染序号一致），保证折叠状态不会因重渲染丢失。
  */
 
-import { useState, type ReactNode } from 'react'
+import { memo, useState, type ReactNode } from 'react'
 import { HtmlCard, isRichHtml } from '@/lib/htmlCard'
 import { Math, renderMath } from '@/lib/mathRender'
 import { applyMacros } from '@/lib/macros'
@@ -143,8 +143,10 @@ function unwrapHtmlFence(s: string): string {
   return m && isRichHtml(m[1]) ? m[1] : s
 }
 
-/** 解析一段消息文本 → 美化后的 React 节点 */
-export function DramaRich({ text: raw, user, char }: { text: string; user?: string; char?: string }) {
+/** 解析一段消息文本 → 美化后的 React 节点（memo：流式期间父组件高频重渲染，旧消息不再重复解析） */
+export const DramaRich = memo(DramaRichInner)
+
+function DramaRichInner({ text: raw, user, char }: { text: string; user?: string; char?: string }) {
   // 先把 {{user}}/{{char}} 换成真实名字（卡里常用，尤其开场白 HTML）
   const text = applyMacros(unwrapHtmlFence(raw), { user, char })
   const fenced = text.includes('```')

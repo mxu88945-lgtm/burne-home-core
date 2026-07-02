@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useDramaStore, dramaMsgId, type DramaChar, type LoreEntry } from '@/store/dramaStore'
+import { useDramaStore, dramaMsgId, type DramaChar, type DramaMsg, type LoreEntry } from '@/store/dramaStore'
 import { useApiStore, type ApiChannel } from '@/store/apiStore'
 import { useMemoryModelStore } from '@/store/memoryModelStore'
 import { useSyncStore } from '@/store/syncStore'
@@ -87,6 +87,26 @@ export default function DramaRoom() {
   const [busyChar, setBusyChar] = useState('') // 正在生成回复的角色 id
   const [casting, setCasting] = useState(false) // 群聊自动接话：导演正在挑人
   const [streamText, setStreamText] = useState('') // 流式生成中的正文（边出边显示）
+  // 流式节流：每来一段就 setState 会让整个消息列表高频重渲染（手机卡顿、点不动），攒 150ms 刷一次
+  const streamBufRef = useRef('')
+  const streamTimerRef = useRef<number | null>(null)
+  function pushStream(delta: string) {
+    streamBufRef.current += delta
+    if (streamTimerRef.current == null) {
+      streamTimerRef.current = window.setTimeout(() => {
+        streamTimerRef.current = null
+        setStreamText(streamBufRef.current)
+      }, 150)
+    }
+  }
+  function resetStream() {
+    streamBufRef.current = ''
+    if (streamTimerRef.current != null) {
+      clearTimeout(streamTimerRef.current)
+      streamTimerRef.current = null
+    }
+    setStreamText('')
+  }
   const [menuSceneId, setMenuSceneId] = useState('') // 会话列表 ⋮ 菜单打开的剧场
   const [loreEdit, setLoreEdit] = useState<LoreEntry | 'new' | null>(null) // 世界书条目编辑器
   const dramaBgRef = useRef<HTMLInputElement>(null) // ⚙ 里就地换背景图
@@ -333,14 +353,14 @@ export default function DramaRoom() {
     setGreetPick(null)
   }
 
-  /** 点名某角色，让 TA 接话 */
-  async function respond(char: DramaChar) {
-    if (busyChar) return
+  /** 点名某角色，让 TA 接话。返回是否成功出了回复（重写/重新发送靠它决定要不要还原）。 */
+  async function respond(char: DramaChar): Promise<boolean> {
+    if (busyChar) return false
     // 该角色独立渠道（不填＝跟随当前激活渠道）
     const ch = (char.apiChannelId && channels.find((c) => c.id === char.apiChannelId)) || activeChannel
     if (!ch && !workerUrl) {
       setErr('还没配 API 哦～去「设置 → API / 模型」加一条渠道')
-      return
+      return false
     }
     setErr('')
     setBusyChar(char.id)
@@ -446,7 +466,7 @@ export default function DramaRoom() {
       let reply = ''
       if (ch) {
         // 流式：字一出来就打到屏幕上（OpenAI 兼容直连；anthropic/Worker 自动回退非流式）
-        setStreamText('')
+        resetStream()
         const r = await chatCompleteStream(
           ch,
           apiMsgs,
@@ -456,7 +476,7 @@ export default function DramaRoom() {
             syncKey: config.syncKey,
             maxTokens: 4096,
           },
-          { onContent: (d) => setStreamText((t) => t + d) },
+          { onContent: pushStream },
         )
         reply = r.text
         if (r.usage)
@@ -497,11 +517,13 @@ export default function DramaRoom() {
           void genCharMemory(char, true)
         }
       }
+      return true
     } catch (e) {
       setErr(`${char.name} 没接上话：${(e as Error).message}`)
+      return false
     } finally {
       setBusyChar('')
-      setStreamText('')
+      resetStream()
     }
   }
 
@@ -769,8 +791,9 @@ export default function DramaRoom() {
     }
   }
   function delMsg(id: string) {
-    setMessages(sc.id, sc.messages.filter((m) => m.id !== id))
     setMenuMsgId('')
+    if (!window.confirm('删除这条消息？')) return
+    setMessages(sc.id, sc.messages.filter((m) => m.id !== id))
   }
   function flashToast(t: string) {
     setToast(t)
@@ -848,31 +871,42 @@ export default function DramaRoom() {
       },
     })
   }
+  /** 生成失败时把先删掉的消息放回去（重写/重新发送绝不"白删"） */
+  function restoreMsgs(removed: DramaMsg[]) {
+    if (!removed.length) return
+    const fresh = useDramaStore.getState().scenes.find((s) => s.id === sc.id)?.messages ?? []
+    setMessages(sc.id, [...fresh, ...removed])
+  }
   /** 重新发送（我的消息）：回到这条为止，让 AI 重新接话（Load failed 之类的救场键） */
   async function resendMine(id: string) {
     const i = sc.messages.findIndex((m) => m.id === id)
     setMenuMsgId('')
     if (i < 0 || !aiChars.length) return
     const m = sc.messages[i]
+    const removed = sc.messages.slice(i + 1)
     setMessages(sc.id, sc.messages.slice(0, i + 1))
     setSummaryAt(sc.id, Math.min(sc.summaryAt ?? 0, i + 1))
+    let ok = false
     if (aiChars.length === 1) {
-      void respond(aiChars[0])
+      ok = await respond(aiChars[0])
     } else {
       const tgt = await pickSpeaker(m.text)
-      if (tgt) void respond(tgt)
+      if (tgt) ok = await respond(tgt)
     }
+    if (!ok) restoreMsgs(removed)
   }
-  /** 重写：删掉这条 AI 回复（及之后的消息），让同一个角色当场重新生成 */
-  function regenMsg(id: string) {
+  /** 重写：删掉这条 AI 回复（及之后的消息），让同一个角色当场重新生成；失败自动还原 */
+  async function regenMsg(id: string) {
     const i = sc.messages.findIndex((m) => m.id === id)
     setMenuMsgId('')
     if (i < 0) return
     const c = charById(sc.messages[i].who)
     if (!c || c.isMe) return
+    const removed = sc.messages.slice(i)
     setMessages(sc.id, sc.messages.slice(0, i))
     setSummaryAt(sc.id, Math.min(sc.summaryAt ?? 0, i)) // 别让摘要"超前"于现存对话
-    void respond(c)
+    const ok = await respond(c)
+    if (!ok) restoreMsgs(removed)
   }
   function saveEdit() {
     const t = editText
@@ -1745,7 +1779,7 @@ export default function DramaRoom() {
               const notLast = sc.messages[sc.messages.length - 1]?.id !== menuMsgId
               if (c && !c.isMe)
                 return (
-                  <button onClick={() => regenMsg(menuMsgId)} disabled={!!busyChar} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40 disabled:opacity-50">
+                  <button onClick={() => void regenMsg(menuMsgId)} disabled={!!busyChar} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40 disabled:opacity-50">
                     🔄 重写（TA 重新说这条{notLast ? '，之后的一起回溯' : ''}）
                   </button>
                 )
