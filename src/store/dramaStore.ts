@@ -97,9 +97,13 @@ interface Persisted {
   autoSummaryEvery: number
   /** 自动更新各角色「私人记忆」（默认关，省 token） */
   autoCharMemory: boolean
+  /** 每次回复携带的最近对话条数（12/24/36） */
+  histCount: number
+  /** 摘要顶替旧对话（省 token）：已并入摘要的旧消息不再发，只带摘要之后的新对话（保底最近 8 条） */
+  summaryTrim: boolean
 }
 
-const DEFAULT: Persisted = { scenes: [], activeId: '', flat: false, autoSummary: true, autoSummaryEvery: 8, autoCharMemory: false }
+const DEFAULT: Persisted = { scenes: [], activeId: '', flat: false, autoSummary: true, autoSummaryEvery: 8, autoCharMemory: false, histCount: 24, summaryTrim: false }
 const init = { ...DEFAULT, ...readJSON<Partial<Persisted>>(STORAGE_KEYS.drama, {}) }
 
 function uid(): string {
@@ -129,6 +133,8 @@ interface DramaState extends Persisted {
   setAutoSummary: (on: boolean) => void
   setAutoSummaryEvery: (n: number) => void
   setAutoCharMemory: (on: boolean) => void
+  setHistCount: (n: number) => void
+  setSummaryTrim: (on: boolean) => void
   /** 世界书：追加条目 / 改单条 / 删单条 */
   addLore: (sceneId: string, entries: LoreEntry[]) => void
   updateLoreEntry: (sceneId: string, entryId: string, patch: Partial<LoreEntry>) => void
@@ -150,6 +156,8 @@ export const useDramaStore = create<DramaState>((set, get) => {
       autoSummary: get().autoSummary,
       autoSummaryEvery: get().autoSummaryEvery,
       autoCharMemory: get().autoCharMemory,
+      histCount: get().histCount,
+      summaryTrim: get().summaryTrim,
     })
 
   const patchScene = (sceneId: string, fn: (s: DramaScene) => DramaScene) => {
@@ -165,6 +173,8 @@ export const useDramaStore = create<DramaState>((set, get) => {
     autoSummary: init.autoSummary,
     autoSummaryEvery: init.autoSummaryEvery,
     autoCharMemory: init.autoCharMemory,
+    histCount: init.histCount,
+    summaryTrim: init.summaryTrim,
 
     createScene: (title) => {
       const scene: DramaScene = {
@@ -267,6 +277,16 @@ export const useDramaStore = create<DramaState>((set, get) => {
 
     setAutoCharMemory: (on) => {
       set({ autoCharMemory: on })
+      persist(get().scenes)
+    },
+
+    setHistCount: (n) => {
+      set({ histCount: Math.max(4, Math.min(48, Math.round(n) || 24)) })
+      persist(get().scenes)
+    },
+
+    setSummaryTrim: (on) => {
+      set({ summaryTrim: on })
       persist(get().scenes)
     },
 

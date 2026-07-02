@@ -60,6 +60,10 @@ export default function DramaRoom() {
   const setAutoSummary = useDramaStore((s) => s.setAutoSummary)
   const setAutoSummaryEvery = useDramaStore((s) => s.setAutoSummaryEvery)
   const autoCharMemory = useDramaStore((s) => s.autoCharMemory)
+  const histCount = useDramaStore((s) => s.histCount)
+  const setHistCount = useDramaStore((s) => s.setHistCount)
+  const summaryTrim = useDramaStore((s) => s.summaryTrim)
+  const setSummaryTrim = useDramaStore((s) => s.setSummaryTrim)
   const setAutoCharMemory = useDramaStore((s) => s.setAutoCharMemory)
 
   const activeChannel = useApiStore((s) => s.getActive())
@@ -333,9 +337,18 @@ export default function DramaRoom() {
         .join('、')
       // 读「最新」消息（自动回复紧跟在用户发送之后，闭包里的 sc.messages 是旧的）
       const freshMsgs = useDramaStore.getState().scenes.find((s) => s.id === sc.id)?.messages ?? sc.messages
+      // 携带的历史窗口：最多 histCount 条；开了「摘要顶替旧对话」且有摘要时，
+      // 已并入摘要（summaryAt 之前）的旧消息不再发，只带之后的新对话（保底最近 8 条）
+      const st = useDramaStore.getState()
+      const histN = Math.max(4, Math.min(48, st.histCount || 24))
+      let histStart = Math.max(0, freshMsgs.length - histN)
+      if (st.summaryTrim && sc.summary.trim()) {
+        histStart = Math.max(histStart, Math.min(sc.summaryAt ?? 0, Math.max(0, freshMsgs.length - 8)))
+      }
+      const recent = freshMsgs.slice(histStart)
       const world = (sc.world || '').trim()
-      // 世界书：按最近对话挑出常驻 + 命中关键词的条目注入（省 token）
-      const loreHay = freshMsgs.slice(-24).map((m) => m.text).join('\n') + '\n' + (draft || '')
+      // 世界书：按携带的最近对话挑出常驻 + 命中关键词的条目注入（省 token）
+      const loreHay = recent.map((m) => m.text).join('\n') + '\n' + (draft || '')
       const loreText = buildLoreText(sc.lore, loreHay)
       // 卡里用 {{user}}/{{char}} 的地方，喂模型前也替换成真实名字
       const mac = { user: meChar?.name, char: char.name }
@@ -360,7 +373,6 @@ export default function DramaRoom() {
 
       // 对话历史喂成「真实多轮消息」（该角色＝assistant、其他人＝user），
       // 对齐 Tavern 的 Chat History——比拼成一段剧本文字更入戏、更贴人设。
-      const recent = freshMsgs.slice(-24)
       const imgOk = new Set(recent.filter((m) => m.image).slice(-2).map((m) => m.id))
       const items: { role: 'user' | 'assistant'; line: string; img?: string }[] = []
       for (const m of recent) {
@@ -1132,6 +1144,40 @@ export default function DramaRoom() {
                 </p>
               </div>
             )}
+            <div className="mx-2.5 border-t border-line/40" />
+
+            {/* 携带最近对话条数 */}
+            <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
+              <span className="text-sm text-ink">携带最近对话</span>
+              <div className="flex gap-1.5">
+                {[12, 24, 36].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setHistCount(n)}
+                    className={`rounded-full px-3 py-1 text-[12px] ${histCount === n ? 'btn-primary' : 'glass text-muted'}`}
+                  >
+                    {n} 条
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="px-2.5 pb-1 text-[10px] leading-relaxed text-muted">
+              每次回复带给模型的历史条数。戏剧回复长，这里是 token 大头：越多越连贯、也越费。
+            </p>
+            <div className="mx-2.5 border-t border-line/40" />
+
+            {/* 摘要顶替旧对话 */}
+            <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
+              <span className="text-sm text-ink">摘要顶替旧对话（省 token）</span>
+              <label className="relative inline-flex cursor-pointer items-center">
+                <input type="checkbox" checked={summaryTrim} onChange={(e) => setSummaryTrim(e.target.checked)} className="peer sr-only" />
+                <span className="h-5 w-9 rounded-full bg-black/15 transition peer-checked:bg-accent" />
+                <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
+              </label>
+            </div>
+            <p className="px-2.5 pb-1 text-[10px] leading-relaxed text-muted">
+              开＝已写进剧情摘要的旧对话不再重复发，只带摘要之后的新对话（保底最近 8 条）。前情靠摘要扛，长剧场省很多；建议配合「自动更新」一起开。
+            </p>
             <div className="mx-2.5 border-t border-line/40" />
 
             {/* 各角色私人记忆 */}
