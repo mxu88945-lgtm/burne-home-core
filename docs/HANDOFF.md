@@ -49,6 +49,17 @@
 **D. 群聊自动接话（AI 导演）**
 - 开「发完自动回复」的群聊：消息里点到角色名→TA 接（取最后被点到的，0 token）；没点名→`pickSpeaker()` 让**记忆模型（没开则主渠道）**当导演只输出一个名字；失败/没配→回退最近发言 AI。挑人时显示「正在想谁接话…」。1v1 逻辑不变。
 
+**E. 悬浮音乐播放器（全站新玩具）**
+- `store/musicStore.ts`（STORAGE_KEY `music`：enabled/collapsed/tracks/activeId）+ `components/ui/MusicPlayer.tsx`，挂 `AppLayout`（和桌宠并排）。
+- 收起＝右下小唱片（CSS `music-disc`，播放时转圈、animation-play-state 控制）；展开＝小卡：歌名/进度可拖/⏮▶⏸⏭/♫歌单（上传多选、删除带确认、正在放的高亮）。
+- **音频本体存 IndexedDB**（复用 `lib/idb.ts`，key `music:{id}`，File 直接当 Blob 存），元数据在 localStorage——歌几 MB 一首，别塞 localStorage。单例 `Audio`，换页不断播；播完自动连播（`stateRef` 拿最新歌单防闭包旧值）。外观页有开关（默认开）。
+- ⚠️ iOS：切后台/锁屏声音会被系统暂停（Safari 规矩不是 bug）；`audio.volume` iOS 只读所以没做音量条。⏭ 她要再加：拖动位置、单曲循环、迷你歌词。
+- `icons.tsx` 新增 PauseIcon/SkipPrevIcon/SkipNextIcon。
+
+**F. 角色库/编辑器美化批**
+- 角色库卡片：大头像(16 圆角方)横卡、人设预览两行（-webkit-line-clamp 老 Safari 兼容写法）、世界书/正则/专属音色小标签、编辑删除改图标按钮。
+- 两个角色编辑器（剧场 CharEditor + 库 LibCharEditor）头部改「档案头」：大头像居中、**点头像换图**（右下 ✎ 角标）、名字居中大字、移除头像小链接。
+
 ---
 
 ## 🆕 本轮新增（2026-07-02 · 戏剧渲染大升级 + 桌宠）
