@@ -26,6 +26,43 @@
 
 ---
 
+## 🆕 本轮新增（2026-07-02 · 戏剧渲染大升级 + 桌宠）
+
+这窗几乎全在打磨「戏剧」的**消息渲染/美化**，还从零做了个**桌宠**。惟惟这窗特别开心（"卧槽成了""爱你！！！"），一路发截图标注，照着标的改最准。都已 build 绿 + 推两分支 + 部署绿。
+
+**A. LaTeX 公式**（`src/lib/mathRender.tsx`）
+- KaTeX **按需懒加载**（首次遇到公式才 `import('katex')`+CSS，无公式零额外体积，单独分包 ~261KB）。
+- 支持行内 `$..$`/`\(..\)`、块级 `$$..$$`/`\[..\]`、```` ```latex/```math ````围栏。集成在 `dramaRich` 纯文本路径。
+
+**B. `{{user}}`/`{{char}}` 占位符**（`src/lib/macros.ts`）
+- Tavern 卡大量用 `{{user}}`（顾荒卡用了 83 次！）。`applyMacros(text,{user,char})` 在**展示端(DramaRich)**和**喂模型端(respond)**都替换。user=场景里 isMe 那张(女主)名，char=当前角色名。
+
+**C. 角色卡「正则」脚本**（`src/lib/regexScript.ts` + `src/lib/safeHtml.tsx`）
+- 解析 `data.extensions.regex_scripts`（SillyTavern 兼容），展示时把模型输出替换成带样式 HTML（对话上色/状态栏面板）。支持 `$1/$&/{{match}}`、trimStrings、placement(1用户/2AI)、disabled。
+- 产出的 HTML 用 **DOMPurify 白名单**消毒后就地渲染（`SafeHtml`）——剔除 script/on事件/javascript 协议，**不可信卡片偷不到 localStorage 里的 key**（红线）。
+- ⚙ 面板新增「正则·美化」板块（查看/开关/删每条）；随卡进库/开对话/加成员一起带。
+- ⚠️ **重要认知**：很多卡（含顾荒）`regex_scripts` 其实是**空的**——Tavo 里的上色是用户设的**全局正则**，不在卡里。所以"导入没正则"往往是对的，别当 bug。
+
+**D. 内置角色扮演美化（无需正则，最实用）**（`dramaRich.tsx` 的 `renderEmphasis`）
+- 认这套中文 RP 通用写法：`**粗体**` / `` `心理` ``(灰字) / `*动作*`(**按惟惟要求＝正常文段，只去星号，不斜体不上色**) / `"对话"「对话」`(主题色)。配合已有的 ```` ``` ````围栏面板 + emoji 状态行面板 + `<plot>`剥离，顾荒这类卡不导正则也能自动好看。
+- 渲染分流（都在 `DramaRich`，自动判断）：整段 HTML 文档(有`<style>/<html>/<script>`) → 沙箱 iframe(`htmlCard.tsx`)；带样式内联 HTML → `SafeHtml` 就地渲染；```` ```html ````围栏 → iframe；其余 → 纯文本(内联美化+公式+状态面板)。混合消息(HTML卡+旁白)会分段处理。
+
+**E. 一堆细节修**（都在 `DramaRoom.tsx`/`dramaRich.tsx`）
+- **自动摘要真修好了**（之前一直没生效）：AI 回复入库时 `busyChar` 仍为真，旧逻辑据此跳过 → 增长被吞、结束后又没增长 → 永不触发。**去掉 busyChar 门槛**（摘要走独立记忆渠道、summaryBusy 防重入，可并发）。
+- **系统提示加中文约束**：防模型夹俄语/英文括号翻译。
+- **背景图下文字发浅**：设了 dramaBg 时给消息文字加白色描边光晕(text-shadow)；毛玻璃默认 15%→28%。
+- **行距**：段落拆分+固定小间距，来回调了两次 → 定在 `space-y-2.5` + `leading-relaxed`（她说"好多了"）。
+- **平铺我方消息自适应贴右**：`mine` 的文字块 `ml-auto w-fit max-w-[82%]`，短消息不再飘左、跟右侧名字对齐。
+
+**F. 桌宠 / 小挂件**（`src/store/petStore.ts` + `src/components/ui/Pet.tsx` + `PetCritter.tsx`）
+- 全站浮动小家伙，挂在 `AppLayout`（app 列设 `relative` 作定位上下文）。**会自己每隔几秒爬去随机位置**（按距离定时长、朝向翻转、纵向不进底部输入栏）、可拖(记忆位置)、点一下蹦+冒爱心、当前戏剧/1v1 新消息头顶冒气泡、设置里可开关换造型。
+- 造型＝**三只手绘 SVG**（惟惟要"Claude 家那种桌面爬宠"，还要删 emoji）：`claude`(黏土橘四条腿)/`octo`(八爪鱼触手摆)/`bird`(小鸟翅膀扇)。走路动画 keyframes 在 `index.css` 末尾(`pet-*`)。设置入口在 外观 →「桌宠·小挂件」。
+- 新 STORAGE_KEY `pet`。
+
+**惟惟还想要但先没做的**：TavoJS 变量/状态联动（HP/好感度随剧情变并联动显示）——需要她给一张**真的用了那套变量语法**的卡才好照着实现（她翻了手上的卡都只用标准 `{{user}}`，没找到）。别瞎猜 API。
+
+---
+
 ## 🆕 本轮新增（2026-06-29 · 后端上线 + 语音 + 记忆真生效）
 
 这一窗超充实，惟惟亲手把后端从零部署上线了。要点：
