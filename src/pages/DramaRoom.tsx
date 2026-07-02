@@ -69,7 +69,8 @@ export default function DramaRoom() {
   const ttsEnabled = useTtsStore((s) => s.config.enabled)
   const { play, playingId, loadingId } = useTtsPlayback()
 
-  const scene = scenes.find((s) => s.id === activeId)
+  // activeId 失效/为空时落到最新剧场，保证从主页直进 /drama/room 总有得聊
+  const scene = scenes.find((s) => s.id === activeId) ?? scenes[0]
 
   const [draft, setDraft] = useState('')
   const [pendingImage, setPendingImage] = useState('')
