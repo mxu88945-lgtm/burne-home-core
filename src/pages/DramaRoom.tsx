@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useDramaStore, dramaMsgId, type DramaChar } from '@/store/dramaStore'
+import { useDramaStore, dramaMsgId, type DramaChar, type LoreEntry } from '@/store/dramaStore'
 import { useApiStore, type ApiChannel } from '@/store/apiStore'
 import { useMemoryModelStore } from '@/store/memoryModelStore'
 import { useSyncStore } from '@/store/syncStore'
@@ -80,6 +80,7 @@ export default function DramaRoom() {
   const [busyChar, setBusyChar] = useState('') // 正在生成回复的角色 id
   const [casting, setCasting] = useState(false) // 群聊自动接话：导演正在挑人
   const [menuSceneId, setMenuSceneId] = useState('') // 会话列表 ⋮ 菜单打开的剧场
+  const [loreEdit, setLoreEdit] = useState<LoreEntry | 'new' | null>(null) // 世界书条目编辑器
   const [err, setErr] = useState('')
   const [leftOpen, setLeftOpen] = useState(false) // 左☰：角色/剧场
   const [rightOpen, setRightOpen] = useState(false) // 右⚙：世界观/剧情摘要
@@ -1148,12 +1149,17 @@ export default function DramaRoom() {
             {loreOpen && (
               <div className="space-y-1.5 px-2.5 pb-2">
                 {(sc.lore?.length ?? 0) === 0 ? (
-                  <p className="text-[11px] text-muted">还没有世界书。导入角色卡（PNG/JSON）时会自动带进来。</p>
+                  <p className="text-[11px] text-muted">还没有世界书。导入角色卡（PNG/JSON）会自动带进来，也可以手动加。</p>
                 ) : (
                   sc.lore!.map((e) => (
                     <div key={e.id} className="flex items-center gap-2 rounded-xl bg-white/40 px-2.5 py-1.5">
                       <span className="shrink-0 text-[11px]">{e.constant ? '📌' : '🔑'}</span>
-                      <span className="min-w-0 flex-1 truncate text-[12px] text-ink">{e.name}</span>
+                      <button onClick={() => setLoreEdit(e)} className="min-w-0 flex-1 truncate text-left text-[12px] text-ink hover:text-accent">
+                        {e.name}
+                      </button>
+                      <button onClick={() => setLoreEdit(e)} aria-label="编辑条目" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted hover:text-accent">
+                        <EditIcon className="h-[13px] w-[13px]" />
+                      </button>
                       <label className="relative inline-flex shrink-0 cursor-pointer items-center">
                         <input type="checkbox" checked={e.enabled} onChange={(ev) => updateLoreEntry(sc.id, e.id, { enabled: ev.target.checked })} className="peer sr-only" />
                         <span className="h-4 w-7 rounded-full bg-black/15 transition peer-checked:bg-accent" />
@@ -1163,7 +1169,10 @@ export default function DramaRoom() {
                     </div>
                   ))
                 )}
-                <p className="text-[10px] leading-relaxed text-muted">📌常驻＝每次都注入；🔑关键词＝对话里出现关键词才注入（省 token）。</p>
+                <button onClick={() => setLoreEdit('new')} className="glass w-full rounded-xl py-1.5 text-[12px] text-ink">
+                  ＋ 手动加一条
+                </button>
+                <p className="text-[10px] leading-relaxed text-muted">📌常驻＝每次都注入；🔑关键词＝最近对话出现关键词才注入（支持 /正则/ 写法，省 token）。点条目可编辑。</p>
               </div>
             )}
 
@@ -1500,6 +1509,18 @@ export default function DramaRoom() {
         />
       )}
 
+      {/* 世界书条目编辑器 */}
+      {loreEdit && (
+        <LoreEditor
+          target={loreEdit}
+          onClose={() => setLoreEdit(null)}
+          onSave={(patch, id) => {
+            if (id) updateLoreEntry(sc.id, id, patch)
+            else addLore(sc.id, [{ ...patch, id: dramaMsgId() }])
+          }}
+        />
+      )}
+
       {/* 多开场白选择 */}
       {greetPick && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3" onClick={() => setGreetPick(null)}>
@@ -1784,6 +1805,88 @@ function CharEditor({
           这是我（女主，由我发言）
           {existingMe && !base?.isMe && <span className="text-[10px] text-muted">已有「我」卡</span>}
         </label>
+      </div>
+    </div>
+  )
+}
+
+/** 世界书条目编辑器（全屏整页，参考 Tavo 的「编辑条目」）：名字 / 内容 / 常驻 / 关键词 */
+function LoreEditor({
+  target,
+  onSave,
+  onClose,
+}: {
+  target: LoreEntry | 'new'
+  onSave: (patch: Omit<LoreEntry, 'id'>, id?: string) => void
+  onClose: () => void
+}) {
+  const isNew = target === 'new'
+  const base = isNew ? null : (target as LoreEntry)
+  const [name, setName] = useState(base?.name ?? '')
+  const [content, setContent] = useState(base?.content ?? '')
+  const [keysStr, setKeysStr] = useState((base?.keys ?? []).join(', '))
+  const [constant, setConstant] = useState(base?.constant ?? false)
+  const inputCls =
+    'w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent'
+
+  function save() {
+    const keys = keysStr
+      .split(/[,，]/)
+      .map((k) => k.trim())
+      .filter(Boolean)
+    onSave(
+      {
+        name: name.trim() || keys[0] || '设定',
+        content,
+        keys,
+        constant,
+        enabled: base?.enabled ?? true,
+      },
+      base?.id,
+    )
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--bg-to, #f7f1f4)' }}>
+      <div className="glass-bar flex items-center justify-between gap-2 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <button onClick={onClose} className="px-2 py-1.5 text-sm text-muted">取消</button>
+        <div className="headline text-base text-ink">{isNew ? '新增世界书条目' : '编辑条目'}</div>
+        <button onClick={save} className="btn-primary rounded-full px-5 py-1.5 text-sm">保存</button>
+      </div>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-3">
+        <div>
+          <div className="mb-1 text-[12px] text-muted">名字 / 备注</div>
+          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="如 『方玫』 / 城市设定" />
+        </div>
+        <div>
+          <div className="mb-1 text-[12px] text-muted">内容（命中后注入给所有角色的设定正文）</div>
+          <textarea
+            className={inputCls + ' min-h-[260px] leading-relaxed'}
+            rows={14}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="这个条目要交代的设定：人物背景、地点、规则、关系…"
+          />
+        </div>
+        <label className="flex items-center justify-between text-sm text-ink">
+          <span>
+            📌 常驻注入
+            <span className="block text-[10px] text-muted">开＝每次都注入；关＝对话里出现关键词才注入（省 token）</span>
+          </span>
+          <span className="relative inline-flex cursor-pointer items-center">
+            <input type="checkbox" checked={constant} onChange={(e) => setConstant(e.target.checked)} className="peer sr-only" />
+            <span className="h-5 w-9 rounded-full bg-black/15 transition peer-checked:bg-accent" />
+            <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
+          </span>
+        </label>
+        {!constant && (
+          <div>
+            <div className="mb-1 text-[12px] text-muted">触发关键词（逗号分隔 · 支持 /正则/ 写法）</div>
+            <input className={inputCls} value={keysStr} onChange={(e) => setKeysStr(e.target.value)} placeholder="如 方玫, /方玫|小提琴/" />
+            <p className="mt-1 text-[10px] leading-relaxed text-muted">最近对话或输入里出现任一关键词就注入这条；`/…/` 按正则匹配（和 Tavo 的写法一致）。</p>
+          </div>
+        )}
       </div>
     </div>
   )

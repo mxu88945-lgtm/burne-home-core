@@ -26,12 +26,27 @@ function uid(): string {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `lore-${Date.now()}-${Math.random()}`
 }
 
-/** 按当前对话挑出要注入的世界书条目：常驻(📌)always + 关键词(🔑)命中。省 token。 */
+/** 单个关键词是否命中：`/pattern/flags` 视为正则（SillyTavern 写法，如 `/方玫/`），否则不分大小写包含。 */
+export function loreKeyHits(key: string, hayLower: string): boolean {
+  const m = /^\/(.+)\/([a-z]*)$/i.exec(key.trim())
+  if (m) {
+    try {
+      const flags = m[2].includes('i') ? m[2] : m[2] + 'i'
+      return new RegExp(m[1], flags).test(hayLower)
+    } catch {
+      // 正则写错就退回普通包含（去掉斜杠）
+      return hayLower.includes(m[1].toLowerCase())
+    }
+  }
+  return hayLower.includes(key.toLowerCase())
+}
+
+/** 按当前对话挑出要注入的世界书条目：常驻(📌)always + 关键词(🔑)命中（支持 /正则/）。省 token。 */
 export function buildLoreText(lore: LoreEntry[] | undefined, haystack: string): string {
   if (!lore || !lore.length) return ''
   const hay = haystack.toLowerCase()
   const picked = lore.filter(
-    (e) => e.enabled && e.content.trim() && (e.constant || e.keys.some((k) => k && hay.includes(k.toLowerCase()))),
+    (e) => e.enabled && e.content.trim() && (e.constant || e.keys.some((k) => k && loreKeyHits(k, hay))),
   )
   if (!picked.length) return ''
   return picked.map((e) => `【${e.name}】\n${e.content.trim()}`).join('\n\n')
