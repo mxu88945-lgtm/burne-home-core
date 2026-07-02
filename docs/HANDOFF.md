@@ -107,6 +107,9 @@
 - 三层修复（5775789）：① `writeJSON` 返回 boolean + 失败广播 `bw:storage-full`，main.tsx 全屏 alert（每分钟至多一次）；② 戏剧消息图片改存 IndexedDB（`dmimg:{msgId}`，消息里只留 `idb:` 引用；`components/ui/IdbImg.tsx` 异步显示；respond 喂 vision 前 `resolveImgSrc` 解析回 dataURL）；③ DramaRoom 挂载时一次性迁移历史消息图片（标记 `burne-home-core:drama-img-mig`）。
 - ⚠️ **未完的根治（下窗优先做）**：主聊天 Chat / 小手机 Phone 的消息图片还是 dataURL 存 localStorage；整个对话库（chat/phone/drama 的 messages）最好整体迁 IndexedDB；整包备份也要把 IDB 图片包含进去（现在只含 localStorage）。丢掉的对话找不回来，靠剧情摘要兜底。
 
+**H11. 自动压缩（次日晨）**
+- `compress(auto)` 复用手动压缩：auto＝留最近 **24** 条（手动 6）、免确认、静默失败、完成飘 toast。⚙ 剧情·记忆新增开关（默认关）+ 阈值（默认 80，clamp 40-200，text+numeric 输入）。effect 监听消息数超阈值触发（summaryBusy/busyChar 守卫防重入）。顺便给存储减负。
+
 **H10. 编辑角色页收官批（今晚最后一批）**
 - 人设/开场白/私人记忆三个长文本区：**点标题收起/展开**（收起显一行预览）+ 各带「⤢ 全屏」（复用 BigTextEditor，写回字段后仍需点右上保存入库）。
 - 独立 API 下新增「**指定模型**」：手填或「获取列表」（`listModels`，走所选渠道或激活渠道）点选，存 `DramaChar.model`，respond 里 `{...chBase, model}` 覆盖渠道默认——她不用回主页换模型了。留空＝渠道默认。
