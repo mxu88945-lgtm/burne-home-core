@@ -4,6 +4,7 @@ import { useAppearanceStore } from '@/store/appearanceStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { usePersonaStore } from '@/store/personaStore'
 import { usePetStore, PET_CHOICES } from '@/store/petStore'
+import { useMusicStore } from '@/store/musicStore'
 import { fileToDataUrl } from '@/lib/image'
 import Avatar from '@/components/ui/Avatar'
 import PetCritter, { type PetVariant } from '@/components/ui/PetCritter'
@@ -67,6 +68,8 @@ export default function AppearanceManager() {
   const persona = usePersonaStore((s) => s.persona)
   const setPersona = usePersonaStore((s) => s.setPersona)
   const pet = usePetStore()
+  const musicEnabled = useMusicStore((s) => s.enabled)
+  const setMusicEnabled = useMusicStore((s) => s.setEnabled)
   const [err, setErr] = useState('')
 
   return (
@@ -316,6 +319,26 @@ export default function AppearanceManager() {
             </button>
           </>
         )}
+      </div>
+
+      {/* 悬浮音乐播放器（浮在所有页面） */}
+      <div className="glass rounded-2xl p-4 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="label">音乐播放器</div>
+          <label className="relative inline-flex cursor-pointer items-center">
+            <input
+              type="checkbox"
+              checked={musicEnabled}
+              onChange={(e) => setMusicEnabled(e.target.checked)}
+              className="peer sr-only"
+            />
+            <span className="h-5 w-9 rounded-full bg-black/15 transition peer-checked:bg-accent" />
+            <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
+          </label>
+        </div>
+        <p className="text-[11px] text-muted">
+          右下角一张小唱片，点开可播放/暂停/切歌、管理歌单；音乐自己上传，只存在本机、不上传。播放时唱片会转圈圈～
+        </p>
       </div>
 
       {/* 戏剧背景（剧场列表 + 戏剧房间） */}

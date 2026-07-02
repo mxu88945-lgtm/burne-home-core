@@ -1,6 +1,7 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import AppHeader from './AppHeader'
 import Pet from '@/components/ui/Pet'
+import MusicPlayer from '@/components/ui/MusicPlayer'
 
 export default function AppLayout() {
   const { pathname } = useLocation()
@@ -24,6 +25,7 @@ export default function AppLayout() {
       <div className="relative mx-auto flex h-full w-full max-w-[440px] flex-col border-line sm:border-x">
         {isHome && <AppHeader />}
         <Pet />
+        <MusicPlayer />
         <main
           className={
             isChat

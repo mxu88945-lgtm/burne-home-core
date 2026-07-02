@@ -286,3 +286,20 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .drawer-backdrop, .drawer-left, .drawer-right { animation: none; }
 }
+
+/* 悬浮音乐播放器：小唱片（播放时转圈） */
+@keyframes music-spin { to { transform: rotate(360deg); } }
+.music-disc {
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  background:
+    radial-gradient(circle, #fff 0 2.5px, transparent 2.5px),
+    conic-gradient(from 40deg, rgba(255, 255, 255, 0.28) 0 30deg, transparent 30deg 180deg, rgba(255, 255, 255, 0.18) 180deg 210deg, transparent 210deg),
+    radial-gradient(circle, #3a3a40 0 8px, var(--accent, #d585a6) 8px 9.5px, #3a3a40 9.5px 13px);
+  animation: music-spin 5s linear infinite;
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .music-disc { animation: none; }
+}

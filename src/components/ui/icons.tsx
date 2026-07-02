@@ -78,6 +78,32 @@ export function PlayIcon({ className }: P) {
   )
 }
 
+export function PauseIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M9 5.5v13M15 5.5v13" />
+    </svg>
+  )
+}
+
+export function SkipPrevIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M6.5 5.5v13" />
+      <path d="M18 5.8v12.4L8.5 12z" />
+    </svg>
+  )
+}
+
+export function SkipNextIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M17.5 5.5v13" />
+      <path d="M6 5.8v12.4L15.5 12z" />
+    </svg>
+  )
+}
+
 /** 发送 · 纸飞机 */
 export function SendIcon({ className }: P) {
   return (
