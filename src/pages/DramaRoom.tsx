@@ -2125,7 +2125,8 @@ function LoreEditor({
   const [keysStr, setKeysStr] = useState((base?.keys ?? []).join(', '))
   const [constant, setConstant] = useState(base?.constant ?? false)
   const [atDepth, setAtDepth] = useState(base?.position === 'depth')
-  const [depth, setDepth] = useState(base?.depth ?? 2)
+  // 用字符串存深度：iOS 的 number 输入框删空会被强行填回 0（"0 删不掉"），text+numeric 才乖
+  const [depthStr, setDepthStr] = useState(String(base?.depth ?? 2))
   const inputCls =
     'w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent'
 
@@ -2142,7 +2143,7 @@ function LoreEditor({
         constant,
         enabled: base?.enabled ?? true,
         position: atDepth ? 'depth' : 'before',
-        ...(atDepth ? { depth: Math.max(0, Math.min(20, Math.round(depth) || 0)) } : {}),
+        ...(atDepth ? { depth: depthStr === '' ? 2 : Math.max(0, Math.min(20, parseInt(depthStr, 10) || 0)) } : {}),
       },
       base?.id,
     )
@@ -2211,11 +2212,11 @@ function LoreEditor({
             <div className="mt-2 flex items-center gap-2 text-[12px] text-muted">
               插在倒数第
               <input
-                type="number"
-                min={0}
-                max={20}
-                value={depth}
-                onChange={(e) => setDepth(Number(e.target.value))}
+                type="text"
+                inputMode="numeric"
+                value={depthStr}
+                onChange={(e) => setDepthStr(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                placeholder="2"
                 className="w-14 rounded-md border border-line bg-white/50 px-1.5 py-1 text-center text-ink outline-none focus:border-accent"
               />
               条消息处（0＝最末尾 · 越靠后越强势，状态栏这类格式指令用 2 就很好）
