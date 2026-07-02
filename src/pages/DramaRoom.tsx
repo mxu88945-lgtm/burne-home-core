@@ -72,6 +72,7 @@ export default function DramaRoom() {
   const [draft, setDraft] = useState('')
   const [pendingImage, setPendingImage] = useState('')
   const [busyChar, setBusyChar] = useState('') // 正在生成回复的角色 id
+  const [casting, setCasting] = useState(false) // 群聊自动接话：导演正在挑人
   const [err, setErr] = useState('')
   const [leftOpen, setLeftOpen] = useState(false) // 左☰：角色/剧场
   const [rightOpen, setRightOpen] = useState(false) // 右⚙：世界观/剧情摘要
@@ -188,6 +189,50 @@ export default function DramaRoom() {
   const atMatch = draft.match(/@(\S*)$/)
   const atList = atMatch ? aiChars.filter((c) => c.name.includes(atMatch[1])) : []
 
+  /** 群聊自动接话：消息里点到谁的名字就是谁；没点名就让模型当「导演」挑一个最该接话的。
+   *  导演走记忆模型（没开就主渠道），只输出一个名字，很省；失败回退「最近说话的 AI」。 */
+  async function pickSpeaker(userText: string): Promise<DramaChar | undefined> {
+    if (aiChars.length <= 1) return aiChars[0]
+    // ① 消息里提到了角色名 → 直接是 TA（提到多个时取最后被提到的，更像在对 TA 说话）
+    let hit: DramaChar | undefined
+    let hitPos = -1
+    for (const c of aiChars) {
+      const p = userText.lastIndexOf(c.name)
+      if (p > hitPos) {
+        hitPos = p
+        hit = c
+      }
+    }
+    if (hit) return hit
+    // ② 模型当导演挑人
+    if (!summaryChannel && !workerUrl) return autoTarget()
+    setCasting(true)
+    try {
+      const freshMsgs = useDramaStore.getState().scenes.find((s) => s.id === sc.id)?.messages ?? sc.messages
+      const recent = freshMsgs.slice(-10).map((m) => `${nameOf(m.who)}：${m.text.slice(0, 120)}`).join('\n')
+      const names = aiChars.map((c) => c.name).join('、')
+      const sys = '你是角色扮演群聊的导演。根据最近对话判断下一句最应该由哪个角色接话（被叫到的、被问到的、剧情轮到的）。只输出一个角色名字，不要输出任何其它文字。'
+      const q = `候选角色：${names}\n\n【最近对话】\n${recent}\n\n下一句最该谁接？只输出名字。`
+      let out = ''
+      if (summaryChannel) {
+        const r = await chatComplete(summaryChannel, [{ role: 'user', content: q }], sys, {
+          workerUrl,
+          syncKey: config.syncKey,
+          maxTokens: 48,
+        })
+        out = r.text
+      } else {
+        out = await sendChat({ workerUrl: workerUrl!, syncKey: config.syncKey, messages: [{ role: 'user', content: q }], system: sys, maxTokens: 48 })
+      }
+      out = cleanReply(out).trim()
+      return aiChars.find((c) => out.includes(c.name)) || (out ? aiChars.find((c) => c.name.includes(out)) : undefined) || autoTarget()
+    } catch {
+      return autoTarget()
+    } finally {
+      setCasting(false)
+    }
+  }
+
   /** 发送我（女主）的一条 */
   function sendMine() {
     const text = draft.trim()
@@ -220,10 +265,16 @@ export default function DramaRoom() {
     }
     const had = !!(t || pendingImage)
     sendMine()
-    // 自动回复（1v1 默认开 / ⚙ 可手动开）：让最近说话的 AI 角色回
+    // 自动回复（1v1 默认开 / ⚙ 可手动开）：1v1 让那个 AI 回；群聊自动判断该谁接话
     if (had && effectiveAuto && !busyChar) {
-      const tgt = autoTarget()
-      if (tgt) void respond(tgt)
+      if (aiChars.length <= 1) {
+        const tgt = autoTarget()
+        if (tgt) void respond(tgt)
+      } else {
+        void pickSpeaker(t).then((tgt) => {
+          if (tgt) void respond(tgt)
+        })
+      }
     }
   }
 
@@ -785,7 +836,10 @@ export default function DramaRoom() {
             </button>
             <div className="mx-2.5 border-t border-line/40" />
             <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
-              <span className="text-sm text-ink">发完自动回复</span>
+              <span className="text-sm text-ink">
+                发完自动回复
+                {aiChars.length > 1 && <span className="block text-[10px] text-muted">群聊开着＝自动判断该谁接话（点到名就是 TA）</span>}
+              </span>
               <label className="relative inline-flex cursor-pointer items-center">
                 <input type="checkbox" checked={effectiveAuto} onChange={(e) => setSceneAuto(sc.id, e.target.checked)} className="peer sr-only" />
                 <span className="h-5 w-9 rounded-full bg-black/15 transition peer-checked:bg-accent" />
@@ -1084,6 +1138,9 @@ export default function DramaRoom() {
               </div>
             )
           })
+        )}
+        {casting && !busyChar && (
+          <div className="flex items-center gap-2 px-1 text-[12px] text-muted">正在想谁接话…</div>
         )}
         {busyChar && (
           <div className="flex items-center gap-2 px-1 text-[12px] text-muted">
