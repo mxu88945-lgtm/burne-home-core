@@ -814,6 +814,21 @@ export default function DramaRoom() {
     setEditMsgId(id)
     setEditText(m.text)
   }
+  /** 重新发送（我的消息）：回到这条为止，让 AI 重新接话（Load failed 之类的救场键） */
+  async function resendMine(id: string) {
+    const i = sc.messages.findIndex((m) => m.id === id)
+    setMenuMsgId('')
+    if (i < 0 || !aiChars.length) return
+    const m = sc.messages[i]
+    setMessages(sc.id, sc.messages.slice(0, i + 1))
+    setSummaryAt(sc.id, Math.min(sc.summaryAt ?? 0, i + 1))
+    if (aiChars.length === 1) {
+      void respond(aiChars[0])
+    } else {
+      const tgt = await pickSpeaker(m.text)
+      if (tgt) void respond(tgt)
+    }
+  }
   /** 重写：删掉这条 AI 回复（及之后的消息），让同一个角色当场重新生成 */
   function regenMsg(id: string) {
     const i = sc.messages.findIndex((m) => m.id === id)
@@ -1658,18 +1673,27 @@ export default function DramaRoom() {
       {/* 长按消息 · 操作菜单 */}
       {menuMsgId && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/30" onClick={() => setMenuMsgId('')}>
+          {/* select-none：长按松手时手指常落在菜单上，别让 iOS 把菜单文字当可选文本弹"拷贝" */}
           <div
-            className="glass-strong w-full space-y-1 rounded-t-3xl p-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            className="glass-strong w-full select-none space-y-1 rounded-t-3xl p-3 pb-[max(1rem,env(safe-area-inset-bottom))] [-webkit-touch-callout:none] [-webkit-user-select:none]"
             onClick={(e) => e.stopPropagation()}
           >
             {(() => {
               const m = sc.messages.find((x) => x.id === menuMsgId)
-              const c = m && charById(m.who)
-              return c && !c.isMe ? (
-                <button onClick={() => regenMsg(menuMsgId)} disabled={!!busyChar} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40 disabled:opacity-50">
-                  🔄 重写（TA 重新说这条{sc.messages[sc.messages.length - 1]?.id !== menuMsgId ? '，之后的一起回溯' : ''}）
+              if (!m) return null
+              const c = charById(m.who)
+              const notLast = sc.messages[sc.messages.length - 1]?.id !== menuMsgId
+              if (c && !c.isMe)
+                return (
+                  <button onClick={() => regenMsg(menuMsgId)} disabled={!!busyChar} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40 disabled:opacity-50">
+                    🔄 重写（TA 重新说这条{notLast ? '，之后的一起回溯' : ''}）
+                  </button>
+                )
+              return (
+                <button onClick={() => void resendMine(menuMsgId)} disabled={!!busyChar || !aiChars.length} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40 disabled:opacity-50">
+                  🔄 重新发送（让 TA 重新接话{notLast ? '，之后的一起回溯' : ''}）
                 </button>
-              ) : null
+              )
             })()}
             <button onClick={() => startEdit(menuMsgId)} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40">
               ✏️ 改写
