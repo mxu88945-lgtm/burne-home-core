@@ -60,6 +60,15 @@
 - 角色库卡片：大头像(16 圆角方)横卡、人设预览两行（-webkit-line-clamp 老 Safari 兼容写法）、世界书/正则/专属音色小标签、编辑删除改图标按钮。
 - 两个角色编辑器（剧场 CharEditor + 库 LibCharEditor）头部改「档案头」：大头像居中、**点头像换图**（右下 ✎ 角标）、名字居中大字、移除头像小链接。
 
+**G. ⚠️ iOS 抽屉卡死大坑（已修，别改回去）**
+- 抽屉面板最初用 `glass-strong`（20px backdrop-filter），**整屏高毛玻璃 + 滑入动画叠在戏剧页多层毛玻璃上，iOS WebKit 合成器直接卡死＝整页无响应**（桌面 Chrome 完全正常，复现不了）。改成近实底 `.drawer-panel`（rgba 白 .97、无 backdrop-filter，index.css 有注释）后她实测好了。**大面积浮层永远别用 backdrop-filter**。
+- 两抽屉都有 ✕ 关闭键；遮罩带 cursor-pointer（iOS 点按兼容）。
+
+**H. 动线收尾（都她点名要的）**
+- 剧场管理页（原 DramaList）：左上改「← 返回对话」（回 /drama/room；没剧场才回主页），右上设置键移除。
+- ☰ 会话列表每行 ⋮ → **底部弹层菜单**（Tavo 式）：置顶（`moveSceneTop`）/ 改名 / 删除（红字带确认）+ 取消。
+- 本窗验证方式升级：容器里装了 Playwright（scratchpad），`npm run dev` + Chromium 无头跑交互（预置 localStorage 造剧场→点抽屉→点菜单断言），比等她手机验收快；但 **iOS 特有 bug（如上面的毛玻璃卡死）桌面测不出来**，只能靠她。
+
 ---
 
 ## 🆕 本轮新增（2026-07-02 · 戏剧渲染大升级 + 桌宠）
