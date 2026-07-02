@@ -85,6 +85,7 @@ export default function DramaRoom() {
   const [casting, setCasting] = useState(false) // 群聊自动接话：导演正在挑人
   const [menuSceneId, setMenuSceneId] = useState('') // 会话列表 ⋮ 菜单打开的剧场
   const [loreEdit, setLoreEdit] = useState<LoreEntry | 'new' | null>(null) // 世界书条目编辑器
+  const dramaBgRef = useRef<HTMLInputElement>(null) // ⚙ 里就地换背景图
   const [err, setErr] = useState('')
   const [leftOpen, setLeftOpen] = useState(false) // 左☰：角色/剧场
   const [rightOpen, setRightOpen] = useState(false) // 右⚙：世界观/剧情摘要
@@ -112,6 +113,7 @@ export default function DramaRoom() {
   const taRef = useRef<HTMLTextAreaElement>(null)
   // 设了背景图时，给文字加一圈白色描边光晕，让字在图上更清楚（不改文字颜色本身）
   const hasBg = useAppearanceStore((s) => !!s.appearance.dramaBg)
+  const updateAppearance = useAppearanceStore((s) => s.update)
   const bgTextGlow = hasBg
     ? { textShadow: '0 0 4px rgba(255,255,255,0.95), 0 1px 2px rgba(255,255,255,0.9)' }
     : undefined
@@ -840,7 +842,8 @@ export default function DramaRoom() {
       {/* 左侧抽屉：会话列表（Tavo 式）——所有剧场随点随切 + 底部导航 */}
       {leftOpen && (
         <div className="fixed inset-0 z-40" onClick={() => setLeftOpen(false)}>
-          <div className="drawer-backdrop absolute inset-0 cursor-pointer bg-black/25" />
+          {/* 遮罩顶部渐浅：iOS 状态栏是系统画的压不暗（default 模式），渐变让上缘不生硬 */}
+          <div className="drawer-backdrop absolute inset-0 cursor-pointer bg-gradient-to-b from-black/5 via-black/20 to-black/25" />
           <div
             className="drawer-left drawer-panel absolute left-0 top-0 flex h-full w-[82%] max-w-[320px] flex-col rounded-r-3xl pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.9rem,env(safe-area-inset-top))]"
             onClick={(e) => e.stopPropagation()}
@@ -982,7 +985,8 @@ export default function DramaRoom() {
       {/* 右侧抽屉：本剧场设置 —— 外观 / 剧情·记忆（滑入浮层） */}
       {rightOpen && (
         <div className="fixed inset-0 z-40" onClick={() => setRightOpen(false)}>
-          <div className="drawer-backdrop absolute inset-0 cursor-pointer bg-black/25" />
+          {/* 遮罩顶部渐浅：iOS 状态栏是系统画的压不暗（default 模式），渐变让上缘不生硬 */}
+          <div className="drawer-backdrop absolute inset-0 cursor-pointer bg-gradient-to-b from-black/5 via-black/20 to-black/25" />
           <div
             className="drawer-right drawer-panel absolute right-0 top-0 flex h-full w-[86%] max-w-[340px] flex-col gap-2.5 overflow-y-auto rounded-l-3xl px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.9rem,env(safe-area-inset-top))]"
             onClick={(e) => e.stopPropagation()}
@@ -1053,10 +1057,35 @@ export default function DramaRoom() {
               </div>
             </div>
             <div className="mx-2.5 border-t border-line/40" />
-            <button onClick={() => nav('/settings/appearance')} className="flex w-full items-center justify-between rounded-xl px-2.5 py-2.5 text-left hover:bg-white/40">
+            <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
               <span className="text-sm text-ink">背景图</span>
-              <span className="text-[12px] text-muted">去设置换图 ›</span>
-            </button>
+              <div className="flex items-center gap-1.5">
+                <input
+                  ref={dramaBgRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!f) return
+                    try {
+                      updateAppearance({ dramaBg: await fileToDataUrl(f, 1280, 0.8) })
+                    } catch (er) {
+                      setErr((er as Error).message)
+                    }
+                  }}
+                />
+                <button onClick={() => dramaBgRef.current?.click()} className="glass rounded-full px-3 py-1 text-[12px] text-ink">
+                  换图
+                </button>
+                {hasBg && (
+                  <button onClick={() => updateAppearance({ dramaBg: '' })} className="px-1.5 py-1 text-[12px] text-muted hover:text-red-500">
+                    移除
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="mx-2.5 border-t border-line/40" />
             <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
               <span className="text-sm text-ink">发完自动回复</span>

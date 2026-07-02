@@ -170,13 +170,14 @@ export default function MusicPlayer() {
   )
 
   return (
-    <div className="absolute bottom-24 right-2.5 z-30">
+    <div className={`absolute bottom-24 z-30 ${collapsed ? 'right-0' : 'right-2.5'}`}>
       <input ref={fileRef} type="file" accept="audio/*" multiple className="hidden" onChange={(e) => { void onFiles(e.target.files); e.target.value = '' }} />
       {collapsed ? (
+        // 收起＝半张唱片缩进屏幕右缘（不挡输入的字），点一下滑出展开
         <button
           onClick={() => setCollapsed(false)}
           aria-label="打开播放器"
-          className="glass-strong flex h-11 w-11 items-center justify-center rounded-full shadow-lg"
+          className="glass-strong flex h-11 w-11 translate-x-[55%] items-center justify-center rounded-full opacity-75 shadow-lg transition-transform"
         >
           {disc}
         </button>
