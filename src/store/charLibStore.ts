@@ -28,6 +28,8 @@ export interface LibChar {
   color: string
   /** 独立 API 渠道 id（不填＝跟随激活渠道） */
   apiChannelId?: string
+  /** 专属 TTS 音色 voice_id（不填＝跟随全局语音朗读音色） */
+  voiceId?: string
   /** 随角色卡带来的世界书 */
   lore?: LoreEntry[]
   /** 随角色卡带来的正则脚本（展示美化） */
@@ -66,6 +68,7 @@ export const useCharLibStore = create<State>((set, get) => {
         greetings: c.greetings,
         color: c.color || PALETTE[get().chars.length % PALETTE.length],
         apiChannelId: c.apiChannelId,
+        voiceId: c.voiceId,
         lore: c.lore,
         regex: c.regex,
         createdAt: new Date().toISOString(),

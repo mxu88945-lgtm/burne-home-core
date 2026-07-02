@@ -16,7 +16,7 @@ import { applyRegexScripts } from '@/lib/regexScript'
 import { useCharLibStore } from '@/store/charLibStore'
 import { useSttStore } from '@/store/sttStore'
 import { transcribe } from '@/api/stt'
-import { useTtsStore } from '@/store/ttsStore'
+import { useTtsStore, VOICE_PRESETS } from '@/store/ttsStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import Avatar from '@/components/ui/Avatar'
 import BackBar from '@/components/layout/BackBar'
@@ -599,6 +599,7 @@ export default function DramaRoom() {
       greetings: lc.greetings,
       color: lc.color,
       apiChannelId: lc.apiChannelId,
+      voiceId: lc.voiceId,
       regex: lc.regex,
     })
     if (lc.lore?.length) {
@@ -992,7 +993,7 @@ export default function DramaRoom() {
             }
             const ttsBtn =
               !mine && ttsEnabled && m.text.trim() ? (
-                <button type="button" onClick={() => play(m.id, m.text)} aria-label="朗读" className="hover:text-accent">
+                <button type="button" onClick={() => play(m.id, m.text, { voiceId: c?.voiceId })} aria-label="朗读" className="hover:text-accent">
                   {loadingId === m.id ? (
                     <span className="text-[11px]">⏳</span>
                   ) : playingId === m.id ? (
@@ -1348,6 +1349,7 @@ function CharEditor({
   const [color, setColor] = useState(base?.color ?? PRESET_COLORS[0])
   const [isMe, setIsMe] = useState(base?.isMe ?? false)
   const [apiChannelId, setApiChannelId] = useState<string | undefined>(base?.apiChannelId)
+  const [voiceId, setVoiceId] = useState(base?.voiceId ?? '')
   const [memory, setMemory] = useState(base?.memory ?? '')
   const [chanOpen, setChanOpen] = useState(false)
   const channels = useApiStore((s) => s.channels)
@@ -1357,7 +1359,7 @@ function CharEditor({
     'w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent'
 
   function save() {
-    const patch = { name, avatar, avatarImg, persona, greeting, color, isMe, apiChannelId, memory }
+    const patch = { name, avatar, avatarImg, persona, greeting, color, isMe, apiChannelId, voiceId: voiceId.trim(), memory }
     if (isNew) onAdd(sceneId, patch)
     else onUpdate(sceneId, (target as DramaChar).id, patch)
     onClose()
@@ -1489,6 +1491,30 @@ function CharEditor({
             </div>
           )}
         </div>
+
+        {!isMe && (
+          <div>
+            <div className="mb-1 text-[12px] text-muted">专属音色（TTS voice_id · 留空＝跟随全局音色）</div>
+            <input
+              className={inputCls}
+              value={voiceId}
+              onChange={(e) => setVoiceId(e.target.value)}
+              placeholder="如 female-shaonv，或克隆出来的 voice_id"
+            />
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {VOICE_PRESETS.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setVoiceId(voiceId === v.id ? '' : v.id)}
+                  className={`rounded-full px-2.5 py-1 text-[11px] ${voiceId === v.id ? 'btn-primary' : 'glass text-ink'}`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <label className="flex items-center gap-2 text-[13px] text-ink">
           <input

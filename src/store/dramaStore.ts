@@ -29,6 +29,8 @@ export interface DramaChar {
   isMe?: boolean
   /** 独立 API 渠道 id（不填＝跟随当前激活渠道） */
   apiChannelId?: string
+  /** 专属 TTS 音色 voice_id（不填＝跟随全局语音朗读音色） */
+  voiceId?: string
   /** 私人记忆：以该角色第一人称记着自己知道/在意/想做的事（只在 TA 接话时注入） */
   memory?: string
   /** 已并入该角色私人记忆的消息条数（增量更新用） */
@@ -204,6 +206,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
           color,
           isMe: char.isMe ?? false,
           apiChannelId: char.apiChannelId,
+          voiceId: char.voiceId,
           regex: char.regex,
         }
         return { ...s, chars: [...s.chars, c] }

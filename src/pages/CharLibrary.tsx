@@ -4,6 +4,7 @@ import { useCharLibStore, type LibChar } from '@/store/charLibStore'
 import { useDramaStore, dramaMsgId, type LoreEntry } from '@/store/dramaStore'
 import { useProfileStore } from '@/store/profileStore'
 import { useApiStore } from '@/store/apiStore'
+import { VOICE_PRESETS } from '@/store/ttsStore'
 import { parseCardFile } from '@/lib/charCard'
 import { fileToDataUrl } from '@/lib/image'
 import Avatar from '@/components/ui/Avatar'
@@ -71,6 +72,7 @@ export default function CharLibrary() {
       greetings: lc.greetings,
       color: lc.color,
       apiChannelId: lc.apiChannelId,
+      voiceId: lc.voiceId,
       regex: lc.regex,
     })
     if (lc.lore?.length) addLore(scene.id, freshLore(lc.lore))
@@ -178,13 +180,14 @@ function LibCharEditor({ target, onClose }: { target: LibChar | 'new'; onClose: 
   const [greeting, setGreeting] = useState(base?.greeting ?? '')
   const [color, setColor] = useState(base?.color ?? PRESET_COLORS[0])
   const [apiChannelId, setApiChannelId] = useState<string | undefined>(base?.apiChannelId)
+  const [voiceId, setVoiceId] = useState(base?.voiceId ?? '')
   const [chanOpen, setChanOpen] = useState(false)
   const imgRef = useRef<HTMLInputElement>(null)
   const chanName = channels.find((c) => c.id === apiChannelId)?.name
   const inputCls = 'w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent'
 
   function save() {
-    const patch = { name, avatar, avatarImg, persona, greeting, color, apiChannelId }
+    const patch = { name, avatar, avatarImg, persona, greeting, color, apiChannelId, voiceId: voiceId.trim() }
     if (isNew) addLibChar(patch)
     else updateLibChar((target as LibChar).id, patch)
     onClose()
@@ -255,6 +258,22 @@ function LibCharEditor({ target, onClose }: { target: LibChar | 'new'; onClose: 
               {channels.length === 0 && <div className="px-3 py-1.5 text-[11px] text-muted">还没渠道，去「设置 → API / 模型」加</div>}
             </div>
           )}
+        </div>
+        <div>
+          <div className="mb-1 text-[12px] text-muted">专属音色（TTS voice_id · 留空＝跟随全局音色）</div>
+          <input className={inputCls} value={voiceId} onChange={(e) => setVoiceId(e.target.value)} placeholder="如 female-shaonv，或克隆出来的 voice_id" />
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {VOICE_PRESETS.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setVoiceId(voiceId === v.id ? '' : v.id)}
+                className={`rounded-full px-2.5 py-1 text-[11px] ${voiceId === v.id ? 'btn-primary' : 'glass text-ink'}`}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

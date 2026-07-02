@@ -37,7 +37,7 @@ export function useTtsPlayback() {
   useEffect(() => cleanup, [cleanup])
 
   const play = useCallback(
-    async (id: string, text: string) => {
+    async (id: string, text: string, opts: { voiceId?: string } = {}) => {
       setError('')
       // 再点正在播放/正在合成的同一条 → 当作停止
       if (playingId === id || loadingId === id) {
@@ -48,10 +48,11 @@ export function useTtsPlayback() {
       setPlayingId('')
       setLoadingId(id)
       try {
-        // workerUrl 留空则复用「多端同步」的 workerUrl
+        // workerUrl 留空则复用「多端同步」的 workerUrl；voiceId 可按条覆盖（角色专属音色）
         const cfg = {
           ...config,
           workerUrl: config.workerUrl.trim() || (sync.workerUrl || '').trim(),
+          ...(opts.voiceId?.trim() ? { voiceId: opts.voiceId.trim() } : {}),
         }
         const blob = await synthesize(cfg, text, { syncKey: sync.syncKey })
         const url = URL.createObjectURL(blob)
