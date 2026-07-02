@@ -22,6 +22,20 @@ window.visualViewport?.addEventListener('scroll', syncViewport)
 window.addEventListener('resize', syncViewport)
 window.addEventListener('orientationchange', syncViewport)
 
+// ⚠️ 本机存储写满（iOS 每站约 5MB）时大声警告——静默丢数据是最不可原谅的 bug
+let lastStorageWarn = 0
+window.addEventListener('bw:storage-full', () => {
+  const now = Date.now()
+  if (now - lastStorageWarn < 60_000) return
+  lastStorageWarn = now
+  window.alert(
+    '⚠️ 手机浏览器的存储空间满了，刚才的改动可能没保存住！\n\n' +
+      '请尽快：\n1. 设置 → 数据·备份 → 导出整包备份（保住现有内容）\n' +
+      '2. 删掉一些旧对话/带图片的消息、或更换更小的背景图\n\n' +
+      '在腾出空间之前，新的聊天内容刷新后可能会丢失。'
+  )
+})
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />

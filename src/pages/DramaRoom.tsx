@@ -19,6 +19,8 @@ import { transcribe } from '@/api/stt'
 import { useTtsStore, VOICE_PRESETS } from '@/store/ttsStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import Avatar from '@/components/ui/Avatar'
+import IdbImg from '@/components/ui/IdbImg'
+import { idbGet, idbSet } from '@/lib/idb'
 import BackBar from '@/components/layout/BackBar'
 import DramaBg from '@/components/ui/DramaBg'
 import { useAppearanceStore } from '@/store/appearanceStore'
@@ -188,6 +190,36 @@ export default function DramaRoom() {
     if (streamText && el) el.scrollTop = el.scrollHeight
   }, [streamText])
 
+  // 一次性迁移：把历史消息里的 dataURL 图片搬进 IndexedDB，腾出 localStorage 配额
+  // （5MB 配额写满会静默丢对话——这次事故的根因，别删这段）
+  useEffect(() => {
+    const MIG_KEY = 'burne-home-core:drama-img-mig'
+    if (localStorage.getItem(MIG_KEY)) return
+    void (async () => {
+      try {
+        const st = useDramaStore.getState()
+        for (const s of st.scenes) {
+          let changed = false
+          const msgs = await Promise.all(
+            s.messages.map(async (m) => {
+              if (m.image && m.image.startsWith('data:')) {
+                const key = `dmimg:${m.id}`
+                await idbSet(key, m.image)
+                changed = true
+                return { ...m, image: `idb:${key}` }
+              }
+              return m
+            }),
+          )
+          if (changed) st.setMessages(s.id, msgs)
+        }
+        localStorage.setItem(MIG_KEY, '1')
+      } catch (e) {
+        console.warn('[drama] 图片迁移失败，下次再试', e)
+      }
+    })()
+  }, [])
+
   /** 滚到最新消息底部。键盘弹出有动画 + 视口缩放，分几次补滚才稳。 */
   function scrollToEnd() {
     const jump = () => {
@@ -281,19 +313,32 @@ export default function DramaRoom() {
     }
   }
 
-  /** 发送我（女主）的一条 */
+  /** 发送我（女主）的一条。图片本体进 IndexedDB，消息里只存 `idb:` 引用（不占 localStorage 5MB 配额） */
   function sendMine() {
     const text = draft.trim()
     if (!text && !pendingImage) return
+    const msgId = dramaMsgId()
+    let imageRef: string | undefined
+    if (pendingImage) {
+      const key = `dmimg:${msgId}`
+      void idbSet(key, pendingImage)
+      imageRef = `idb:${key}`
+    }
     addMessage(sc.id, {
-      id: dramaMsgId(),
+      id: msgId,
       who: meChar?.id ?? '__me__',
       text,
-      ...(pendingImage ? { image: pendingImage } : {}),
+      ...(imageRef ? { image: imageRef } : {}),
       at: now(),
     })
     setDraft('')
     setPendingImage('')
+  }
+
+  /** 把 `idb:` 图片引用解析回 dataURL（喂模型 vision 用） */
+  async function resolveImgSrc(src: string): Promise<string> {
+    if (!src.startsWith('idb:')) return src
+    return (await idbGet<string>(src.slice(4))) || ''
   }
 
   /** 发送：@角色名＝让该角色接话；1v1 发完自动让那个 AI 回；群聊照旧 */
@@ -451,6 +496,10 @@ export default function DramaRoom() {
           `全文禁止出现 ${protectedNames} 的台词、动作、表情或心理，他们只能作为被观察的存在被简短带过；` +
           `禁止出现「名字：」台词格式；旁白克制简短，写完即停，把舞台交还主角。`,
         )
+      }
+      // idb: 图片引用换回 dataURL 再喂 vision
+      for (const t of turns) {
+        if (t.images.length) t.images = (await Promise.all(t.images.map(resolveImgSrc))).filter(Boolean)
       }
       const apiMsgs: ChatApiMessage[] = turns.map((t) => {
         const text = t.texts.join('\n')
@@ -1589,7 +1638,7 @@ export default function DramaRoom() {
                     <span className="text-[9px] text-muted">{m.at}</span>
                     {ttsBtn}
                   </div>
-                  {m.image && <img src={m.image} alt="" className={`mb-1 max-h-60 max-w-full rounded-xl object-cover ${mine ? 'ml-auto' : ''}`} />}
+                  {m.image && <IdbImg src={m.image} alt="" className={`mb-1 max-h-60 max-w-full rounded-xl object-cover ${mine ? 'ml-auto' : ''}`} />}
                   {editingThis ? editArea : m.text && (
                     // 「我」的消息贴右、宽度随内容自适应（短就缩右边、长撑到 ~82%）；对方仍铺满左侧
                     <div
@@ -1616,7 +1665,7 @@ export default function DramaRoom() {
                 <div className={`flex min-w-0 max-w-[78%] flex-col select-none [-webkit-touch-callout:none] [-webkit-user-select:none] ${mine ? 'items-end' : 'items-start'}`} {...longPress}>
                   <span className="px-1 text-[10px] text-muted">{nameOf(m.who)}</span>
                   {m.image && (
-                    <img src={m.image} alt="" className="mt-0.5 max-h-52 max-w-full rounded-2xl object-cover" />
+                    <IdbImg src={m.image} alt="" className="mt-0.5 max-h-52 max-w-full rounded-2xl object-cover" />
                   )}
                   {editingThis ? editArea : m.text && (
                     <div
