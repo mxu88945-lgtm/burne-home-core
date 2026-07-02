@@ -275,3 +275,14 @@ body {
   .pet-critter.walk { animation: none; }
   .pet-critter.walk .leg-a, .pet-critter.walk .leg-b { animation: none; }
 }
+
+/* 戏剧房间左右抽屉（滑入 + 遮罩淡入） */
+@keyframes drawer-in-left { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes drawer-in-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes drawer-fade { from { opacity: 0; } to { opacity: 1; } }
+.drawer-backdrop { animation: drawer-fade 0.18s ease-out; }
+.drawer-left { animation: drawer-in-left 0.22s ease-out; }
+.drawer-right { animation: drawer-in-right 0.22s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .drawer-backdrop, .drawer-left, .drawer-right { animation: none; }
+}

@@ -58,6 +58,26 @@ export function StopIcon({ className }: P) {
   )
 }
 
+export function TrashIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M5.5 7h13" />
+      <path d="M9.5 7V5.8A1.8 1.8 0 0 1 11.3 4h1.4a1.8 1.8 0 0 1 1.8 1.8V7" />
+      <path d="M7.5 7l.8 11a1.5 1.5 0 0 0 1.5 1.4h4.4a1.5 1.5 0 0 0 1.5-1.4l.8-11" />
+      <path d="M10.5 10.5v5.5M13.5 10.5v5.5" />
+    </svg>
+  )
+}
+
+/** 播放 · 出场 */
+export function PlayIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M8.5 5.8v12.4L18 12z" />
+    </svg>
+  )
+}
+
 /** 发送 · 纸飞机 */
 export function SendIcon({ className }: P) {
   return (

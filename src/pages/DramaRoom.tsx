@@ -23,7 +23,7 @@ import BackBar from '@/components/layout/BackBar'
 import DramaBg from '@/components/ui/DramaBg'
 import { useAppearanceStore } from '@/store/appearanceStore'
 import { GearIcon } from '@/components/ui/navIcons'
-import { SendIcon, SpeakerIcon, StopIcon, MicIcon } from '@/components/ui/icons'
+import { SendIcon, SpeakerIcon, StopIcon, MicIcon, EditIcon, TrashIcon, PlayIcon } from '@/components/ui/icons'
 
 function now() {
   return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
@@ -807,53 +807,83 @@ export default function DramaRoom() {
         </button>
       </div>
 
-      {/* 左侧面板：剧场列表 + 角色管理 */}
+      {/* 左侧抽屉：剧场导航 + 成员管理（滑入浮层，不再挤压对话） */}
       {leftOpen && (
-        <div className="glass-strong mb-2 space-y-2 rounded-2xl p-3">
-          <button onClick={() => nav('/drama')} className="text-[12px] text-accent">← 剧场列表 / 主页</button>
-          {sc.chars.map((c) => (
-            <div key={c.id} className="flex items-center gap-2">
-              <Avatar img={c.avatarImg} emoji={c.avatar} className="h-8 w-8 rounded-full text-base" textCls="text-base" style={{ background: c.color + '33' }} />
-              <span className="min-w-0 flex-1 truncate text-sm text-ink">
-                {c.name}
-                {c.isMe && <span className="ml-1 text-[10px] text-accent">（我）</span>}
-              </span>
-              {!c.isMe && (c.greeting || '').trim() && (
-                <button onClick={() => openWith(c)} className="px-1.5 text-[13px] text-accent hover:underline">▶开场</button>
-              )}
-              {!c.isMe && (
-                <button
-                  onClick={() => genCharMemory(c)}
-                  disabled={!!memBusyId}
-                  title="让 TA 回顾、更新私人记忆"
-                  className="px-1.5 text-[13px] text-muted hover:text-accent disabled:opacity-50"
-                >
-                  {memBusyId === c.id ? '⏳' : '🧠'}
-                </button>
-              )}
-              <button onClick={() => setEditing(c)} className="px-1.5 text-[13px] text-muted hover:text-accent">编辑</button>
-              <button onClick={() => removeChar(sc.id, c.id)} className="px-1.5 text-[13px] text-muted hover:text-red-500">删</button>
+        <div className="fixed inset-0 z-40" onClick={() => setLeftOpen(false)}>
+          <div className="drawer-backdrop absolute inset-0 bg-black/25" />
+          <div
+            className="drawer-left glass-strong absolute left-0 top-0 flex h-full w-[82%] max-w-[320px] flex-col rounded-r-3xl pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.9rem,env(safe-area-inset-top))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2 px-4 pb-2">
+              <div className="headline min-w-0 truncate text-base text-ink">{sc.title}</div>
+              <button onClick={() => nav('/drama')} className="glass shrink-0 rounded-full px-3 py-1 text-[12px] text-ink">
+                ‹ 剧场列表
+              </button>
             </div>
-          ))}
-          <div className="flex gap-2">
-            <button onClick={() => setEditing('new')} className="btn-primary flex-1 rounded-xl py-2 text-[13px]">
-              ＋ 新角色卡
-            </button>
-            <button onClick={() => setAddMemberOpen(true)} className="glass flex-1 rounded-xl py-2 text-[13px] text-ink">
-              ＋ 从角色库加成员
-            </button>
+            <div className="label px-4 pb-1">成员 · {sc.chars.length}</div>
+            <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2">
+              {sc.chars.map((c) => (
+                <div key={c.id} className="flex items-center gap-1.5 rounded-2xl px-2 py-2">
+                  <Avatar img={c.avatarImg} emoji={c.avatar} className="h-9 w-9 shrink-0 rounded-full text-lg" textCls="text-lg" style={{ background: c.color + '33' }} />
+                  <span className="ml-1 min-w-0 flex-1 truncate text-sm text-ink">
+                    {c.name}
+                    {c.isMe && <span className="ml-1 rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] text-accent">我</span>}
+                  </span>
+                  {!c.isMe && (c.greeting || '').trim() && (
+                    <button onClick={() => openWith(c)} title="用开场白出场" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-accent hover:bg-white/60">
+                      <PlayIcon className="h-[15px] w-[15px]" />
+                    </button>
+                  )}
+                  {!c.isMe && (
+                    <button
+                      onClick={() => genCharMemory(c)}
+                      disabled={!!memBusyId}
+                      title="让 TA 回顾、更新私人记忆"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[13px] hover:bg-white/60 disabled:opacity-50"
+                    >
+                      {memBusyId === c.id ? '⏳' : '🧠'}
+                    </button>
+                  )}
+                  <button onClick={() => setEditing(c)} title="编辑角色" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted hover:bg-white/60 hover:text-accent">
+                    <EditIcon className="h-[15px] w-[15px]" />
+                  </button>
+                  <button
+                    onClick={() => { if (window.confirm(`把「${c.name}」移出这个剧场？`)) removeChar(sc.id, c.id) }}
+                    title="移出剧场"
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted hover:bg-white/60 hover:text-red-500"
+                  >
+                    <TrashIcon className="h-[15px] w-[15px]" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2 px-4 pt-2">
+              <button onClick={() => setEditing('new')} className="btn-primary w-full rounded-xl py-2 text-[13px]">
+                ＋ 新角色卡
+              </button>
+              <button onClick={() => setAddMemberOpen(true)} className="glass w-full rounded-xl py-2 text-[13px] text-ink">
+                ＋ 从角色库加成员
+              </button>
+              <p className="text-[10px] leading-relaxed text-muted">
+                勾「这是我」的卡由你发言，其余是 AI 角色；导入现成角色卡请到 戏剧首页 → 角色库。
+              </p>
+            </div>
           </div>
-          <p className="text-[10px] leading-relaxed text-muted">
-            建一张勾「这是我」的女主卡（你来发言）；其余是 AI 角色。想加现成角色就「从角色库加成员」；导入角色卡请到 角色库（戏剧首页 → 角色库）。
-          </p>
         </div>
       )}
 
-      {/* 右侧面板：Tavo 风格分板块行式 —— 外观 / 剧情·记忆 */}
+      {/* 右侧抽屉：本剧场设置 —— 外观 / 剧情·记忆（滑入浮层） */}
       {rightOpen && (
-        <div className="mb-2 space-y-2.5">
+        <div className="fixed inset-0 z-40" onClick={() => setRightOpen(false)}>
+          <div className="drawer-backdrop absolute inset-0 bg-black/25" />
+          <div
+            className="drawer-right glass-strong absolute right-0 top-0 flex h-full w-[86%] max-w-[340px] flex-col gap-2.5 overflow-y-auto rounded-l-3xl px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.9rem,env(safe-area-inset-top))]"
+            onClick={(e) => e.stopPropagation()}
+          >
+          <div className="headline px-1 text-base text-ink">本剧场设置</div>
           {/* 外观 */}
-          <div className="glass-strong rounded-2xl p-1.5">
+          <div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
             <div className="label px-2.5 pb-0.5 pt-1.5">外观</div>
             <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
               <span className="text-sm text-ink">显示样式</span>
@@ -869,10 +899,7 @@ export default function DramaRoom() {
             </button>
             <div className="mx-2.5 border-t border-line/40" />
             <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
-              <span className="text-sm text-ink">
-                发完自动回复
-                {aiChars.length > 1 && <span className="block text-[10px] text-muted">群聊开着＝自动判断该谁接话（点到名就是 TA）</span>}
-              </span>
+              <span className="text-sm text-ink">发完自动回复</span>
               <label className="relative inline-flex cursor-pointer items-center">
                 <input type="checkbox" checked={effectiveAuto} onChange={(e) => setSceneAuto(sc.id, e.target.checked)} className="peer sr-only" />
                 <span className="h-5 w-9 rounded-full bg-black/15 transition peer-checked:bg-accent" />
@@ -880,12 +907,12 @@ export default function DramaRoom() {
               </label>
             </div>
             <p className="px-2.5 pb-1 text-[10px] leading-relaxed text-muted">
-              开＝你发完，最近说话的 AI 角色自动回（1v1 默认开）；关＝群聊用「@角色」点名。
+              开＝你发完 TA 自动回，群聊会自动判断该谁接话（点到名就是谁）；关＝用「@角色」点名。
             </p>
           </div>
 
           {/* 剧情 · 记忆 */}
-          <div className="glass-strong rounded-2xl p-1.5">
+          <div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
             <div className="label px-2.5 pb-0.5 pt-1.5">剧情 · 记忆</div>
 
             {/* 世界观 */}
@@ -969,7 +996,7 @@ export default function DramaRoom() {
               </label>
             </div>
             <p className="px-2.5 pb-1.5 text-[10px] leading-relaxed text-muted">
-              每个 AI 角色以第一人称记着自己在意的事，只在 TA 接话时注入，更像自己、不串味。开＝按上面频率给刚发言角色增量更新（走记忆模型）；不开就到 ☰ 角色列表点 🧠 手动回顾。
+              每个角色第一人称记自己在意的事，只在 TA 接话时注入。开＝自动增量更新；不开可在 ☰ 成员列表点 🧠 手动回顾。
             </p>
             <div className="mx-2.5 border-t border-line/40" />
 
@@ -1052,6 +1079,7 @@ export default function DramaRoom() {
                 </>
               )
             })()}
+          </div>
           </div>
         </div>
       )}
