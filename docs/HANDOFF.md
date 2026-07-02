@@ -84,6 +84,11 @@
 - 顶栏铺满：悬浮毛玻璃条被 main 的 px-5/pt 内边距框住露缝 → 负边距 `-left-5 -right-5 top-[calc(-1*max(0.75rem,env(safe-area-inset-top)))]` 顶出去。
 - 长按 AI 消息「🔄 重写」：删这条(及之后)让同一角色重新生成（`regenMsg`，同步回卷 summaryAt）。
 
+**H6. 消息操作补全 + 戏剧流式（最后一批）**
+- 长按**自己的消息**→「🔄 重新发送」（`resendMine`：保留这条、删之后的、让 AI 重新接话——Load failed 救场键；群聊走导演挑人）。AI 消息是「重写」，两边闭环。
+- 长按菜单加 `select-none`+关 touch-callout：修「长按松手手指落在菜单上，iOS 把菜单文字当可选文本弹拷贝气泡」。
+- **戏剧接流式**：`respond()` 改 `chatCompleteStream`（`streamText` state 实时打字显示 + 轻量跟随滚动，完成后照旧 cleanReply 落库走美化渲染；anthropic/viaWorker 自动回退非流式）。她抱怨"正在输入等半天"的根因就是之前非流式+回复变长——不是模型慢。
+
 **H. 动线收尾（都她点名要的）**
 - 剧场管理页（原 DramaList）：左上改「← 返回对话」（回 /drama/room；没剧场才回主页），右上设置键移除。
 - ☰ 会话列表每行 ⋮ → **底部弹层菜单**（Tavo 式）：置顶（`moveSceneTop`）/ 改名 / 删除（红字带确认）+ 取消。
