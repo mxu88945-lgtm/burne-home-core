@@ -37,6 +37,9 @@ export default function DramaRoom() {
   const activeId = useDramaStore((s) => s.activeId)
   const setActive = useDramaStore((s) => s.setActive)
   const createScene = useDramaStore((s) => s.createScene)
+  const removeScene = useDramaStore((s) => s.removeScene)
+  const renameScene = useDramaStore((s) => s.renameScene)
+  const moveSceneTop = useDramaStore((s) => s.moveSceneTop)
   const addChar = useDramaStore((s) => s.addChar)
   const updateChar = useDramaStore((s) => s.updateChar)
   const removeChar = useDramaStore((s) => s.removeChar)
@@ -76,6 +79,7 @@ export default function DramaRoom() {
   const [pendingImage, setPendingImage] = useState('')
   const [busyChar, setBusyChar] = useState('') // 正在生成回复的角色 id
   const [casting, setCasting] = useState(false) // 群聊自动接话：导演正在挑人
+  const [menuSceneId, setMenuSceneId] = useState('') // 会话列表 ⋮ 菜单打开的剧场
   const [err, setErr] = useState('')
   const [leftOpen, setLeftOpen] = useState(false) // 左☰：角色/剧场
   const [rightOpen, setRightOpen] = useState(false) // 右⚙：世界观/剧情摘要
@@ -846,26 +850,34 @@ export default function DramaRoom() {
                 const preview = last ? (last.text || '［图片］').replace(/\s+/g, ' ').slice(0, 26) : '（还没开场）'
                 const active = s.id === sc.id
                 return (
-                  <button
-                    key={s.id}
-                    onClick={() => {
-                      setActive(s.id)
-                      setLeftOpen(false)
-                    }}
-                    className={`flex w-full items-center gap-2.5 rounded-2xl px-2 py-2 text-left ${active ? 'bg-accent/10' : 'hover:bg-white/40'}`}
-                  >
-                    <Avatar
-                      img={lead?.avatarImg}
-                      emoji={lead?.avatar || '🎭'}
-                      className="h-11 w-11 shrink-0 rounded-full text-xl"
-                      textCls="text-xl"
-                      style={{ background: (lead?.color || '#bb9af7') + '33' }}
-                    />
-                    <span className="min-w-0 flex-1">
-                      <span className={`block truncate text-sm ${active ? 'font-medium text-accent' : 'text-ink'}`}>{s.title}</span>
-                      <span className="block truncate text-[11px] text-muted">{preview}</span>
-                    </span>
-                  </button>
+                  <div key={s.id} className={`flex items-center rounded-2xl ${active ? 'bg-accent/10' : 'hover:bg-white/40'}`}>
+                    <button
+                      onClick={() => {
+                        setActive(s.id)
+                        setLeftOpen(false)
+                      }}
+                      className="flex min-w-0 flex-1 items-center gap-2.5 px-2 py-2 text-left"
+                    >
+                      <Avatar
+                        img={lead?.avatarImg}
+                        emoji={lead?.avatar || '🎭'}
+                        className="h-11 w-11 shrink-0 rounded-full text-xl"
+                        textCls="text-xl"
+                        style={{ background: (lead?.color || '#bb9af7') + '33' }}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className={`block truncate text-sm ${active ? 'font-medium text-accent' : 'text-ink'}`}>{s.title}</span>
+                        <span className="block truncate text-[11px] text-muted">{preview}</span>
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setMenuSceneId(s.id)}
+                      aria-label="更多操作"
+                      className="flex h-9 w-8 shrink-0 items-center justify-center text-lg leading-none text-muted hover:text-accent"
+                    >
+                      ⋮
+                    </button>
+                  </div>
                 )
               })}
             </div>
@@ -884,6 +896,63 @@ export default function DramaRoom() {
               </button>
             </div>
           </div>
+
+          {/* ⋮ 底部操作菜单（Tavo 式）：置顶 / 改名 / 删除 */}
+          {menuSceneId && (() => {
+            const ms = scenes.find((x) => x.id === menuSceneId)
+            if (!ms) return null
+            const close = () => setMenuSceneId('')
+            return (
+              <div
+                className="fixed inset-0 z-50 flex items-end bg-black/30 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  close()
+                }}
+              >
+                <div className="w-full space-y-2" onClick={(e) => e.stopPropagation()}>
+                  <div className="drawer-panel overflow-hidden rounded-3xl">
+                    <div className="truncate px-4 pb-1 pt-3 text-center text-[11px] text-muted">{ms.title}</div>
+                    <button
+                      onClick={() => {
+                        moveSceneTop(ms.id)
+                        close()
+                      }}
+                      className="block w-full py-3 text-center text-[15px] text-ink active:bg-black/5"
+                    >
+                      置顶
+                    </button>
+                    <div className="mx-4 border-t border-line/50" />
+                    <button
+                      onClick={() => {
+                        const t = window.prompt('改名', ms.title)
+                        if (t !== null && t.trim()) renameScene(ms.id, t.trim())
+                        close()
+                      }}
+                      className="block w-full py-3 text-center text-[15px] text-ink active:bg-black/5"
+                    >
+                      改名
+                    </button>
+                    <div className="mx-4 border-t border-line/50" />
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`删除剧场「${ms.title}」？角色和对话都会一起删除，不可恢复。`)) {
+                          removeScene(ms.id)
+                        }
+                        close()
+                      }}
+                      className="block w-full py-3 text-center text-[15px] text-red-500 active:bg-black/5"
+                    >
+                      删除
+                    </button>
+                  </div>
+                  <button onClick={close} className="drawer-panel block w-full rounded-3xl py-3 text-center text-[15px] text-muted active:bg-black/5">
+                    取消
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
 

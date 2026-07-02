@@ -109,6 +109,8 @@ interface DramaState extends Persisted {
   createScene: (title: string) => DramaScene
   removeScene: (id: string) => void
   renameScene: (id: string, title: string) => void
+  /** 把某剧场挪到列表最上面（置顶） */
+  moveSceneTop: (id: string) => void
   setActive: (id: string) => void
   addChar: (sceneId: string, char: Partial<DramaChar>) => void
   updateChar: (sceneId: string, charId: string, patch: Partial<DramaChar>) => void
@@ -186,6 +188,16 @@ export const useDramaStore = create<DramaState>((set, get) => {
 
     renameScene: (id, title) =>
       patchScene(id, (s) => ({ ...s, title: title.trim() || s.title })),
+
+    moveSceneTop: (id) => {
+      const scenes = [...get().scenes]
+      const i = scenes.findIndex((s) => s.id === id)
+      if (i <= 0) return
+      const [s] = scenes.splice(i, 1)
+      scenes.unshift(s)
+      persist(scenes)
+      set({ scenes })
+    },
 
     setActive: (id) => {
       persist(get().scenes, id)
