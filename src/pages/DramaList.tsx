@@ -4,7 +4,7 @@ import { useDramaStore } from '@/store/dramaStore'
 import { parseDramaTxt, type ParsedDrama } from '@/lib/dramaImport'
 import BackBar from '@/components/layout/BackBar'
 import DramaBg from '@/components/ui/DramaBg'
-import { GearIcon, UsersIcon } from '@/components/ui/navIcons'
+import { UsersIcon } from '@/components/ui/navIcons'
 
 export default function DramaList() {
   const scenes = useDramaStore((s) => s.scenes)
@@ -72,9 +72,9 @@ export default function DramaList() {
   return (
     <div className="space-y-4">
       <DramaBg />
-      {/* 顶行：返回 · 操作（新剧场/导入/设置）都收到上面 */}
+      {/* 顶行：返回对话（有剧场时；没有则回主页）· 新剧场 / 导入 */}
       <div className="flex items-center justify-between gap-2">
-        <BackBar />
+        <BackBar to={scenes.length ? '/drama/room' : '/'} label={scenes.length ? '返回对话' : '主页'} />
         <div className="flex shrink-0 items-center gap-2">
           <button onClick={create} className="btn-primary rounded-full px-4 py-2 text-sm">
             ＋ 新剧场
@@ -84,13 +84,6 @@ export default function DramaList() {
             className="glass rounded-full px-3.5 py-2 text-[13px] text-ink"
           >
             导入 TXT
-          </button>
-          <button
-            onClick={() => nav('/settings')}
-            aria-label="设置"
-            className="glass flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted hover:text-accent"
-          >
-            <GearIcon className="h-5 w-5" />
           </button>
         </div>
       </div>
