@@ -1552,34 +1552,36 @@ function CharEditor({
 
       {/* 可滚动正文：每个资料都是大框，方便录入 */}
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-3">
-        <div className="flex items-center gap-3">
-          <Avatar img={avatarImg} emoji={avatar} className="h-16 w-16 rounded-full text-2xl" textCls="text-2xl" style={{ background: color + '33' }} />
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              ref={imgRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={async (e) => {
-                const f = e.target.files?.[0]
-                e.target.value = ''
-                if (f) setAvatarImg(await fileToDataUrl(f, 256))
-              }}
-            />
-            <button onClick={() => imgRef.current?.click()} className="glass rounded-lg px-3 py-1.5 text-xs text-ink">
-              上传头像
+        {/* 档案头：点头像换图，名字居中大字 */}
+        <div className="glass rounded-3xl p-4 text-center">
+          <input
+            ref={imgRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const f = e.target.files?.[0]
+              e.target.value = ''
+              if (f) setAvatarImg(await fileToDataUrl(f, 256))
+            }}
+          />
+          <button type="button" onClick={() => imgRef.current?.click()} className="relative mx-auto block" aria-label="上传头像">
+            <Avatar img={avatarImg} emoji={avatar} className="h-20 w-20 rounded-full text-3xl" textCls="text-3xl" style={{ background: color + '33' }} />
+            <span className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center rounded-full bg-accent text-white shadow">
+              <EditIcon className="h-3 w-3" />
+            </span>
+          </button>
+          {avatarImg && (
+            <button onClick={() => setAvatarImg(undefined)} className="mt-1 text-[11px] text-muted hover:text-accent">
+              移除头像
             </button>
-            {avatarImg && (
-              <button onClick={() => setAvatarImg(undefined)} className="text-[11px] text-muted hover:text-accent">
-                移除
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <div className="mb-1 text-[12px] text-muted">角色名字</div>
-          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="如 伯恩 / 旁白NPC" />
+          )}
+          <input
+            className="mt-2 w-full bg-transparent text-center text-lg font-medium text-ink outline-none placeholder:text-muted"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="角色名字"
+          />
         </div>
 
         <div>

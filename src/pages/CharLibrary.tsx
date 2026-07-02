@@ -5,6 +5,7 @@ import { useDramaStore, dramaMsgId, type LoreEntry } from '@/store/dramaStore'
 import { useProfileStore } from '@/store/profileStore'
 import { useApiStore } from '@/store/apiStore'
 import { VOICE_PRESETS } from '@/store/ttsStore'
+import { EditIcon, TrashIcon } from '@/components/ui/icons'
 import { parseCardFile } from '@/lib/charCard'
 import { fileToDataUrl } from '@/lib/image'
 import Avatar from '@/components/ui/Avatar'
@@ -132,28 +133,40 @@ export default function CharLibrary() {
       ) : (
         <div className="space-y-2.5">
           {chars.map((c) => (
-            <div key={c.id} className="glass flex items-center gap-3 rounded-2xl px-3.5 py-3">
-              <Avatar img={c.avatarImg} emoji={c.avatar} className="h-12 w-12 shrink-0 rounded-full text-xl" textCls="text-xl" style={{ background: c.color + '33' }} />
+            <div key={c.id} className="glass flex items-center gap-3.5 rounded-3xl p-3.5">
+              <Avatar img={c.avatarImg} emoji={c.avatar} className="h-16 w-16 shrink-0 rounded-2xl text-3xl" textCls="text-3xl" style={{ background: c.color + '33' }} />
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium text-ink">{c.name}</div>
-                <div className="truncate text-[11px] text-muted">
-                  {(c.persona || '').replace(/\s+/g, ' ').trim().slice(0, 28) || '（没填人设）'}
-                  {c.lore?.length ? ` · 世界书 ${c.lore.length}` : ''}
-                  {c.regex?.length ? ` · 正则 ${c.regex.length}` : ''}
+                <div className="truncate text-[15px] font-medium text-ink">{c.name}</div>
+                <div className="mt-0.5 overflow-hidden text-[11px] leading-relaxed text-muted [-webkit-box-orient:vertical] [-webkit-line-clamp:2] [display:-webkit-box]">
+                  {(c.persona || '').replace(/\s+/g, ' ').trim().slice(0, 72) || '（没填人设）'}
+                </div>
+                {(c.lore?.length || c.regex?.length || c.voiceId) && (
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {!!c.lore?.length && <span className="rounded-full bg-white/50 px-1.5 py-0.5 text-[9px] text-muted">世界书 {c.lore.length}</span>}
+                    {!!c.regex?.length && <span className="rounded-full bg-white/50 px-1.5 py-0.5 text-[9px] text-muted">正则 {c.regex.length}</span>}
+                    {c.voiceId && <span className="rounded-full bg-white/50 px-1.5 py-0.5 text-[9px] text-muted">专属音色</span>}
+                  </div>
+                )}
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <button onClick={() => startChat(c)} className="btn-primary rounded-full px-3.5 py-1.5 text-[12px]">
+                  开始对话
+                </button>
+                <div className="flex gap-0.5">
+                  <button onClick={() => setEditing(c)} title="编辑" className="flex h-7 w-7 items-center justify-center rounded-full text-muted hover:bg-white/50 hover:text-accent">
+                    <EditIcon className="h-[14px] w-[14px]" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`从角色库删除「${c.name}」？（不影响已建的对话）`)) removeLibChar(c.id)
+                    }}
+                    title="删除"
+                    className="flex h-7 w-7 items-center justify-center rounded-full text-muted hover:bg-white/50 hover:text-red-500"
+                  >
+                    <TrashIcon className="h-[14px] w-[14px]" />
+                  </button>
                 </div>
               </div>
-              <button onClick={() => startChat(c)} className="btn-primary shrink-0 rounded-full px-3.5 py-1.5 text-[12px]">
-                开始对话
-              </button>
-              <button onClick={() => setEditing(c)} className="shrink-0 px-1 text-[12px] text-muted hover:text-accent">编辑</button>
-              <button
-                onClick={() => {
-                  if (window.confirm(`从角色库删除「${c.name}」？（不影响已建的对话）`)) removeLibChar(c.id)
-                }}
-                className="shrink-0 px-1 text-[12px] text-muted hover:text-red-500"
-              >
-                删
-              </button>
             </div>
           ))}
         </div>
@@ -201,8 +214,8 @@ function LibCharEditor({ target, onClose }: { target: LibChar | 'new'; onClose: 
         <button onClick={save} className="btn-primary rounded-full px-5 py-1.5 text-sm">保存</button>
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-3">
-        <div className="flex items-center gap-3">
-          <Avatar img={avatarImg} emoji={avatar} className="h-16 w-16 rounded-full text-2xl" textCls="text-2xl" style={{ background: color + '33' }} />
+        {/* 档案头：点头像换图，名字居中大字 */}
+        <div className="glass rounded-3xl p-4 text-center">
           <input
             ref={imgRef}
             type="file"
@@ -214,14 +227,21 @@ function LibCharEditor({ target, onClose }: { target: LibChar | 'new'; onClose: 
               if (f) setAvatarImg(await fileToDataUrl(f, 256))
             }}
           />
-          <button onClick={() => imgRef.current?.click()} className="glass rounded-lg px-3 py-1.5 text-xs text-ink">上传头像</button>
+          <button type="button" onClick={() => imgRef.current?.click()} className="relative mx-auto block" aria-label="上传头像">
+            <Avatar img={avatarImg} emoji={avatar} className="h-20 w-20 rounded-full text-3xl" textCls="text-3xl" style={{ background: color + '33' }} />
+            <span className="absolute -bottom-0.5 -right-0.5 grid h-6 w-6 place-items-center rounded-full bg-accent text-white shadow">
+              <EditIcon className="h-3 w-3" />
+            </span>
+          </button>
           {avatarImg && (
-            <button onClick={() => setAvatarImg(undefined)} className="text-[11px] text-muted hover:text-accent">移除</button>
+            <button onClick={() => setAvatarImg(undefined)} className="mt-1 text-[11px] text-muted hover:text-accent">移除头像</button>
           )}
-        </div>
-        <div>
-          <div className="mb-1 text-[12px] text-muted">角色名字</div>
-          <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="如 沈衍辰" />
+          <input
+            className="mt-2 w-full bg-transparent text-center text-lg font-medium text-ink outline-none placeholder:text-muted"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="角色名字"
+          />
         </div>
         <div>
           <div className="mb-1 text-[12px] text-muted">角色设定 / 人设</div>
