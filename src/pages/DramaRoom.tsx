@@ -816,10 +816,10 @@ export default function DramaRoom() {
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       <DramaBg />
-      {/* 顶栏：左 ☰(角色/剧场) · 中标题 · 右 ⚙(世界观/剧情) —— 收进两角，中间留干净 */}
-      <div className="flex items-center gap-2 px-1 pb-2 pt-[max(0.25rem,env(safe-area-inset-top))]">
+      {/* 顶栏：Claude 式悬浮毛玻璃条（半透明+模糊，消息从底下滚过）。左 ☰ · 中标题 · 右 ⚙ */}
+      <div className="glass-bar absolute inset-x-0 top-0 z-20 flex items-center gap-2 border-b border-line/30 px-1 pb-1.5 pt-[max(0.35rem,env(safe-area-inset-top))]">
         <button
           onClick={() => { setLeftOpen((o) => !o); setRightOpen(false) }}
           aria-label="角色与剧场"
@@ -1316,10 +1316,10 @@ export default function DramaRoom() {
         </div>
       )}
 
-      {err && <div className="mb-1 px-1 text-[11px] text-red-500">{err}</div>}
+      {err && <div className="mb-1 px-1 pt-[3.2rem] text-[11px] text-red-500">{err}</div>}
 
-      {/* 群聊消息 */}
-      <div ref={listRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-0.5 py-1" style={bgTextGlow}>
+      {/* 群聊消息（pt 给悬浮顶栏让位，滚动时文字从毛玻璃下穿过） */}
+      <div ref={listRef} className={`min-h-0 flex-1 space-y-3 overflow-y-auto px-0.5 pb-1 ${err ? 'pt-1' : 'pt-[3.2rem]'}`} style={bgTextGlow}>
         {messages.length === 0 ? (
           <div className="glass rounded-3xl px-6 py-10 text-center text-sm text-muted">
             建好角色后，在下面说一句开场，再点角色名让 TA 接话吧～
