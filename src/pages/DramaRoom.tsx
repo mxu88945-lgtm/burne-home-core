@@ -9,7 +9,7 @@ import { chatComplete } from '@/api/llm'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { cleanReply } from '@/lib/cleanReply'
 import { fileToDataUrl } from '@/lib/image'
-import { buildLoreText } from '@/lib/charCard'
+import { buildLoreText, pickDepthLore } from '@/lib/charCard'
 import { DramaRich } from '@/lib/dramaRich'
 import { applyMacros } from '@/lib/macros'
 import { applyRegexScripts } from '@/lib/regexScript'
@@ -362,7 +362,7 @@ export default function DramaRoom() {
       // 对齐 Tavern 的 Chat History——比拼成一段剧本文字更入戏、更贴人设。
       const recent = freshMsgs.slice(-24)
       const imgOk = new Set(recent.filter((m) => m.image).slice(-2).map((m) => m.id))
-      const turns: { role: 'user' | 'assistant'; texts: string[]; images: string[] }[] = []
+      const items: { role: 'user' | 'assistant'; line: string; img?: string }[] = []
       for (const m of recent) {
         const role: 'user' | 'assistant' = m.who === char.id ? 'assistant' : 'user'
         const raw = m.text.trim() || (m.image ? '（发了一张图片）' : '')
@@ -370,12 +370,22 @@ export default function DramaRoom() {
         // 群聊里别人的消息带「名字：」前缀让模型分清谁在说；1v1 不用
         const line = applyMacros(isGroup && role === 'user' ? `${nameOf(m.who)}：${raw}` : raw, mac)
         const img = role === 'user' && m.image && imgOk.has(m.id) ? m.image : ''
+        items.push({ role, line, ...(img ? { img } : {}) })
+      }
+      // @Depth 世界书条目（如「状态栏」格式指令）：插到倒数第 depth 条处——越靠后越强势，对齐 Tavo
+      for (const dl of pickDepthLore(sc.lore, loreHay)) {
+        const at = Math.max(0, items.length - dl.depth)
+        items.splice(at, 0, { role: 'user', line: applyMacros(`[系统指令]\n${dl.content}`, mac) })
+      }
+      // 合并连续同角色（Anthropic 要求交替）
+      const turns: { role: 'user' | 'assistant'; texts: string[]; images: string[] }[] = []
+      for (const it of items) {
         const prev = turns[turns.length - 1]
-        if (prev && prev.role === role) {
-          prev.texts.push(line)
-          if (img) prev.images.push(img)
+        if (prev && prev.role === it.role) {
+          prev.texts.push(it.line)
+          if (it.img) prev.images.push(it.img)
         } else {
-          turns.push({ role, texts: [line], images: img ? [img] : [] })
+          turns.push({ role: it.role, texts: [it.line], images: it.img ? [it.img] : [] })
         }
       }
       // Anthropic 要求首条是 user；角色刚说完又被点接话时，补一句让 TA 接着说
@@ -1157,6 +1167,7 @@ export default function DramaRoom() {
                       <button onClick={() => setLoreEdit(e)} className="min-w-0 flex-1 truncate text-left text-[12px] text-ink hover:text-accent">
                         {e.name}
                       </button>
+                      {e.position === 'depth' && <span className="shrink-0 rounded-full bg-accent/15 px-1.5 text-[9px] leading-4 text-accent">@深{e.depth ?? 2}</span>}
                       <button onClick={() => setLoreEdit(e)} aria-label="编辑条目" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted hover:text-accent">
                         <EditIcon className="h-[13px] w-[13px]" />
                       </button>
@@ -1826,6 +1837,8 @@ function LoreEditor({
   const [content, setContent] = useState(base?.content ?? '')
   const [keysStr, setKeysStr] = useState((base?.keys ?? []).join(', '))
   const [constant, setConstant] = useState(base?.constant ?? false)
+  const [atDepth, setAtDepth] = useState(base?.position === 'depth')
+  const [depth, setDepth] = useState(base?.depth ?? 2)
   const inputCls =
     'w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent'
 
@@ -1841,6 +1854,8 @@ function LoreEditor({
         keys,
         constant,
         enabled: base?.enabled ?? true,
+        position: atDepth ? 'depth' : 'before',
+        ...(atDepth ? { depth: Math.max(0, Math.min(20, Math.round(depth) || 0)) } : {}),
       },
       base?.id,
     )
@@ -1887,6 +1902,39 @@ function LoreEditor({
             <p className="mt-1 text-[10px] leading-relaxed text-muted">最近对话或输入里出现任一关键词就注入这条；`/…/` 按正则匹配（和 Tavo 的写法一致）。</p>
           </div>
         )}
+        <div>
+          <div className="mb-1 text-[12px] text-muted">注入位置</div>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => setAtDepth(false)}
+              className={`flex-1 rounded-xl py-2 text-[12px] ${!atDepth ? 'btn-primary' : 'glass text-muted'}`}
+            >
+              角色设定前（默认）
+            </button>
+            <button
+              type="button"
+              onClick={() => setAtDepth(true)}
+              className={`flex-1 rounded-xl py-2 text-[12px] ${atDepth ? 'btn-primary' : 'glass text-muted'}`}
+            >
+              @深度（对话末尾附近）
+            </button>
+          </div>
+          {atDepth && (
+            <div className="mt-2 flex items-center gap-2 text-[12px] text-muted">
+              插在倒数第
+              <input
+                type="number"
+                min={0}
+                max={20}
+                value={depth}
+                onChange={(e) => setDepth(Number(e.target.value))}
+                className="w-14 rounded-md border border-line bg-white/50 px-1.5 py-1 text-center text-ink outline-none focus:border-accent"
+              />
+              条消息处（0＝最末尾 · 越靠后越强势，状态栏这类格式指令用 2 就很好）
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

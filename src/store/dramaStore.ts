@@ -52,6 +52,10 @@ export interface LoreEntry {
   constant: boolean
   /** 是否启用 */
   enabled: boolean
+  /** 注入位置：不填/'before'＝角色设定前；'depth'＝插进对话末尾附近（越靠后越强势，适合状态栏这类格式指令） */
+  position?: 'before' | 'depth'
+  /** position='depth' 时：插在倒数第几条消息处（0＝最后一条之后，Tavern 常用 2） */
+  depth?: number
 }
 
 export interface DramaMsg {

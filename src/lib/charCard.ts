@@ -41,15 +41,27 @@ export function loreKeyHits(key: string, hayLower: string): boolean {
   return hayLower.includes(key.toLowerCase())
 }
 
-/** 按当前对话挑出要注入的世界书条目：常驻(📌)always + 关键词(🔑)命中（支持 /正则/）。省 token。 */
+/** 条目是否激活：启用 + 有内容 + （常驻 或 关键词命中） */
+function loreActive(e: LoreEntry, hayLower: string): boolean {
+  return e.enabled && e.content.trim() !== '' && (e.constant || e.keys.some((k) => k && loreKeyHits(k, hayLower)))
+}
+
+/** 按当前对话挑出注入「角色设定前」的世界书条目（@Depth 条目不在此，走 pickDepthLore）。省 token。 */
 export function buildLoreText(lore: LoreEntry[] | undefined, haystack: string): string {
   if (!lore || !lore.length) return ''
   const hay = haystack.toLowerCase()
-  const picked = lore.filter(
-    (e) => e.enabled && e.content.trim() && (e.constant || e.keys.some((k) => k && loreKeyHits(k, hay))),
-  )
+  const picked = lore.filter((e) => loreActive(e, hay) && (e.position ?? 'before') !== 'depth')
   if (!picked.length) return ''
   return picked.map((e) => `【${e.name}】\n${e.content.trim()}`).join('\n\n')
+}
+
+/** 挑出激活的 @Depth 条目：插进对话末尾附近（越靠后越强势，适合状态栏这类格式指令） */
+export function pickDepthLore(lore: LoreEntry[] | undefined, haystack: string): { content: string; depth: number }[] {
+  if (!lore || !lore.length) return []
+  const hay = haystack.toLowerCase()
+  return lore
+    .filter((e) => loreActive(e, hay) && e.position === 'depth')
+    .map((e) => ({ content: e.content.trim(), depth: Math.max(0, Math.min(20, Math.round(e.depth ?? 2))) }))
 }
 
 /** base64(可能是 UTF-8 的 JSON) → 对象 */
@@ -160,6 +172,10 @@ function parseBook(book: unknown): LoreEntry[] {
             .split(',')
             .map((k) => k.trim())
             .filter(Boolean)
+      // Tavern 的 @Depth 注入：position 4（或 'at_depth'）+ extensions.depth
+      const ext = (e.extensions && typeof e.extensions === 'object' ? e.extensions : {}) as AnyObj
+      const atDepth = e.position === 'at_depth' || Number(e.position) === 4 || Number(ext.position) === 4
+      const depth = Number(ext.depth ?? e.depth)
       return {
         id: uid(),
         name: str(e.comment) || str(e.name) || keys[0] || '设定',
@@ -167,6 +183,7 @@ function parseBook(book: unknown): LoreEntry[] {
         content: str(e.content),
         constant: e.constant === true,
         enabled: e.enabled !== false && e.disable !== true,
+        ...(atDepth ? { position: 'depth' as const, depth: isFinite(depth) ? depth : 2 } : {}),
       }
     })
     .filter((e) => e.content.trim())
