@@ -90,6 +90,8 @@ export default function DramaRoom() {
   const dramaBgRef = useRef<HTMLInputElement>(null) // ⚙ 里就地换背景图
   // 全屏大编辑器（世界观/剧情摘要这类长文，别在小框里憋屈地写）
   const [bigEdit, setBigEdit] = useState<null | { title: string; value: string; placeholder?: string; onSave: (v: string) => void }>(null)
+  // ⚙ 三个板块的收起/展开
+  const [secOpen, setSecOpen] = useState({ members: true, look: true, plot: true })
   const [err, setErr] = useState('')
   const [leftOpen, setLeftOpen] = useState(false) // 左☰：角色/剧场
   const [rightOpen, setRightOpen] = useState(false) // 右⚙：世界观/剧情摘要
@@ -822,8 +824,9 @@ export default function DramaRoom() {
   return (
     <div className="relative flex h-full flex-col">
       <DramaBg />
-      {/* 顶栏：Claude 式悬浮毛玻璃条（半透明+模糊，消息从底下滚过）。左 ☰ · 中标题 · 右 ⚙ */}
-      <div className="glass-bar absolute inset-x-0 top-0 z-20 flex items-center gap-2 border-b border-line/30 px-1 pb-1.5 pt-[max(0.35rem,env(safe-area-inset-top))]">
+      {/* 顶栏：Claude 式悬浮毛玻璃条（半透明+模糊，消息从底下滚过）。左 ☰ · 中标题 · 右 ⚙
+          负边距顶出 main 的 px-5/pt 内边距，铺满整个屏宽和真正的顶端 */}
+      <div className="glass-bar absolute -left-5 -right-5 top-[calc(-1*max(0.75rem,env(safe-area-inset-top)))] z-20 flex items-center gap-2 border-b border-line/30 px-4 pb-1.5 pt-[max(0.5rem,env(safe-area-inset-top))]">
         <button
           onClick={() => { setLeftOpen((o) => !o); setRightOpen(false) }}
           aria-label="角色与剧场"
@@ -1003,7 +1006,11 @@ export default function DramaRoom() {
           </div>
           {/* 成员（从左抽屉并进来的：左边现在是会话列表） */}
           <div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
-            <div className="label px-2.5 pb-0.5 pt-1.5">成员 · {sc.chars.length}</div>
+            <button onClick={() => setSecOpen((o) => ({ ...o, members: !o.members }))} className="flex w-full items-center justify-between px-2.5 pb-0.5 pt-1.5">
+              <span className="label">成员 · {sc.chars.length}</span>
+              <span className="text-[12px] text-muted">{secOpen.members ? '▾' : '▸'}</span>
+            </button>
+            {secOpen.members && (<>
             {sc.chars.map((c) => (
               <div key={c.id} className="flex items-center gap-1.5 rounded-xl px-2 py-1.5">
                 <Avatar img={c.avatarImg} emoji={c.avatar} className="h-8 w-8 shrink-0 rounded-full text-base" textCls="text-base" style={{ background: c.color + '33' }} />
@@ -1049,10 +1056,15 @@ export default function DramaRoom() {
                 勾「这是我」的卡由你发言，其余是 AI 角色；导入现成卡请到 角色库。
               </p>
             </div>
+            </>)}
           </div>
           {/* 外观 */}
           <div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
-            <div className="label px-2.5 pb-0.5 pt-1.5">外观</div>
+            <button onClick={() => setSecOpen((o) => ({ ...o, look: !o.look }))} className="flex w-full items-center justify-between px-2.5 pb-0.5 pt-1.5">
+              <span className="label">外观</span>
+              <span className="text-[12px] text-muted">{secOpen.look ? '▾' : '▸'}</span>
+            </button>
+            {secOpen.look && (<>
             <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
               <span className="text-sm text-ink">显示样式</span>
               <div className="flex gap-1.5">
@@ -1145,11 +1157,16 @@ export default function DramaRoom() {
             <p className="px-2.5 pb-1 text-[10px] leading-relaxed text-muted">
               开＝你发完 TA 自动回，群聊会自动判断该谁接话（点到名就是谁）；关＝用「@角色」点名。
             </p>
+            </>)}
           </div>
 
           {/* 剧情 · 记忆 */}
           <div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
-            <div className="label px-2.5 pb-0.5 pt-1.5">剧情 · 记忆</div>
+            <button onClick={() => setSecOpen((o) => ({ ...o, plot: !o.plot }))} className="flex w-full items-center justify-between px-2.5 pb-0.5 pt-1.5">
+              <span className="label">剧情 · 记忆</span>
+              <span className="text-[12px] text-muted">{secOpen.plot ? '▾' : '▸'}</span>
+            </button>
+            {secOpen.plot && (<>
 
             {/* 世界观 */}
             <button onClick={() => setWorldOpen((o) => !o)} className="flex w-full items-center justify-between rounded-xl px-2.5 py-2.5 text-left hover:bg-white/40">
@@ -1372,6 +1389,7 @@ export default function DramaRoom() {
                 </>
               )
             })()}
+            </>)}
           </div>
           </div>
         </div>
