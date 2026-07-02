@@ -95,6 +95,14 @@
 - ⚙ 移出成员前**自动备份角色卡到角色库**（同名不重复存）——她之前移出=卡没了要重建。
 - 世界书深度输入框 number→text+inputMode（iOS number 框删空强填 0"删不掉"）。
 - 音乐导入答疑：百度网盘的歌要先真正落到 文件App（发送其它应用→存储到文件 / 或文件App里从网盘位置移动到我的iPhone；带云朵的是 iCloud 占位没下载）；选择器默认停「最近项目」是空的，要点「浏览」找位置。
+
+**H8. 流式性能 + 安全网（晚间续）**
+- 流式卡顿根因：每个 SSE 增量都 setState → 整个消息列表（几十条 DramaRich 长文）重渲染，手机顿住点不动。修：`DramaRich` 包 `memo` + 流式增量攒 150ms 刷一次（`streamBufRef`/`pushStream`/`resetStream`）。
+- `respond()` 改返回 boolean；**重写/重新发送失败自动还原被删消息**（`restoreMsgs`——她遇到的"卡半天然后消息没了"就是失败白删）；「删除这条」加 confirm。
+- NPC 保护名单是动态读当前剧场成员表的，换剧本自动跟随（她担心过写死，不是）。
+- 部署 run #244 失败＝GitHub Pages 发布端超时（build 是绿的），空提交重触发即可。
+
+**H9. 动线收尾（都她点名要的）**
 - 剧场管理页（原 DramaList）：左上改「← 返回对话」（回 /drama/room；没剧场才回主页），右上设置键移除。
 - ☰ 会话列表每行 ⋮ → **底部弹层菜单**（Tavo 式）：置顶（`moveSceneTop`）/ 改名 / 删除（红字带确认）+ 取消。
 - 本窗验证方式升级：容器里装了 Playwright（scratchpad），`npm run dev` + Chromium 无头跑交互（预置 localStorage 造剧场→点抽屉→点菜单断言），比等她手机验收快；但 **iOS 特有 bug（如上面的毛玻璃卡死）桌面测不出来**，只能靠她。
