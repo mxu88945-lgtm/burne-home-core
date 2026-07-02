@@ -814,6 +814,17 @@ export default function DramaRoom() {
     setEditMsgId(id)
     setEditText(m.text)
   }
+  /** 重写：删掉这条 AI 回复（及之后的消息），让同一个角色当场重新生成 */
+  function regenMsg(id: string) {
+    const i = sc.messages.findIndex((m) => m.id === id)
+    setMenuMsgId('')
+    if (i < 0) return
+    const c = charById(sc.messages[i].who)
+    if (!c || c.isMe) return
+    setMessages(sc.id, sc.messages.slice(0, i))
+    setSummaryAt(sc.id, Math.min(sc.summaryAt ?? 0, i)) // 别让摘要"超前"于现存对话
+    void respond(c)
+  }
   function saveEdit() {
     const t = editText
     setMessages(sc.id, sc.messages.map((m) => (m.id === editMsgId ? { ...m, text: t } : m)))
@@ -1651,6 +1662,15 @@ export default function DramaRoom() {
             className="glass-strong w-full space-y-1 rounded-t-3xl p-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
             onClick={(e) => e.stopPropagation()}
           >
+            {(() => {
+              const m = sc.messages.find((x) => x.id === menuMsgId)
+              const c = m && charById(m.who)
+              return c && !c.isMe ? (
+                <button onClick={() => regenMsg(menuMsgId)} disabled={!!busyChar} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40 disabled:opacity-50">
+                  🔄 重写（TA 重新说这条{sc.messages[sc.messages.length - 1]?.id !== menuMsgId ? '，之后的一起回溯' : ''}）
+                </button>
+              ) : null
+            })()}
             <button onClick={() => startEdit(menuMsgId)} className="block w-full rounded-xl px-4 py-3 text-left text-sm text-ink hover:bg-white/40">
               ✏️ 改写
             </button>
