@@ -813,26 +813,31 @@ export default function DramaRoom() {
       {/* 左侧抽屉：会话列表（Tavo 式）——所有剧场随点随切 + 底部导航 */}
       {leftOpen && (
         <div className="fixed inset-0 z-40" onClick={() => setLeftOpen(false)}>
-          <div className="drawer-backdrop absolute inset-0 bg-black/25" />
+          <div className="drawer-backdrop absolute inset-0 cursor-pointer bg-black/25" />
           <div
-            className="drawer-left glass-strong absolute left-0 top-0 flex h-full w-[82%] max-w-[320px] flex-col rounded-r-3xl pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.9rem,env(safe-area-inset-top))]"
+            className="drawer-left drawer-panel absolute left-0 top-0 flex h-full w-[82%] max-w-[320px] flex-col rounded-r-3xl pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.9rem,env(safe-area-inset-top))]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-2 px-4 pb-2">
               <div className="headline text-base text-ink">全部剧场 · {scenes.length}</div>
-              <button
-                onClick={() => {
-                  const t = window.prompt('新剧场名字')
-                  if (t !== null) {
-                    createScene(t)
-                    setLeftOpen(false)
-                  }
-                }}
-                aria-label="新建剧场"
-                className="glass flex h-8 w-8 items-center justify-center rounded-full text-base text-ink"
-              >
-                ＋
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => {
+                    const t = window.prompt('新剧场名字')
+                    if (t !== null) {
+                      createScene(t)
+                      setLeftOpen(false)
+                    }
+                  }}
+                  aria-label="新建剧场"
+                  className="glass flex h-8 w-8 items-center justify-center rounded-full text-base text-ink"
+                >
+                  ＋
+                </button>
+                <button onClick={() => setLeftOpen(false)} aria-label="关闭" className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-black/5">
+                  ✕
+                </button>
+              </div>
             </div>
             <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2">
               {scenes.map((s) => {
@@ -885,12 +890,17 @@ export default function DramaRoom() {
       {/* 右侧抽屉：本剧场设置 —— 外观 / 剧情·记忆（滑入浮层） */}
       {rightOpen && (
         <div className="fixed inset-0 z-40" onClick={() => setRightOpen(false)}>
-          <div className="drawer-backdrop absolute inset-0 bg-black/25" />
+          <div className="drawer-backdrop absolute inset-0 cursor-pointer bg-black/25" />
           <div
-            className="drawer-right glass-strong absolute right-0 top-0 flex h-full w-[86%] max-w-[340px] flex-col gap-2.5 overflow-y-auto rounded-l-3xl px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.9rem,env(safe-area-inset-top))]"
+            className="drawer-right drawer-panel absolute right-0 top-0 flex h-full w-[86%] max-w-[340px] flex-col gap-2.5 overflow-y-auto rounded-l-3xl px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.9rem,env(safe-area-inset-top))]"
             onClick={(e) => e.stopPropagation()}
           >
-          <div className="headline px-1 text-base text-ink">本剧场设置</div>
+          <div className="flex items-center justify-between px-1">
+            <div className="headline text-base text-ink">本剧场设置</div>
+            <button onClick={() => setRightOpen(false)} aria-label="关闭" className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-black/5">
+              ✕
+            </button>
+          </div>
           {/* 成员（从左抽屉并进来的：左边现在是会话列表） */}
           <div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
             <div className="label px-2.5 pb-0.5 pt-1.5">成员 · {sc.chars.length}</div>

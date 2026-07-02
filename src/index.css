@@ -303,3 +303,11 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .music-disc { animation: none; }
 }
+
+/* 抽屉面板：不用 backdrop-filter —— iOS 上「整屏高毛玻璃 + 滑入动画」会卡死 WebKit 合成器（整页无响应），
+   用近实底 + 阴影代替，观感接近、稳定优先。别改回 glass-strong。 */
+.drawer-panel {
+  background: rgba(253, 251, 252, 0.97);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 12px 40px var(--shadow);
+}
