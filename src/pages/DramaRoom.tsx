@@ -5,7 +5,7 @@ import { useApiStore, type ApiChannel } from '@/store/apiStore'
 import { useMemoryModelStore } from '@/store/memoryModelStore'
 import { useSyncStore } from '@/store/syncStore'
 import { useUsageStore } from '@/store/usageStore'
-import { chatComplete } from '@/api/llm'
+import { chatComplete, chatCompleteStream } from '@/api/llm'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { cleanReply } from '@/lib/cleanReply'
 import { fileToDataUrl } from '@/lib/image'
@@ -85,6 +85,7 @@ export default function DramaRoom() {
   const [pendingImage, setPendingImage] = useState('')
   const [busyChar, setBusyChar] = useState('') // 正在生成回复的角色 id
   const [casting, setCasting] = useState(false) // 群聊自动接话：导演正在挑人
+  const [streamText, setStreamText] = useState('') // 流式生成中的正文（边出边显示）
   const [menuSceneId, setMenuSceneId] = useState('') // 会话列表 ⋮ 菜单打开的剧场
   const [loreEdit, setLoreEdit] = useState<LoreEntry | 'new' | null>(null) // 世界书条目编辑器
   const dramaBgRef = useRef<HTMLInputElement>(null) // ⚙ 里就地换背景图
@@ -159,6 +160,12 @@ export default function DramaRoom() {
     if (len - (scene?.summaryAt ?? 0) >= autoSummaryEvery) void genSummary(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene?.messages.length, autoSummary, autoSummaryEvery, summaryBusy])
+
+  // 流式生成时跟着滚到底（轻量，不用 scrollToEnd 的多次补滚）
+  useEffect(() => {
+    const el = listRef.current
+    if (streamText && el) el.scrollTop = el.scrollHeight
+  }, [streamText])
 
   /** 滚到最新消息底部。键盘弹出有动画 + 视口缩放，分几次补滚才稳。 */
   function scrollToEnd() {
@@ -427,11 +434,19 @@ export default function DramaRoom() {
 
       let reply = ''
       if (ch) {
-        const r = await chatComplete(ch, apiMsgs, sys, {
-          workerUrl,
-          syncKey: config.syncKey,
-          maxTokens: 4096,
-        })
+        // 流式：字一出来就打到屏幕上（OpenAI 兼容直连；anthropic/Worker 自动回退非流式）
+        setStreamText('')
+        const r = await chatCompleteStream(
+          ch,
+          apiMsgs,
+          sys,
+          {
+            workerUrl,
+            syncKey: config.syncKey,
+            maxTokens: 4096,
+          },
+          { onContent: (d) => setStreamText((t) => t + d) },
+        )
         reply = r.text
         if (r.usage)
           addUsage({
@@ -475,6 +490,7 @@ export default function DramaRoom() {
       setErr(`${char.name} 没接上话：${(e as Error).message}`)
     } finally {
       setBusyChar('')
+      setStreamText('')
     }
   }
 
@@ -1552,8 +1568,16 @@ export default function DramaRoom() {
           <div className="flex items-center gap-2 px-1 text-[12px] text-muted">正在想谁接话…</div>
         )}
         {busyChar && (
-          <div className="flex items-center gap-2 px-1 text-[12px] text-muted">
-            {nameOf(busyChar)} 正在输入…
+          <div className="space-y-1.5 px-1">
+            {streamText && (
+              <div
+                className="whitespace-pre-wrap leading-relaxed opacity-90 [overflow-wrap:anywhere]"
+                style={{ fontSize: textStyle.size, color: textStyle.text || 'var(--text)' }}
+              >
+                {streamText}
+              </div>
+            )}
+            <div className="flex items-center gap-2 text-[12px] text-muted">{nameOf(busyChar)} 正在输入…</div>
           </div>
         )}
         <div ref={endRef} />
