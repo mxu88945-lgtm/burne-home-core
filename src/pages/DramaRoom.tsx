@@ -88,6 +88,8 @@ export default function DramaRoom() {
   const [menuSceneId, setMenuSceneId] = useState('') // 会话列表 ⋮ 菜单打开的剧场
   const [loreEdit, setLoreEdit] = useState<LoreEntry | 'new' | null>(null) // 世界书条目编辑器
   const dramaBgRef = useRef<HTMLInputElement>(null) // ⚙ 里就地换背景图
+  // 全屏大编辑器（世界观/剧情摘要这类长文，别在小框里憋屈地写）
+  const [bigEdit, setBigEdit] = useState<null | { title: string; value: string; placeholder?: string; onSave: (v: string) => void }>(null)
   const [err, setErr] = useState('')
   const [leftOpen, setLeftOpen] = useState(false) // 左☰：角色/剧场
   const [rightOpen, setRightOpen] = useState(false) // 右⚙：世界观/剧情摘要
@@ -1159,6 +1161,14 @@ export default function DramaRoom() {
             </button>
             {worldOpen && (
               <div className="px-2.5 pb-2.5">
+                <div className="flex justify-end pb-1">
+                  <button
+                    onClick={() => setBigEdit({ title: '世界观 · 背景', value: sc.world || '', placeholder: '整体世界观、背景、人物关系…', onSave: (v) => setWorld(sc.id, v) })}
+                    className="text-[12px] text-accent"
+                  >
+                    ⤢ 全屏编辑
+                  </button>
+                </div>
                 <textarea
                   value={sc.world || ''}
                   onChange={(e) => setWorld(sc.id, e.target.value)}
@@ -1181,7 +1191,13 @@ export default function DramaRoom() {
             </button>
             {summaryOpen && (
               <div className="space-y-2 px-2.5 pb-2.5">
-                <div className="flex justify-end">
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setBigEdit({ title: '剧情摘要', value: sc.summary, placeholder: '手写或先「✨ 让 AI 更新」再修。会注入给角色，防止跑久了忘剧情。', onSave: (v) => setSummary(sc.id, v) })}
+                    className="text-[12px] text-accent"
+                  >
+                    ⤢ 全屏编辑
+                  </button>
                   <button onClick={() => genSummary()} disabled={summaryBusy} className="text-[12px] text-accent disabled:opacity-50">
                     {summaryBusy ? '处理中…' : '✨ 让 AI 更新'}
                   </button>
@@ -1651,6 +1667,17 @@ export default function DramaRoom() {
         />
       )}
 
+      {/* 全屏大编辑器（世界观/剧情摘要） */}
+      {bigEdit && (
+        <BigTextEditor
+          title={bigEdit.title}
+          value={bigEdit.value}
+          placeholder={bigEdit.placeholder}
+          onSave={bigEdit.onSave}
+          onClose={() => setBigEdit(null)}
+        />
+      )}
+
       {/* 世界书条目编辑器 */}
       {loreEdit && (
         <LoreEditor
@@ -1947,6 +1974,49 @@ function CharEditor({
           这是我（女主，由我发言）
           {existingMe && !base?.isMe && <span className="text-[10px] text-muted">已有「我」卡</span>}
         </label>
+      </div>
+    </div>
+  )
+}
+
+/** 全屏大编辑器：整页大 textarea 安心写长文（世界观/剧情摘要），保存才生效、取消不动原文 */
+function BigTextEditor({
+  title,
+  value,
+  placeholder,
+  onSave,
+  onClose,
+}: {
+  title: string
+  value: string
+  placeholder?: string
+  onSave: (v: string) => void
+  onClose: () => void
+}) {
+  const [text, setText] = useState(value)
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--bg-to, #f7f1f4)' }}>
+      <div className="glass-bar flex items-center justify-between gap-2 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <button onClick={onClose} className="px-2 py-1.5 text-sm text-muted">取消</button>
+        <div className="headline text-base text-ink">{title}</div>
+        <button
+          onClick={() => {
+            onSave(text)
+            onClose()
+          }}
+          className="btn-primary rounded-full px-5 py-1.5 text-sm"
+        >
+          保存
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <textarea
+          autoFocus
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={placeholder}
+          className="h-full w-full resize-none rounded-2xl border border-line bg-white/60 px-3.5 py-3 text-[15px] leading-relaxed text-ink outline-none focus:border-accent"
+        />
       </div>
     </div>
   )
