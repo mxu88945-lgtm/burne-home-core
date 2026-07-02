@@ -5,7 +5,7 @@ import { useApiStore, type ApiChannel } from '@/store/apiStore'
 import { useMemoryModelStore } from '@/store/memoryModelStore'
 import { useSyncStore } from '@/store/syncStore'
 import { useUsageStore } from '@/store/usageStore'
-import { chatComplete, chatCompleteStream } from '@/api/llm'
+import { chatComplete, chatCompleteStream, listModels } from '@/api/llm'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { cleanReply } from '@/lib/cleanReply'
 import { fileToDataUrl } from '@/lib/image'
@@ -356,8 +356,9 @@ export default function DramaRoom() {
   /** 点名某角色，让 TA 接话。返回是否成功出了回复（重写/重新发送靠它决定要不要还原）。 */
   async function respond(char: DramaChar): Promise<boolean> {
     if (busyChar) return false
-    // 该角色独立渠道（不填＝跟随当前激活渠道）
-    const ch = (char.apiChannelId && channels.find((c) => c.id === char.apiChannelId)) || activeChannel
+    // 该角色独立渠道（不填＝跟随当前激活渠道）；可再指定模型覆盖渠道默认
+    const chBase = (char.apiChannelId && channels.find((c) => c.id === char.apiChannelId)) || activeChannel
+    const ch = chBase && char.model?.trim() ? { ...chBase, model: char.model.trim() } : chBase
     if (!ch && !workerUrl) {
       setErr('还没配 API 哦～去「设置 → API / 模型」加一条渠道')
       return false
@@ -1955,13 +1956,39 @@ function CharEditor({
   const [memory, setMemory] = useState(base?.memory ?? '')
   const [chanOpen, setChanOpen] = useState(false)
   const channels = useApiStore((s) => s.channels)
+  const activeApiId = useApiStore((s) => s.activeId)
+  const syncCfg = useSyncStore((s) => s.config)
   const chanName = channels.find((c) => c.id === apiChannelId)?.name
+  // 指定模型（覆盖渠道默认）+ 获取模型列表
+  const [model, setModel] = useState(base?.model ?? '')
+  const [modelList, setModelList] = useState<string[]>([])
+  const [modelBusy, setModelBusy] = useState(false)
+  const [modelErr, setModelErr] = useState('')
+  // 三个长文本区的展开/收起 + 全屏编辑
+  const [secOpen, setSecOpen] = useState({ persona: true, greeting: false, memory: false })
+  const [full, setFull] = useState<null | { title: string; value: string; placeholder?: string; onSave: (v: string) => void }>(null)
+  const effCh = channels.find((c) => c.id === apiChannelId) ?? channels.find((c) => c.id === activeApiId)
+  async function fetchModels() {
+    if (!effCh) {
+      setModelErr('先选一个渠道（或去设置里配一个激活渠道）')
+      return
+    }
+    setModelErr('')
+    setModelBusy(true)
+    try {
+      setModelList(await listModels(effCh, { workerUrl: syncCfg.workerUrl, syncKey: syncCfg.syncKey }))
+    } catch (e) {
+      setModelErr(`获取失败：${(e as Error).message}`)
+    } finally {
+      setModelBusy(false)
+    }
+  }
   const imgRef = useRef<HTMLInputElement>(null)
   const inputCls =
     'w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent'
 
   function save() {
-    const patch = { name, avatar, avatarImg, persona, greeting, color, isMe, apiChannelId, voiceId: voiceId.trim(), npc, memory }
+    const patch = { name, avatar, avatarImg, persona, greeting, color, isMe, apiChannelId, model: model.trim(), voiceId: voiceId.trim(), npc, memory }
     if (isNew) onAdd(sceneId, patch)
     else onUpdate(sceneId, (target as DramaChar).id, patch)
     onClose()
@@ -2010,40 +2037,51 @@ function CharEditor({
           />
         </div>
 
-        <div>
-          <div className="mb-1 text-[12px] text-muted">角色设定 / 人设</div>
-          <textarea
-            className={inputCls + ' min-h-[220px] leading-relaxed'}
-            rows={12}
-            value={persona}
-            onChange={(e) => setPersona(e.target.value)}
-            placeholder="身份、性别、年龄、性格、说话风格、背景关系…（NPC 卡可写：负责扮演各路 NPC 与旁白）"
-          />
-        </div>
-
-        <div>
-          <div className="mb-1 text-[12px] text-muted">开场白（出场第一条 · 可留空）</div>
-          <textarea
-            className={inputCls + ' min-h-[120px] leading-relaxed'}
-            rows={6}
-            value={greeting}
-            onChange={(e) => setGreeting(e.target.value)}
-            placeholder="角色出场说的第一句/一段，用来开启剧情（如男主推门而入）。建好后在角色列表点「▶开场」发出。"
-          />
-        </div>
-
-        {!isMe && (
-          <div>
-            <div className="mb-1 text-[12px] text-muted">TA 的私人记忆（第一人称 · 可手写，或在列表点 🧠 让 TA 自己回顾）</div>
-            <textarea
-              className={inputCls + ' min-h-[120px] leading-relaxed'}
-              rows={6}
-              value={memory}
-              onChange={(e) => setMemory(e.target.value)}
-              placeholder="TA 自己知道/在意/想做的事（对别人的看法、心结、决定…）"
-            />
+        {(
+          [
+            ['persona', '角色设定 / 人设', persona, setPersona, '身份、性别、年龄、性格、说话风格、背景关系…（NPC 卡可写：负责扮演各路 NPC 与旁白）', 'min-h-[220px]', 12],
+            ['greeting', '开场白（出场第一条 · 可留空）', greeting, setGreeting, '角色出场说的第一句/一段，用来开启剧情（如男主推门而入）。建好后在角色列表点「▶开场」发出。', 'min-h-[120px]', 6],
+            ...(!isMe
+              ? ([['memory', 'TA 的私人记忆（第一人称 · 可手写，或在列表点 🧠 让 TA 自己回顾）', memory, setMemory, 'TA 自己知道/在意/想做的事（对别人的看法、心结、决定…）', 'min-h-[120px]', 6]] as const)
+              : []),
+          ] as const
+        ).map(([k, label, val, setVal, ph, minH, rows]) => (
+          <div key={k}>
+            {/* 标题行：点收起/展开 + ⤢ 全屏编辑 */}
+            <div
+              className="mb-1 flex cursor-pointer items-center justify-between"
+              onClick={() => setSecOpen((o) => ({ ...o, [k]: !o[k] }))}
+            >
+              <span className="min-w-0 flex-1 truncate text-[12px] text-muted">{label}</span>
+              <span className="flex shrink-0 items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setFull({ title: label, value: val, placeholder: ph, onSave: setVal })
+                  }}
+                  className="text-[12px] text-accent"
+                >
+                  ⤢ 全屏
+                </button>
+                <span className="text-[12px] text-muted">{secOpen[k] ? '▾' : '▸'}</span>
+              </span>
+            </div>
+            {secOpen[k] ? (
+              <textarea
+                className={inputCls + ` ${minH} leading-relaxed`}
+                rows={rows}
+                value={val}
+                onChange={(e) => setVal(e.target.value)}
+                placeholder={ph}
+              />
+            ) : (
+              <p className="truncate rounded-xl bg-white/40 px-3 py-2 text-[12px] text-muted">
+                {val.trim() ? val.replace(/\s+/g, ' ').slice(0, 42) + (val.length > 42 ? '…' : '') : '（空 · 点标题展开填写）'}
+              </p>
+            )}
           </div>
-        )}
+        ))}
 
         <div>
           <div className="mb-1 text-[12px] text-muted">气泡颜色</div>
@@ -2094,6 +2132,47 @@ function CharEditor({
               )}
             </div>
           )}
+          {/* 指定模型：不用回主页调，直接在这选/填（留空＝用渠道默认） */}
+          <div className="mt-2">
+            <div className="mb-1 text-[12px] text-muted">
+              指定模型（留空＝用渠道默认{effCh?.model ? `：${effCh.model}` : ''}）
+            </div>
+            <div className="flex gap-1.5">
+              <input
+                className={inputCls + ' min-w-0 flex-1'}
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder="手填模型名，或点右边获取列表选"
+              />
+              <button
+                type="button"
+                onClick={() => void fetchModels()}
+                disabled={modelBusy}
+                className="glass shrink-0 rounded-xl px-3 text-[12px] text-ink disabled:opacity-50"
+              >
+                {modelBusy ? '获取中…' : '获取列表'}
+              </button>
+            </div>
+            {modelErr && <p className="mt-1 text-[10px] text-red-500">{modelErr}</p>}
+            {modelList.length > 0 && (
+              <div className="mt-1 max-h-52 overflow-y-auto rounded-2xl border border-line bg-white/70 p-1.5">
+                {modelList.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      setModel(m)
+                      setModelList([])
+                    }}
+                    className="block w-full truncate rounded-xl px-3 py-1.5 text-left text-[12px] text-ink hover:bg-white/50"
+                  >
+                    {m}
+                    {model === m ? ' ✓' : ''}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {!isMe && (
@@ -2146,6 +2225,17 @@ function CharEditor({
           {existingMe && !base?.isMe && <span className="text-[10px] text-muted">已有「我」卡</span>}
         </label>
       </div>
+
+      {/* 长文本的全屏编辑（保存写回对应字段，最终仍要点右上「保存」入库） */}
+      {full && (
+        <BigTextEditor
+          title={full.title}
+          value={full.value}
+          placeholder={full.placeholder}
+          onSave={full.onSave}
+          onClose={() => setFull(null)}
+        />
+      )}
     </div>
   )
 }

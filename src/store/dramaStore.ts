@@ -29,6 +29,8 @@ export interface DramaChar {
   isMe?: boolean
   /** 独立 API 渠道 id（不填＝跟随当前激活渠道） */
   apiChannelId?: string
+  /** 指定模型（覆盖所选渠道的默认模型；留空＝用渠道默认） */
+  model?: string
   /** 专属 TTS 音色 voice_id（不填＝跟随全局语音朗读音色） */
   voiceId?: string
   /** NPC/旁白模式：每次轮到 TA 说话，代码在请求最末尾钉住边界（只演旁白与临时NPC，绝不代演其他成员） */
@@ -240,6 +242,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
           color,
           isMe: char.isMe ?? false,
           apiChannelId: char.apiChannelId,
+          model: char.model,
           voiceId: char.voiceId,
           npc: char.npc,
           regex: char.regex,
