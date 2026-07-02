@@ -317,6 +317,8 @@ export default function DramaRoom() {
     setErr('')
     setBusyChar(char.id)
     try {
+      const isGroup = aiChars.length > 1
+      const meName = meChar?.name || '用户'
       const others = sc.chars
         .filter((c) => c.id !== char.id)
         .map((c) => (c.isMe ? `${c.name}（用户本人/女主）` : c.name))
@@ -329,33 +331,61 @@ export default function DramaRoom() {
       const loreText = buildLoreText(sc.lore, loreHay)
       // 卡里用 {{user}}/{{char}} 的地方，喂模型前也替换成真实名字
       const mac = { user: meChar?.name, char: char.name }
+      const meDesc = (meChar?.persona || '').trim()
+      // 提示词结构对齐 Tavern 默认预设：主提示词只轻引导（不加"简洁别太长"这类束缚，
+      // 长度/文风交给卡自己），并常驻注入「我」卡的人设（Tavo 的 Persona Description）
       const sys = applyMacros(
-        `你在一个多人角色扮演群聊里，只扮演角色【${char.name}】。\n` +
-        (world ? `【世界观 / 背景设定（所有角色共同遵守）】\n${world}\n\n` : '') +
-        (loreText ? `【世界书 · 相关设定】\n${loreText}\n\n` : '') +
-        `【${char.name}的人设】\n${char.persona || '（未填，请贴合名字与剧情合理发挥）'}\n` +
+        (isGroup
+          ? `这是一场虚构的多人角色扮演群聊，请写出角色【${char.name}】的下一条回复。\n`
+          : `这是一场【${char.name}】与【${meName}】之间的虚构角色扮演聊天，请写出【${char.name}】的下一条回复。\n`) +
+        (world ? `\n【世界观 / 背景设定（所有角色共同遵守）】\n${world}\n` : '') +
+        (loreText ? `\n【世界书 · 相关设定】\n${loreText}\n` : '') +
+        (meDesc ? `\n【${meName}（用户扮演的角色）的人设】\n${meDesc}\n` : '') +
+        `\n【${char.name}的人设】\n${char.persona || '（未填，请贴合名字与剧情合理发挥）'}\n` +
         ((char.memory || '').trim() ? `\n【你（${char.name}）自己记得 / 在意的（第一人称私人记忆）】\n${(char.memory || '').trim()}\n` : '') +
         (others ? `\n群里其他人：${others}。\n` : '') +
         (sc.summary.trim() ? `\n【到目前为止的剧情摘要】\n${sc.summary.trim()}\n` : '') +
-        `\n规则：只输出【${char.name}】这一条的发言/动作，第一人称、贴合人设与当前剧情、自然推进剧情；` +
-        `这是角色扮演，可以有动作/神态/对话描写。不要替别人说话、不要写成剧本去标注别人的台词、不要复述以上摘要。简洁自然，别太长。` +
+        `\n规则：始终以【${char.name}】的身份说话行动，保持 TA 的人设与文风；不要替${meName}或其他角色说话、做决定。` +
         `全程用中文叙述，不要夹杂其它语言，也不要在括号里给翻译或注释。`,
         mac,
       )
 
+      // 对话历史喂成「真实多轮消息」（该角色＝assistant、其他人＝user），
+      // 对齐 Tavern 的 Chat History——比拼成一段剧本文字更入戏、更贴人设。
       const recent = freshMsgs.slice(-24)
-      const transcript =
-        recent.map((m) => `${nameOf(m.who)}：${m.text}${m.image ? '［图片］' : ''}`).join('\n') ||
-        '（还没人说话，由你开场）'
-      const textPart = applyMacros(`【最近对话】\n${transcript}\n\n请现在以【${char.name}】的身份回复下一句。`, mac)
-      const imgs = recent.filter((m) => m.image).slice(-2).map((m) => m.image!)
-      const content: ChatApiMessage['content'] = imgs.length
-        ? [
-            { type: 'text', text: textPart },
-            ...imgs.map((url) => ({ type: 'image_url' as const, image_url: { url } })),
-          ]
-        : textPart
-      const apiMsgs: ChatApiMessage[] = [{ role: 'user', content }]
+      const imgOk = new Set(recent.filter((m) => m.image).slice(-2).map((m) => m.id))
+      const turns: { role: 'user' | 'assistant'; texts: string[]; images: string[] }[] = []
+      for (const m of recent) {
+        const role: 'user' | 'assistant' = m.who === char.id ? 'assistant' : 'user'
+        const raw = m.text.trim() || (m.image ? '（发了一张图片）' : '')
+        if (!raw) continue
+        // 群聊里别人的消息带「名字：」前缀让模型分清谁在说；1v1 不用
+        const line = applyMacros(isGroup && role === 'user' ? `${nameOf(m.who)}：${raw}` : raw, mac)
+        const img = role === 'user' && m.image && imgOk.has(m.id) ? m.image : ''
+        const prev = turns[turns.length - 1]
+        if (prev && prev.role === role) {
+          prev.texts.push(line)
+          if (img) prev.images.push(img)
+        } else {
+          turns.push({ role, texts: [line], images: img ? [img] : [] })
+        }
+      }
+      // Anthropic 要求首条是 user；角色刚说完又被点接话时，补一句让 TA 接着说
+      if (!turns.length || turns[0].role !== 'user')
+        turns.unshift({ role: 'user', texts: [turns.length ? '（剧情开始）' : '（还没人说话，请由你开场）'], images: [] })
+      if (turns[turns.length - 1].role === 'assistant')
+        turns.push({ role: 'user', texts: [`（请以【${char.name}】的身份接着说下一条）`], images: [] })
+      const apiMsgs: ChatApiMessage[] = turns.map((t) => {
+        const text = t.texts.join('\n')
+        if (!t.images.length) return { role: t.role, content: text }
+        return {
+          role: t.role,
+          content: [
+            ...(text ? [{ type: 'text' as const, text }] : []),
+            ...t.images.map((url) => ({ type: 'image_url' as const, image_url: { url } })),
+          ],
+        }
+      })
 
       let reply = ''
       if (ch) {
@@ -385,6 +415,9 @@ export default function DramaRoom() {
         })
       }
       reply = cleanReply(reply).trim()
+      // 群聊历史带「名字：」前缀，模型偶尔会照着也带上，剥掉
+      const nameEsc = char.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      reply = reply.replace(new RegExp(`^【?${nameEsc}】?\\s*[:：]\\s*`), '')
       addMessage(sc.id, {
         id: dramaMsgId(),
         who: char.id,
