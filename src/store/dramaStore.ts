@@ -31,6 +31,8 @@ export interface DramaChar {
   apiChannelId?: string
   /** 专属 TTS 音色 voice_id（不填＝跟随全局语音朗读音色） */
   voiceId?: string
+  /** NPC/旁白模式：每次轮到 TA 说话，代码在请求最末尾钉住边界（只演旁白与临时NPC，绝不代演其他成员） */
+  npc?: boolean
   /** 私人记忆：以该角色第一人称记着自己知道/在意/想做的事（只在 TA 接话时注入） */
   memory?: string
   /** 已并入该角色私人记忆的消息条数（增量更新用） */
@@ -239,6 +241,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
           isMe: char.isMe ?? false,
           apiChannelId: char.apiChannelId,
           voiceId: char.voiceId,
+          npc: char.npc,
           regex: char.regex,
         }
         return { ...s, chars: [...s.chars, c] }

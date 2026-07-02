@@ -48,6 +48,7 @@ export default function DramaRoom() {
   const updateLoreEntry = useDramaStore((s) => s.updateLoreEntry)
   const removeLoreEntry = useDramaStore((s) => s.removeLoreEntry)
   const libChars = useCharLibStore((s) => s.chars)
+  const addLibChar = useCharLibStore((s) => s.addChar)
   const setMessages = useDramaStore((s) => s.setMessages)
   const setSummary = useDramaStore((s) => s.setSummary)
   const setSummaryAt = useDramaStore((s) => s.setSummaryAt)
@@ -420,6 +421,16 @@ export default function DramaRoom() {
         turns.unshift({ role: 'user', texts: [turns.length ? '（剧情开始）' : '（还没人说话，请由你开场）'], images: [] })
       if (turns[turns.length - 1].role === 'assistant')
         turns.push({ role: 'user', texts: [`（请以【${char.name}】的身份接着说下一条）`], images: [] })
+      // NPC/旁白模式：把边界钉在请求最末尾（离生成点最近＝最强势），物理防代演
+      if (char.npc) {
+        const protectedNames = sc.chars.filter((c2) => c2.id !== char.id).map((c2) => c2.name).join('、')
+        turns[turns.length - 1].texts.push(
+          `[系统校验·最高优先级] 本条回复由「${char.name}」（旁白/NPC）输出，生成前自查：` +
+          `只允许写环境/时间/氛围旁白、临时NPC的言行、外部事件；` +
+          `全文禁止出现 ${protectedNames} 的台词、动作、表情或心理，他们只能作为被观察的存在被简短带过；` +
+          `禁止出现「名字：」台词格式；旁白克制简短，写完即停，把舞台交还主角。`,
+        )
+      }
       const apiMsgs: ChatApiMessage[] = turns.map((t) => {
         const text = t.texts.join('\n')
         if (!t.images.length) return { role: t.role, content: text }
@@ -827,8 +838,15 @@ export default function DramaRoom() {
     const m = sc.messages.find((x) => x.id === id)
     setMenuMsgId('')
     if (!m) return
-    setEditMsgId(id)
-    setEditText(m.text)
+    // 改写走全屏大编辑器（保存时按最新消息列表改，避免编辑期间新消息被覆盖丢掉）
+    setBigEdit({
+      title: '改写这条消息',
+      value: m.text,
+      onSave: (v) => {
+        const fresh = useDramaStore.getState().scenes.find((s) => s.id === sc.id)?.messages ?? sc.messages
+        setMessages(sc.id, fresh.map((x) => (x.id === id ? { ...x, text: v } : x)))
+      },
+    })
   }
   /** 重新发送（我的消息）：回到这条为止，让 AI 重新接话（Load failed 之类的救场键） */
   async function resendMine(id: string) {
@@ -1079,8 +1097,26 @@ export default function DramaRoom() {
                   <EditIcon className="h-[15px] w-[15px]" />
                 </button>
                 <button
-                  onClick={() => { if (window.confirm(`把「${c.name}」移出这个剧场？`)) removeChar(sc.id, c.id) }}
-                  title="移出剧场"
+                  onClick={() => {
+                    if (!window.confirm(`把「${c.name}」移出这个剧场？${!c.isMe ? '（角色卡会自动备份到角色库，随时能再加回来）' : ''}`)) return
+                    // 移出前自动备份到角色库（同名的不重复存），她不用再手动重建卡
+                    if (!c.isMe && !libChars.some((lc) => lc.name === c.name)) {
+                      addLibChar({
+                        name: c.name,
+                        avatar: c.avatar,
+                        avatarImg: c.avatarImg,
+                        persona: c.persona,
+                        greeting: c.greeting,
+                        greetings: c.greetings,
+                        color: c.color,
+                        apiChannelId: c.apiChannelId,
+                        voiceId: c.voiceId,
+                        regex: c.regex,
+                      })
+                    }
+                    removeChar(sc.id, c.id)
+                  }}
+                  title="移出剧场（自动备份到角色库）"
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted hover:bg-white/60 hover:text-red-500"
                 >
                   <TrashIcon className="h-[15px] w-[15px]" />
@@ -1881,6 +1917,7 @@ function CharEditor({
   const [isMe, setIsMe] = useState(base?.isMe ?? false)
   const [apiChannelId, setApiChannelId] = useState<string | undefined>(base?.apiChannelId)
   const [voiceId, setVoiceId] = useState(base?.voiceId ?? '')
+  const [npc, setNpc] = useState(base?.npc ?? false)
   const [memory, setMemory] = useState(base?.memory ?? '')
   const [chanOpen, setChanOpen] = useState(false)
   const channels = useApiStore((s) => s.channels)
@@ -1890,7 +1927,7 @@ function CharEditor({
     'w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent'
 
   function save() {
-    const patch = { name, avatar, avatarImg, persona, greeting, color, isMe, apiChannelId, voiceId: voiceId.trim(), memory }
+    const patch = { name, avatar, avatarImg, persona, greeting, color, isMe, apiChannelId, voiceId: voiceId.trim(), npc, memory }
     if (isNew) onAdd(sceneId, patch)
     else onUpdate(sceneId, (target as DramaChar).id, patch)
     onClose()
@@ -2047,6 +2084,20 @@ function CharEditor({
               ))}
             </div>
           </div>
+        )}
+
+        {!isMe && (
+          <label className="flex items-center justify-between text-[13px] text-ink">
+            <span>
+              NPC / 旁白模式
+              <span className="block text-[10px] text-muted">开＝每次轮到 TA 说话，都在请求最末尾钉住边界：只演旁白与临时NPC，绝不代演其他成员（治乱演主角）</span>
+            </span>
+            <span className="relative inline-flex cursor-pointer items-center">
+              <input type="checkbox" checked={npc} onChange={(e) => setNpc(e.target.checked)} className="peer sr-only" />
+              <span className="h-5 w-9 rounded-full bg-black/15 transition peer-checked:bg-accent" />
+              <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
+            </span>
+          </label>
         )}
 
         <label className="flex items-center gap-2 text-[13px] text-ink">
