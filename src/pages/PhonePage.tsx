@@ -830,10 +830,10 @@ export default function PhonePage() {
                 <div className={`flex max-w-[74%] flex-col gap-1 ${me ? 'items-end' : 'items-start'}`}>
                   {m.sticker &&
                     (m.sticker.img ? (
-                      <img
+                      <IdbImg
                         src={m.sticker.img}
                         alt={m.sticker.name || '贴纸'}
-                        onClick={() => setLightbox(m.sticker!.img!)}
+                        onClick={() => void resolveImgRef(m.sticker!.img!).then((u) => u && setLightbox(u))}
                         className="h-24 w-24 cursor-pointer object-contain"
                       />
                     ) : (
@@ -1020,7 +1020,7 @@ export default function PhonePage() {
                     className="flex aspect-square items-center justify-center rounded-xl bg-white/40 active:scale-95"
                   >
                     {s.img ? (
-                      <img src={s.img} alt={s.name} className="h-full w-full rounded-xl object-contain p-0.5" />
+                      <IdbImg src={s.img} alt={s.name} className="h-full w-full rounded-xl object-contain p-0.5" />
                     ) : (
                       <span className="text-2xl">{s.emoji}</span>
                     )}

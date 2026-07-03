@@ -10,6 +10,7 @@ import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
 import type { LoreEntry } from '@/store/dramaStore'
 import type { RegexScript } from '@/lib/regexScript'
+import { divertAvatar } from '@/lib/imgRef'
 
 export interface LibChar {
   id: string
@@ -48,6 +49,8 @@ interface State {
   addChar: (c: Partial<LibChar>) => LibChar
   updateChar: (id: string, patch: Partial<LibChar>) => void
   removeChar: (id: string) => void
+  /** 整体替换（头像图迁 IndexedDB 用） */
+  replaceChars: (chars: LibChar[]) => void
 }
 
 const init = readJSON<{ chars?: LibChar[] }>(STORAGE_KEYS.charLib, {})
@@ -62,7 +65,7 @@ export const useCharLibStore = create<State>((set, get) => {
         id: uid(),
         name: c.name?.trim() || '新角色',
         avatar: c.avatar || '🎭',
-        avatarImg: c.avatarImg,
+        avatarImg: divertAvatar(c.avatarImg),
         persona: c.persona || '',
         greeting: c.greeting || '',
         greetings: c.greetings,
@@ -80,6 +83,7 @@ export const useCharLibStore = create<State>((set, get) => {
     },
 
     updateChar: (id, patch) => {
+      if (patch.avatarImg) patch = { ...patch, avatarImg: divertAvatar(patch.avatarImg) }
       const chars = get().chars.map((c) => (c.id === id ? { ...c, ...patch } : c))
       persist(chars)
       set({ chars })
@@ -87,6 +91,11 @@ export const useCharLibStore = create<State>((set, get) => {
 
     removeChar: (id) => {
       const chars = get().chars.filter((c) => c.id !== id)
+      persist(chars)
+      set({ chars })
+    },
+
+    replaceChars: (chars) => {
       persist(chars)
       set({ chars })
     },

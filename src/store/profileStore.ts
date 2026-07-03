@@ -6,6 +6,7 @@
 import { create } from 'zustand'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
+import { putImgRef } from '@/lib/imgRef'
 
 export interface Profile {
   nameA: string
@@ -39,6 +40,11 @@ interface ProfileState {
 export const useProfileStore = create<ProfileState>((set, get) => ({
   profile: readJSON<Profile>(STORAGE_KEYS.profile, DEFAULT_PROFILE),
   setProfile: (patch) => {
+    // 头像图本体进 IndexedDB，localStorage 只留 `idb:` 引用（5MB 事故根治，见 HANDOFF H0）
+    for (const k of ['avatarAImg', 'avatarBImg'] as const) {
+      const v = patch[k]
+      if (v && v.startsWith('data:')) patch = { ...patch, [k]: putImgRef('av', `${k}-${Date.now()}`, v) }
+    }
     const next = { ...get().profile, ...patch }
     writeJSON(STORAGE_KEYS.profile, next)
     set({ profile: next })

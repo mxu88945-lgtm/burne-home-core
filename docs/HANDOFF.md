@@ -107,6 +107,14 @@
 - 三层修复（5775789）：① `writeJSON` 返回 boolean + 失败广播 `bw:storage-full`，main.tsx 全屏 alert（每分钟至多一次）；② 戏剧消息图片改存 IndexedDB（`dmimg:{msgId}`，消息里只留 `idb:` 引用；`components/ui/IdbImg.tsx` 异步显示；respond 喂 vision 前 `resolveImgSrc` 解析回 dataURL）；③ DramaRoom 挂载时一次性迁移历史消息图片（标记 `burne-home-core:drama-img-mig`）。
 - ⚠️ **未完的根治（下窗优先做）**：主聊天 Chat / 小手机 Phone 的消息图片还是 dataURL 存 localStorage；整个对话库（chat/phone/drama 的 messages）最好整体迁 IndexedDB；整包备份也要把 IDB 图片包含进去（现在只含 localStorage）。丢掉的对话找不回来，靠剧情摘要兜底。
 
+**H15. 第二波搬家：贴纸图 + 消息内嵌贴纸 + 全部头像图（她的体检截图定案：93% 满）**
+- 体检面板立功：总 4.67/5MB。大头＝小手机 1.57MB（消息里每条贴纸都内嵌整张 dataURL！）、戏剧 1.2MB、角色卡库 824KB、**表情贴纸库 738KB**、我的资料 131KB（俩头像）。
+- 全部迁 IndexedDB：**Avatar 组件内建 `useImgSrc` 解析**（全 App 头像的唯一渲染口，一处改处处生效；⚠️ 调用方 style 的 `background` 简写在组件里转成 `backgroundColor`，React 简写/单属性切换会清空样式，别改回）。store 层拦截：stickerStore.add（`simg:`）、profileStore.setProfile（avatarA/BImg→`av:`）、phoneStore.setPersona（avatarImg）、dramaStore/charLibStore addChar+updateChar（`divertAvatar`，在 lib/imgRef.ts）。**头像会被复制到多库共享同一 key，所以换头像不删旧 idb key**（孤儿几十 KB 无所谓），只有背景图是独占才删。
+- 小手机发贴纸：消息里存的是贴纸库的 `idb:` 引用字符串（不再复制整张图）；消息贴纸/贴纸选择格子改 IdbImg，lightbox 先 resolve。
+- 一次性迁移 **mig4**（AppLayout）：贴纸库、phone 消息 sticker.img、phone 头像、资料俩头像、戏剧成员头像、角色库头像——都是先 await 写 IDB 再瘦 localStorage。⚠️ **mig4 和 mig2 都整体替换 phone sessions，必须串行跑**（已并成一个 effect 依次 await），别拆回两个并行 effect。
+- 预计她这波能瘦 ~1.5-2MB。剩下的都是正经文本（剧本+卡+对话），再满就是删旧剧本/旧会话，或下一窗把对话库整体搬 IDB（要 store 异步初始化改造）。
+- Playwright：scratchpad/mig4.mjs（13 项断言全过，注意角色库路由是 `#/characters` 不是 `/drama/chars`）。
+
 **H14. 存储体检 + 背景图搬家（存储警告仍跳、早晨记录又丢、一打开跳回旧页面——继续追）**
 - 她报告：img-mig2 上线后**警告还在跳**、早晨的剧情记录又丢、「一打开就跳回没有记录/中断的页面」（＝写满后所有保存失败，刷新回滚到最后一次成功快照）。消息图片搬完还满 → 剩下的大头是**三张全屏背景图**（聊天/戏剧/小手机，每张压缩后仍 200~500KB）和纯文本大库（drama 剧本+角色卡文本可以很大）。
 - **背景图全部迁 IndexedDB**：`appearanceStore.update` / `phoneStore.setPersona` 在 store 层拦截——dataURL 进来就 `putImgRef('bg', 唯一id)` 换成 `idb:` 引用（换图/移除会顺手 `idbDel` 旧图）。渲染端新 hook `lib/useImgSrc.ts`（idb: → dataURL，空结果小退避重试 4 次，防刚上传还没落盘）；改了 Chat 背景、DramaBg、PhonePage 背景、AppearanceManager 两个缩略图。AppLayout 挂一次性迁移（flag `img-mig3`，**先 await 写进 IDB 再瘦 localStorage**，不丢图）。

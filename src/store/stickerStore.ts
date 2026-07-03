@@ -9,6 +9,7 @@
 import { create } from 'zustand'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
+import { putImgRef } from '@/lib/imgRef'
 
 export interface Sticker {
   id: string
@@ -48,6 +49,8 @@ interface StickerState {
   stickers: Sticker[]
   add: (s: Omit<Sticker, 'id'>) => void
   remove: (id: string) => void
+  /** 整体替换（图片迁移到 IndexedDB 用） */
+  replaceAll: (stickers: Sticker[]) => void
 }
 
 function load(): Sticker[] {
@@ -58,12 +61,19 @@ function load(): Sticker[] {
 export const useStickerStore = create<StickerState>((set, get) => ({
   stickers: load(),
   add: (s) => {
-    const stickers = [{ ...s, id: newId() }, ...get().stickers]
+    const id = newId()
+    // 图片本体进 IndexedDB，localStorage 只留 `idb:` 引用（5MB 事故根治，见 HANDOFF H0）
+    const img = s.img && s.img.startsWith('data:') ? putImgRef('simg', id, s.img) : s.img
+    const stickers = [{ ...s, img, id }, ...get().stickers]
     writeJSON(STORAGE_KEYS.stickers, stickers)
     set({ stickers })
   },
   remove: (id) => {
     const stickers = get().stickers.filter((s) => s.id !== id)
+    writeJSON(STORAGE_KEYS.stickers, stickers)
+    set({ stickers })
+  },
+  replaceAll: (stickers) => {
     writeJSON(STORAGE_KEYS.stickers, stickers)
     set({ stickers })
   },

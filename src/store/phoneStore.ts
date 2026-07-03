@@ -139,6 +139,9 @@ export const usePhoneStore = create<PhoneState>((set, get) => ({
         p = { ...p, bgImg: putImgRef('bg', `phone-${Date.now()}`, p.bgImg) }
       }
     }
+    if (p.avatarImg && p.avatarImg.startsWith('data:')) {
+      p = { ...p, avatarImg: putImgRef('av', `phone-${Date.now()}`, p.avatarImg) }
+    }
     const persona = { ...get().persona, ...p }
     save({ persona, sessions: get().sessions, activeId: get().activeId })
     set({ persona })

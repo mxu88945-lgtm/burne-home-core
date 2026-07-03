@@ -18,3 +18,10 @@ export async function resolveImgRef(src: string): Promise<string> {
   if (!src.startsWith('idb:')) return src
   return (await idbGet<string>(src.slice(4))) || ''
 }
+
+/** 头像图：dataURL → 存 IDB 换 `idb:` 引用；其余（含已是引用/undefined）原样返回。
+ *  头像会被复制到多个库（角色库→剧场等），共享同一 key，所以换图时不删旧 key（孤儿仅几十 KB）。 */
+export function divertAvatar(img: string | undefined): string | undefined {
+  if (!img || !img.startsWith('data:')) return img
+  return putImgRef('av', `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, img)
+}

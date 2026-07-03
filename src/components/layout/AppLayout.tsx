@@ -6,6 +6,10 @@ import MusicPlayer from '@/components/ui/MusicPlayer'
 import { useChatStore } from '@/store/chatStore'
 import { usePhoneStore } from '@/store/phoneStore'
 import { useAppearanceStore } from '@/store/appearanceStore'
+import { useProfileStore } from '@/store/profileStore'
+import { useStickerStore } from '@/store/stickerStore'
+import { useDramaStore } from '@/store/dramaStore'
+import { useCharLibStore } from '@/store/charLibStore'
 import { idbSet } from '@/lib/idb'
 
 export default function AppLayout() {
@@ -13,10 +17,18 @@ export default function AppLayout() {
 
   // 一次性迁移：主聊天/小手机消息里的 dataURL 图片 → IndexedDB。
   // localStorage 每站仅 ~5MB，图片挤在里面写满会静默丢对话（事故见 HANDOFF H0），这是根治的后半程。
+  // mig4（贴纸/头像）串在 mig2 后面跑：两者都整体替换 phone sessions，并行会互相覆盖。
   useEffect(() => {
+    void (async () => {
+      await runMig2()
+      await runMig4()
+    })()
+  }, [])
+
+  async function runMig2() {
     const KEY = 'burne-home-core:img-mig2'
     if (localStorage.getItem(KEY)) return
-    void (async () => {
+    await (async () => {
       try {
         const cs = useChatStore.getState()
         let cChanged = false
@@ -59,7 +71,95 @@ export default function AppLayout() {
         console.warn('[img-mig2] 迁移失败，下次再试', e)
       }
     })()
-  }, [])
+  }
+
+  // 一次性迁移：贴纸库图片、小手机消息里的贴纸图、所有头像图（我的资料/小手机/戏剧角色/角色库）→ IndexedDB。
+  // 她的体检显示这些是剩下的大头（贴纸 738KB + 小手机 1.57MB 里一大半是消息内嵌的贴纸 dataURL）。
+  async function runMig4() {
+    const KEY = 'burne-home-core:img-mig4'
+    if (localStorage.getItem(KEY)) return
+    try {
+      // 贴纸库
+      const st = useStickerStore.getState()
+      if (st.stickers.some((s) => s.img?.startsWith('data:'))) {
+        const stickers = await Promise.all(
+          st.stickers.map(async (s) => {
+            if (!s.img?.startsWith('data:')) return s
+            await idbSet(`simg:${s.id}`, s.img)
+            return { ...s, img: `idb:simg:${s.id}` }
+          }),
+        )
+        st.replaceAll(stickers)
+      }
+
+      // 小手机：消息里的贴纸图 + 头像
+      const ph = usePhoneStore.getState()
+      if (ph.sessions.some((s) => s.messages.some((m) => m.sticker?.img?.startsWith('data:')))) {
+        const sessions = await Promise.all(
+          ph.sessions.map(async (s) => ({
+            ...s,
+            messages: await Promise.all(
+              s.messages.map(async (m) => {
+                if (!m.sticker?.img?.startsWith('data:')) return m
+                await idbSet(`simg:m-${m.id}`, m.sticker.img)
+                return { ...m, sticker: { ...m.sticker, img: `idb:simg:m-${m.id}` } }
+              }),
+            ),
+          })),
+        )
+        ph.replaceSessions(sessions)
+      }
+      if (ph.persona.avatarImg?.startsWith('data:')) {
+        await idbSet('av:mig-phone', ph.persona.avatarImg)
+        usePhoneStore.getState().setPersona({ avatarImg: 'idb:av:mig-phone' })
+      }
+
+      // 我的资料两个头像
+      const pf = useProfileStore.getState()
+      for (const k of ['avatarAImg', 'avatarBImg'] as const) {
+        const v = pf.profile[k]
+        if (v?.startsWith('data:')) {
+          await idbSet(`av:mig-${k}`, v)
+          useProfileStore.getState().setProfile({ [k]: `idb:av:mig-${k}` })
+        }
+      }
+
+      // 戏剧各剧场成员头像
+      const dr = useDramaStore.getState()
+      if (dr.scenes.some((s) => s.chars.some((c) => c.avatarImg?.startsWith('data:')))) {
+        const scenes = await Promise.all(
+          dr.scenes.map(async (s) => ({
+            ...s,
+            chars: await Promise.all(
+              s.chars.map(async (c) => {
+                if (!c.avatarImg?.startsWith('data:')) return c
+                await idbSet(`av:mig-d-${c.id}`, c.avatarImg)
+                return { ...c, avatarImg: `idb:av:mig-d-${c.id}` }
+              }),
+            ),
+          })),
+        )
+        dr.replaceScenes(scenes)
+      }
+
+      // 角色库头像
+      const cl = useCharLibStore.getState()
+      if (cl.chars.some((c) => c.avatarImg?.startsWith('data:'))) {
+        const chars = await Promise.all(
+          cl.chars.map(async (c) => {
+            if (!c.avatarImg?.startsWith('data:')) return c
+            await idbSet(`av:mig-l-${c.id}`, c.avatarImg)
+            return { ...c, avatarImg: `idb:av:mig-l-${c.id}` }
+          }),
+        )
+        cl.replaceChars(chars)
+      }
+
+      localStorage.setItem(KEY, '1')
+    } catch (e) {
+      console.warn('[img-mig4] 迁移失败，下次再试', e)
+    }
+  }
 
   // 一次性迁移：三张全屏背景图（聊天/戏剧/小手机）→ IndexedDB。
   // 每张压缩后仍 200~500KB，三张就能吃掉配额一大截。先确认写进 IDB 再瘦 localStorage，不丢图。

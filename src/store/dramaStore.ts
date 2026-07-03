@@ -8,6 +8,7 @@ import { create } from 'zustand'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS, CURRENT_WINDOW_ID } from '@/lib/constants'
 import type { RegexScript } from '@/lib/regexScript'
+import { divertAvatar } from '@/lib/imgRef'
 
 /** 角色卡 */
 export interface DramaChar {
@@ -130,6 +131,8 @@ interface DramaState extends Persisted {
   renameScene: (id: string, title: string) => void
   /** 把某剧场挪到列表最上面（置顶） */
   moveSceneTop: (id: string) => void
+  /** 整体替换剧场列表（头像图迁 IndexedDB 用） */
+  replaceScenes: (scenes: DramaScene[]) => void
   setActive: (id: string) => void
   addChar: (sceneId: string, char: Partial<DramaChar>) => void
   updateChar: (sceneId: string, charId: string, patch: Partial<DramaChar>) => void
@@ -240,6 +243,11 @@ export const useDramaStore = create<DramaState>((set, get) => {
       set({ activeId: id })
     },
 
+    replaceScenes: (scenes) => {
+      persist(scenes)
+      set({ scenes })
+    },
+
     addChar: (sceneId, char) =>
       patchScene(sceneId, (s) => {
         const color = char.color || PALETTE[s.chars.length % PALETTE.length]
@@ -247,7 +255,7 @@ export const useDramaStore = create<DramaState>((set, get) => {
           id: uid(),
           name: char.name?.trim() || '新角色',
           avatar: char.avatar || '🎭',
-          avatarImg: char.avatarImg,
+          avatarImg: divertAvatar(char.avatarImg),
           persona: char.persona || '',
           greeting: char.greeting || '',
           greetings: char.greetings,
@@ -262,11 +270,13 @@ export const useDramaStore = create<DramaState>((set, get) => {
         return { ...s, chars: [...s.chars, c] }
       }),
 
-    updateChar: (sceneId, charId, patch) =>
+    updateChar: (sceneId, charId, patch) => {
+      if (patch.avatarImg) patch = { ...patch, avatarImg: divertAvatar(patch.avatarImg) }
       patchScene(sceneId, (s) => ({
         ...s,
         chars: s.chars.map((c) => (c.id === charId ? { ...c, ...patch } : c)),
-      })),
+      }))
+    },
 
     removeChar: (sceneId, charId) =>
       patchScene(sceneId, (s) => ({ ...s, chars: s.chars.filter((c) => c.id !== charId) })),
