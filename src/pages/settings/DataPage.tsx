@@ -76,9 +76,18 @@ export default function DataPage() {
   const [msg, setMsg] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const [scan, setScan] = useState<{ rows: SizeRow[]; totalKb: number } | null>(null)
+  // 大仓库（IndexedDB：图片/歌曲/书）用量。navigator.storage.estimate() 报的是本站总用量/总配额
+  const [estimate, setEstimate] = useState<{ usage: number; quota: number } | null>(null)
   useEffect(() => {
     // 等一拍再扫：让 AppLayout 的背景图搬家先跑完，看到的是搬完后的真实占用
     const t = setTimeout(() => setScan(scanStorage()), 800)
+    if (navigator.storage?.estimate) {
+      void navigator.storage.estimate().then((e) => {
+        if (typeof e.usage === 'number' && typeof e.quota === 'number' && e.quota > 0) {
+          setEstimate({ usage: e.usage, quota: e.quota })
+        }
+      })
+    }
     return () => clearTimeout(t)
   }, [])
 
@@ -240,8 +249,35 @@ export default function DataPage() {
                 })}
             </div>
             <p className="text-[11px] leading-relaxed text-muted">
-              图片、歌曲、书这些「大件」都放在另一个大仓库（IndexedDB，GB 级），不占上面的额度。这里只算文字类数据。
+              图片、歌曲、书这些「大件」都放在另一个大仓库（IndexedDB），不占上面的额度。这里只算文字类数据。
             </p>
+
+            {/* 大仓库（IndexedDB）用量：直接回答「大仓库会不会也满」 */}
+            {estimate && (
+              (() => {
+                const usedMb = estimate.usage / 1024 / 1024
+                const quotaMb = estimate.quota / 1024 / 1024
+                const pct = Math.min(100, (estimate.usage / estimate.quota) * 100)
+                return (
+                  <div className="mt-1 rounded-xl bg-black/5 p-3">
+                    <div className="flex justify-between text-[12px] text-ink">
+                      <span>大仓库（图片/歌曲/书）</span>
+                      <b>
+                        {usedMb < 1024 ? `${usedMb.toFixed(0)} MB` : `${(usedMb / 1024).toFixed(2)} GB`} /{' '}
+                        {quotaMb < 1024 ? `${quotaMb.toFixed(0)} MB` : `${(quotaMb / 1024).toFixed(1)} GB`}
+                      </b>
+                    </div>
+                    <div className="mt-1 h-2 overflow-hidden rounded-full bg-black/10">
+                      <div className="h-full rounded-full" style={{ width: `${Math.max(1, pct)}%`, background: 'var(--accent)' }} />
+                    </div>
+                    <p className="mt-1 text-[11px] leading-relaxed text-muted">
+                      这个仓库比上面那个大几百倍（{quotaMb < 1024 ? `约 ${quotaMb.toFixed(0)} MB` : `约 ${(quotaMb / 1024).toFixed(1)} GB`}），
+                      图片歌曲都存这儿，正常用一辈子也满不了。放心～
+                    </p>
+                  </div>
+                )
+              })()
+            )}
           </>
         )}
       </div>
