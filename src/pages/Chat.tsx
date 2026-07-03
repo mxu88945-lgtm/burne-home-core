@@ -27,6 +27,8 @@ import Avatar from '@/components/ui/Avatar'
 import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, ArrowUpIcon, MicIcon, PhoneIcon } from '@/components/ui/icons'
 import { renderRichText, stripLinks } from '@/lib/richText'
 import { cleanReply } from '@/lib/cleanReply'
+import IdbImg from '@/components/ui/IdbImg'
+import { putImgRef, resolveImgRef } from '@/lib/imgRef'
 import { usePeriodStore } from '@/store/periodStore'
 import { periodChatNote } from '@/lib/period'
 import { parseTasks } from '@/store/taskStore'
@@ -555,12 +557,14 @@ export default function Chat() {
   async function send(textOverride?: string) {
     const text = (textOverride ?? draft).trim()
     if ((!text && !pendingImage && !pendingFile) || sending) return
+    const mid = newId()
     const mine: Msg = {
-      id: newId(),
+      id: mid,
       role: 'me',
       text,
       at: now(),
-      ...(pendingImage ? { image: pendingImage } : {}),
+      // 图片本体进 IndexedDB，消息里只存引用（别撑爆 localStorage）
+      ...(pendingImage ? { image: putImgRef('cimg', mid, pendingImage) } : {}),
       ...(pendingFile ? { file: pendingFile } : {}),
     }
     const history = [...messages, mine]
@@ -815,6 +819,13 @@ export default function Chat() {
 
   /** 用当前历史调用模型并把回复加入对话（图片按 vision 格式发送） */
   async function respond(history: Msg[]) {
+    // idb: 图片引用先解析回 dataURL（喂 vision 用）
+    const resolvedImgs = new Map<string, string>()
+    await Promise.all(
+      history
+        .filter((m) => m.image && m.image.startsWith('idb:'))
+        .map(async (m) => resolvedImgs.set(m.id, await resolveImgRef(m.image!))),
+    )
     const apiMsgs: ChatApiMessage[] = history
       .filter((m) => m.text.trim() || m.image || m.file || m.task)
       .map((m) => {
@@ -841,9 +852,11 @@ export default function Chat() {
           textPart = textPart.trim()
         }
         if (m.image) {
+          const imgUrl = m.image.startsWith('idb:') ? resolvedImgs.get(m.id) || '' : m.image
+          if (!imgUrl) return { role, content: textPart || '［图片］' }
           const parts: Exclude<ChatApiMessage['content'], string> = []
           if (textPart) parts.push({ type: 'text', text: textPart })
-          parts.push({ type: 'image_url', image_url: { url: m.image } })
+          parts.push({ type: 'image_url', image_url: { url: imgUrl } })
           return { role, content: parts }
         }
         return { role, content: textPart }
@@ -1437,11 +1450,11 @@ export default function Chat() {
                   </div>
                 )}
                 {m.image && (
-                  <img
+                  <IdbImg
                     src={m.image}
                     alt="图片"
                     onClick={() => {
-                      if (!selectMode) setLightbox(m.image!)
+                      if (!selectMode) void resolveImgRef(m.image!).then((u) => u && setLightbox(u))
                     }}
                     className="max-h-60 max-w-full cursor-pointer rounded-2xl object-cover"
                   />
@@ -2153,7 +2166,7 @@ export default function Chat() {
                 />
                 <div style={{ maxWidth: 280, display: 'flex', flexDirection: 'column', alignItems: me ? 'flex-end' : 'flex-start' }}>
                   {m.image && (
-                    <img src={m.image} alt="" style={{ maxWidth: 240, borderRadius: 14 }} />
+                    <IdbImg src={m.image} alt="" style={{ maxWidth: 240, borderRadius: 14 }} />
                   )}
                   {m.file && (
                     <div className="glass" style={{ borderRadius: 14, padding: '6px 10px', fontSize: 12, marginTop: m.image ? 4 : 0 }}>

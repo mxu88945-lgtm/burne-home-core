@@ -14,6 +14,8 @@ import { cleanReply } from '@/lib/cleanReply'
 import { chatComplete } from '@/api/llm'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { fileToDataUrl } from '@/lib/image'
+import IdbImg from '@/components/ui/IdbImg'
+import { putImgRef, resolveImgRef } from '@/lib/imgRef'
 import Avatar from '@/components/ui/Avatar'
 
 function newId() {
@@ -267,12 +269,14 @@ export default function PhonePage() {
   async function send() {
     const text = draft.trim()
     if ((!text && !pendingImage) || sending) return
+    const mid = newId()
     const mine: PhoneMsg = {
-      id: newId(),
+      id: mid,
       role: 'me',
       text,
       at: now(),
-      ...(pendingImage ? { image: pendingImage } : {}),
+      // 图片本体进 IndexedDB，消息里只存引用（别撑爆 localStorage）
+      ...(pendingImage ? { image: putImgRef('pimg', mid, pendingImage) } : {}),
     }
     const history = [...messages, mine]
     setMessages(history)
@@ -343,6 +347,13 @@ export default function PhonePage() {
   }
 
   async function respond(history: PhoneMsg[]) {
+    // idb: 图片引用先解析回 dataURL（喂 vision 用）
+    const resolvedImgs = new Map<string, string>()
+    await Promise.all(
+      history
+        .filter((m) => m.image && m.image.startsWith('idb:'))
+        .map(async (m) => resolvedImgs.set(m.id, await resolveImgRef(m.image!))),
+    )
     const apiMsgs: ChatApiMessage[] = history
       .filter((m) => m.text.trim() || m.image || m.sticker || m.task)
       .map((m) => {
@@ -360,9 +371,11 @@ export default function PhonePage() {
           return { role: 'user' as const, content: note }
         }
         if (m.image) {
+          const imgUrl = m.image.startsWith('idb:') ? resolvedImgs.get(m.id) || '' : m.image
+          if (!imgUrl) return { role, content: m.text.trim() || '［图片］' }
           const parts: Exclude<ChatApiMessage['content'], string> = []
           if (m.text.trim()) parts.push({ type: 'text', text: m.text.trim() })
-          parts.push({ type: 'image_url', image_url: { url: m.image } })
+          parts.push({ type: 'image_url', image_url: { url: imgUrl } })
           return { role, content: parts }
         }
         if (m.sticker) {
@@ -825,10 +838,10 @@ export default function PhonePage() {
                       <span className="text-[52px] leading-none">{m.sticker.emoji}</span>
                     ))}
                   {m.image && (
-                    <img
+                    <IdbImg
                       src={m.image}
                       alt="图片"
-                      onClick={() => setLightbox(m.image!)}
+                      onClick={() => void resolveImgRef(m.image!).then((u) => u && setLightbox(u))}
                       className="max-h-56 max-w-full cursor-pointer rounded-2xl object-cover"
                     />
                   )}

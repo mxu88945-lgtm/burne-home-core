@@ -40,6 +40,7 @@ export default function DramaRoom() {
   const setActive = useDramaStore((s) => s.setActive)
   const createScene = useDramaStore((s) => s.createScene)
   const removeScene = useDramaStore((s) => s.removeScene)
+  const clearMessages = useDramaStore((s) => s.clearMessages)
   const renameScene = useDramaStore((s) => s.renameScene)
   const moveSceneTop = useDramaStore((s) => s.moveSceneTop)
   const addChar = useDramaStore((s) => s.addChar)
@@ -1129,6 +1130,18 @@ export default function DramaRoom() {
                       className="block w-full py-3 text-center text-[15px] text-ink active:bg-black/5"
                     >
                       改名
+                    </button>
+                    <div className="mx-4 border-t border-line/50" />
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`重启「${ms.title}」？清空全部对话和剧情摘要，角色、世界观、世界书都保留。`)) {
+                          clearMessages(ms.id)
+                        }
+                        close()
+                      }}
+                      className="block w-full py-3 text-center text-[15px] text-ink active:bg-black/5"
+                    >
+                      ♻️ 重启对话（清空聊天记录）
                     </button>
                     <div className="mx-4 border-t border-line/50" />
                     <button

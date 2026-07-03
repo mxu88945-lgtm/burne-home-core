@@ -107,6 +107,11 @@
 - 三层修复（5775789）：① `writeJSON` 返回 boolean + 失败广播 `bw:storage-full`，main.tsx 全屏 alert（每分钟至多一次）；② 戏剧消息图片改存 IndexedDB（`dmimg:{msgId}`，消息里只留 `idb:` 引用；`components/ui/IdbImg.tsx` 异步显示；respond 喂 vision 前 `resolveImgSrc` 解析回 dataURL）；③ DramaRoom 挂载时一次性迁移历史消息图片（标记 `burne-home-core:drama-img-mig`）。
 - ⚠️ **未完的根治（下窗优先做）**：主聊天 Chat / 小手机 Phone 的消息图片还是 dataURL 存 localStorage；整个对话库（chat/phone/drama 的 messages）最好整体迁 IndexedDB；整包备份也要把 IDB 图片包含进去（现在只含 localStorage）。丢掉的对话找不回来，靠剧情摘要兜底。
 
+**H13. 存储根治后半程 + 重启对话**
+- **主聊天/小手机消息图片也迁 IndexedDB**（她的"存储满"警告一直跳＝大头在这）：发送时 `putImgRef('cimg'/'pimg', msgId, dataUrl)` 只存 `idb:` 引用（`lib/imgRef.ts`）；显示 IdbImg；lightbox 点击时 resolve；vision 喂图前 respond 里批量 resolve（Chat/Phone 都改了）；AppLayout 挂一次性迁移（flag `img-mig2`，两库都搬）。chatStore/phoneStore 加 `replaceSessions`。截图导出的离屏树也用 IdbImg（异步加载，选完消息到点生成之间图已就位）。
+- **戏剧 ⋮ 菜单加「♻️ 重启对话」**（`clearMessages`）：清空消息+摘要+summaryAt，角色/世界观/世界书保留——聊崩了不用重建剧场。
+- 她昨晚"旁白移出后角色库里没有"＝存储满时 addLibChar 写入静默失败（当时大警告还没上线），让她重建一次旁白卡。
+
 **H12. 程妄卡两连修（次日晨）**
 - **换开场白**：很多卡 first_mes 是点不动的"装饰菜单"（程妄卡 first_mes 只有 `<开屏美化>` 6 个字，Steam 风菜单是正则变的），真开场在 alternate_greetings（19 条）。刚开场只有一条消息时，消息旁显示「🎬 换开场白(N)」→ 弹层选中**原地替换**（greetPick 加 replaceId）。
 - **卡图蓝问号**：卡图全挂 catbox.moe 等海外图床，国内连不上（不是渲染 bug）。Worker 新增 `GET /img?u=`（allowlist：files.catbox.moe/catbox.moe/i.imgur.com/charhub 两个域；仅 https、仅 image/*、edge 缓存一天）；前端 `lib/imgProxy.ts` 在 DramaRich 里把这些图床地址改写成 `${workerUrl}/img?u=…`（没配 Worker 原样直连）。**⚠️ 需要她重新部署一次 Worker 才生效**（PowerShell 令牌法，见 docs/我的部署备忘.md）。

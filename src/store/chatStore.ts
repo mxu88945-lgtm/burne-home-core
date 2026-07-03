@@ -94,6 +94,8 @@ interface ChatState {
   switchSession: (id: string) => void
   removeSession: (id: string) => void
   renameSession: (id: string, title: string) => void
+  /** 整体替换会话列表（图片迁移到 IndexedDB 用） */
+  replaceSessions: (sessions: ChatSession[]) => void
   /** 若标题仍是默认，则用首句话自动命名 */
   autoTitle: (text: string) => void
 }
@@ -156,6 +158,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const t = title.trim()
     if (!t) return
     const sessions = get().sessions.map((s) => (s.id === id ? { ...s, title: t } : s))
+    persist(sessions, get().activeId)
+    set({ sessions })
+  },
+
+  replaceSessions: (sessions) => {
     persist(sessions, get().activeId)
     set({ sessions })
   },

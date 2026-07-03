@@ -118,6 +118,8 @@ interface PhoneState {
   switchSession: (id: string) => void
   removeSession: (id: string) => void
   renameSession: (id: string, title: string) => void
+  /** 整体替换会话列表（图片迁移到 IndexedDB 用） */
+  replaceSessions: (sessions: PhoneSession[]) => void
   /** 首句话自动命名当前会话（仍是「新对话」时才改） */
   autoTitle: (firstText: string) => void
   /** 清空当前会话 */
@@ -161,6 +163,10 @@ export const usePhoneStore = create<PhoneState>((set, get) => ({
   },
   renameSession: (id, title) => {
     const sessions = get().sessions.map((s) => (s.id === id ? { ...s, title } : s))
+    save({ persona: get().persona, sessions, activeId: get().activeId })
+    set({ sessions })
+  },
+  replaceSessions: (sessions) => {
     save({ persona: get().persona, sessions, activeId: get().activeId })
     set({ sessions })
   },

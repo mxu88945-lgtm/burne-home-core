@@ -1,10 +1,64 @@
+import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import AppHeader from './AppHeader'
 import Pet from '@/components/ui/Pet'
 import MusicPlayer from '@/components/ui/MusicPlayer'
+import { useChatStore } from '@/store/chatStore'
+import { usePhoneStore } from '@/store/phoneStore'
+import { idbSet } from '@/lib/idb'
 
 export default function AppLayout() {
   const { pathname } = useLocation()
+
+  // 一次性迁移：主聊天/小手机消息里的 dataURL 图片 → IndexedDB。
+  // localStorage 每站仅 ~5MB，图片挤在里面写满会静默丢对话（事故见 HANDOFF H0），这是根治的后半程。
+  useEffect(() => {
+    const KEY = 'burne-home-core:img-mig2'
+    if (localStorage.getItem(KEY)) return
+    void (async () => {
+      try {
+        const cs = useChatStore.getState()
+        let cChanged = false
+        const cSess: typeof cs.sessions = []
+        for (const s of cs.sessions) {
+          const messages = await Promise.all(
+            s.messages.map(async (m) => {
+              if (m.image && m.image.startsWith('data:')) {
+                cChanged = true
+                await idbSet(`cimg:${m.id}`, m.image)
+                return { ...m, image: `idb:cimg:${m.id}` }
+              }
+              return m
+            }),
+          )
+          cSess.push({ ...s, messages })
+        }
+        if (cChanged) cs.replaceSessions(cSess)
+
+        const ps = usePhoneStore.getState()
+        let pChanged = false
+        const pSess: typeof ps.sessions = []
+        for (const s of ps.sessions) {
+          const messages = await Promise.all(
+            s.messages.map(async (m) => {
+              if (m.image && m.image.startsWith('data:')) {
+                pChanged = true
+                await idbSet(`pimg:${m.id}`, m.image)
+                return { ...m, image: `idb:pimg:${m.id}` }
+              }
+              return m
+            }),
+          )
+          pSess.push({ ...s, messages })
+        }
+        if (pChanged) ps.replaceSessions(pSess)
+
+        localStorage.setItem(KEY, '1')
+      } catch (e) {
+        console.warn('[img-mig2] 迁移失败，下次再试', e)
+      }
+    })()
+  }, [])
   const isHome = pathname === '/'
   // 聊天页 / 小手机自管头部与内边距（沉浸式）；首页用全局顶栏；其余页自带返回头
   const isChat = pathname === '/chat' || pathname === '/phone'
