@@ -107,6 +107,10 @@
 - 三层修复（5775789）：① `writeJSON` 返回 boolean + 失败广播 `bw:storage-full`，main.tsx 全屏 alert（每分钟至多一次）；② 戏剧消息图片改存 IndexedDB（`dmimg:{msgId}`，消息里只留 `idb:` 引用；`components/ui/IdbImg.tsx` 异步显示；respond 喂 vision 前 `resolveImgSrc` 解析回 dataURL）；③ DramaRoom 挂载时一次性迁移历史消息图片（标记 `burne-home-core:drama-img-mig`）。
 - ⚠️ **未完的根治（下窗优先做）**：主聊天 Chat / 小手机 Phone 的消息图片还是 dataURL 存 localStorage；整个对话库（chat/phone/drama 的 messages）最好整体迁 IndexedDB；整包备份也要把 IDB 图片包含进去（现在只含 localStorage）。丢掉的对话找不回来，靠剧情摘要兜底。
 
+**H12. 程妄卡两连修（次日晨）**
+- **换开场白**：很多卡 first_mes 是点不动的"装饰菜单"（程妄卡 first_mes 只有 `<开屏美化>` 6 个字，Steam 风菜单是正则变的），真开场在 alternate_greetings（19 条）。刚开场只有一条消息时，消息旁显示「🎬 换开场白(N)」→ 弹层选中**原地替换**（greetPick 加 replaceId）。
+- **卡图蓝问号**：卡图全挂 catbox.moe 等海外图床，国内连不上（不是渲染 bug）。Worker 新增 `GET /img?u=`（allowlist：files.catbox.moe/catbox.moe/i.imgur.com/charhub 两个域；仅 https、仅 image/*、edge 缓存一天）；前端 `lib/imgProxy.ts` 在 DramaRich 里把这些图床地址改写成 `${workerUrl}/img?u=…`（没配 Worker 原样直连）。**⚠️ 需要她重新部署一次 Worker 才生效**（PowerShell 令牌法，见 docs/我的部署备忘.md）。
+
 **H11. 自动压缩（次日晨）**
 - `compress(auto)` 复用手动压缩：auto＝留最近 **24** 条（手动 6）、免确认、静默失败、完成飘 toast。⚙ 剧情·记忆新增开关（默认关）+ 阈值（默认 80，clamp 40-200，text+numeric 输入）。effect 监听消息数超阈值触发（summaryBusy/busyChar 守卫防重入）。顺便给存储减负。
 
