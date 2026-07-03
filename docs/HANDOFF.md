@@ -107,6 +107,12 @@
 - 三层修复（5775789）：① `writeJSON` 返回 boolean + 失败广播 `bw:storage-full`，main.tsx 全屏 alert（每分钟至多一次）；② 戏剧消息图片改存 IndexedDB（`dmimg:{msgId}`，消息里只留 `idb:` 引用；`components/ui/IdbImg.tsx` 异步显示；respond 喂 vision 前 `resolveImgSrc` 解析回 dataURL）；③ DramaRoom 挂载时一次性迁移历史消息图片（标记 `burne-home-core:drama-img-mig`）。
 - ⚠️ **未完的根治（下窗优先做）**：主聊天 Chat / 小手机 Phone 的消息图片还是 dataURL 存 localStorage；整个对话库（chat/phone/drama 的 messages）最好整体迁 IndexedDB；整包备份也要把 IDB 图片包含进去（现在只含 localStorage）。丢掉的对话找不回来，靠剧情摘要兜底。
 
+**H17. 开场白卡「变成仓库 404 页」+ 会话预览露原始码 + 重启对话改名**
+- 🐛 **整卡变 GitHub Pages 404**（她："渲染开场白开始有显示，发一条消息后变成仓库页面"）：根因＝`htmlCard.tsx` 的 sandbox `srcDoc` iframe **继承父页 github.io 的 base URL**，卡片里带**相对地址**的链接/表单/`<meta refresh>` 一跳转就解析成 `github.io/burne-home-core/xxx` → 仓库 404 页盖住整卡。修：卡片脚本前先注入**导航守卫**——拦截会离开本卡的链接点击（放行 `#` 锚点和 `javascript:`）、表单提交、`window.open`，并剥掉 `<meta http-equiv=refresh>`。Playwright 实测：带守卫点相对链接不跳转，不带则跳走。⚠️ 守卫拦不住脚本里的 `location.href=`（sandbox 里 location 不可改写），若某卡仍跳需要她发卡文件、精准掐它那段脚本。
+- 会话列表预览去原始码：`DramaRoom` 预览行原样 `.slice(26)` 会露 `<div style="max-width:340`，改成先剥 ```代码围栏/`<标签>`/markdown 记号再截。
+- ⋮ 菜单「♻️ 重启对话（清空聊天记录）」→ 按她要求简化成「♻️ 重启对话」（确认弹窗里本就写明清空范围）。
+- ⏭ 待办：祁漾卡的图挂在 **imgloc.com**（不在 weserv 改写名单里，显示"image not found"）。要么那些图已被删、要么需把 imgloc 的图片域名加进 `imgProxy.ts`——等她发卡文件确认真实图址再加。
+
 **H16. 卡图蓝问号终于闭环：改走 images.weserv.nl（放弃自建 Worker /img）**
 - 真相：她能打开 `workers.dev` 拿到 Worker 的 JSON（`{"error":"upstream 520"}`）→ **运营商没墙 workers.dev**，但 Worker 去抓 catbox 时 **catbox 回 520**（catbox 挡 Cloudflare Worker/数据中心流量）。用她卡里**真实存在**的图测也 520，坐实是 catbox 拒绝 Worker，不是我示例 URL 假（`2jqk09.png` 确实是我瞎编的）。
 - 换方案：`lib/imgProxy.ts` 不再改写到自己的 Worker，改写到成熟图片 CDN **`https://images.weserv.nl/?url=<去掉 https:// 的主机名+路径>`**。她实测该 CDN 在国内能直连、且抓 catbox 正常出图（"一只小狗🐶"）。**好处：不再依赖用户配 Worker，人人可用**；她也不用再重部署 Worker。

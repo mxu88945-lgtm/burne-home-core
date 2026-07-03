@@ -1045,7 +1045,15 @@ export default function DramaRoom() {
               {scenes.map((s) => {
                 const lead = s.chars.find((c) => !c.isMe) || s.chars[0]
                 const last = s.messages[s.messages.length - 1]
-                const preview = last ? (last.text || '［图片］').replace(/\s+/g, ' ').slice(0, 26) : '（还没开场）'
+                // 预览去掉 HTML 标签/代码围栏/markdown 记号，别把 `<div style=…` 这种原始码露出来
+                const preview = last
+                  ? ((last.text || '')
+                      .replace(/```[\s\S]*?```/g, ' ')
+                      .replace(/<[^>]+>/g, ' ')
+                      .replace(/[*_`#>~]+/g, '')
+                      .replace(/\s+/g, ' ')
+                      .trim() || '［图片］').slice(0, 26)
+                  : '（还没开场）'
                 const active = s.id === sc.id
                 return (
                   <div key={s.id} className={`flex items-center rounded-2xl ${active ? 'bg-accent/10' : 'hover:bg-white/40'}`}>
@@ -1141,7 +1149,7 @@ export default function DramaRoom() {
                       }}
                       className="block w-full py-3 text-center text-[15px] text-ink active:bg-black/5"
                     >
-                      ♻️ 重启对话（清空聊天记录）
+                      ♻️ 重启对话
                     </button>
                     <div className="mx-4 border-t border-line/50" />
                     <button

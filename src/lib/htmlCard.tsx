@@ -39,18 +39,37 @@ export function HtmlCard({ html }: { html: string }) {
     `try{if(window.ResizeObserver)new ResizeObserver(r).observe(document.documentElement)}catch(x){}` +
     `document.addEventListener('click',function(){setTimeout(r,60);setTimeout(r,360)});})()<\/script>`
 
-  const src = /<\/body>/i.test(html)
-    ? html.replace(/<\/body>/i, reporter + '</body>')
+  // 导航守卫：srcDoc 沙箱会继承父页(github.io)的 base URL，卡片里带相对地址的链接/表单/meta刷新
+  // 一旦跳转就整卡变成 GitHub Pages 404（惟惟遇到的「发一条消息后变成仓库页面」）。这里在卡片脚本之前
+  // 先拦掉会离开本卡的跳转：链接点击（放行 # 锚点和 javascript:）、表单提交、window.open。
+  const guard =
+    `<script>(function(){try{window.open=function(){return null}}catch(e){}` +
+    `document.addEventListener('click',function(e){var a=e.target&&e.target.closest?e.target.closest('a[href]'):null;` +
+    `if(a){var h=a.getAttribute('href')||'';var l=h.slice(0,11).toLowerCase();` +
+    `if(h&&h.charAt(0)!=='#'&&l!=='javascript:'){e.preventDefault();e.stopPropagation()}}},true);` +
+    `document.addEventListener('submit',function(e){e.preventDefault();e.stopPropagation()},true)})()<\/script>`
+
+  // 去掉 meta 刷新跳转（<meta http-equiv="refresh" ...>）
+  const cleaned = html.replace(/<meta[^>]+http-equiv=["']?refresh["']?[^>]*>/gi, '')
+
+  const src = /<\/body>/i.test(cleaned)
+    ? // 有完整 body：守卫脚本尽量早注入（body 开头或 head 内），reporter 收尾
+      cleaned
+        .replace(/(<body[^>]*>)/i, `$1${guard}`)
+        .replace(/<\/body>/i, reporter + '</body>')
     : `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
       `<style>body{margin:0;padding:10px;font:14px/1.7 system-ui,-apple-system,sans-serif;color:#1f1f1f;word-break:break-word}img{max-width:100%}</style>` +
-      `</head><body>${html}${reporter}</body></html>`
+      `${guard}</head><body>${cleaned}${reporter}</body></html>`
+
+  // 极少数卡片没有 <body> 标签却是完整 doc：兜底确保 guard 一定在（上面完整 body 分支已处理，这里补 head 无 body 的情况）
+  const finalSrc = src.includes(guard) ? src : src.replace(/<head[^>]*>/i, (m) => m + guard)
 
   return (
     <iframe
       title="card"
       sandbox="allow-scripts allow-popups"
       allow="autoplay"
-      srcDoc={src}
+      srcDoc={finalSrc}
       scrolling="no"
       className="my-1 w-full rounded-xl border border-line/40 bg-white"
       style={{ height: h }}
