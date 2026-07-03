@@ -29,6 +29,7 @@ import { renderRichText, stripLinks } from '@/lib/richText'
 import { cleanReply } from '@/lib/cleanReply'
 import IdbImg from '@/components/ui/IdbImg'
 import { putImgRef, resolveImgRef } from '@/lib/imgRef'
+import { useImgSrc } from '@/lib/useImgSrc'
 import { usePeriodStore } from '@/store/periodStore'
 import { periodChatNote } from '@/lib/period'
 import { parseTasks } from '@/store/taskStore'
@@ -147,9 +148,10 @@ export default function Chat() {
   const startingRef = useRef(false)
   // 通话里：AI 新回复出现且生成完，就自动朗读（记下已念过的，避免重复）
   const spokenRef = useRef('')
-  const { chatBg, chatBgDim, chatBgOpacity, chatBgBlur, chatBgFit } = useAppearanceStore(
+  const { chatBg: chatBgRef, chatBgDim, chatBgOpacity, chatBgBlur, chatBgFit } = useAppearanceStore(
     (s) => s.appearance,
   )
+  const chatBg = useImgSrc(chatBgRef)
   const { play, stop: stopTts, playingId, loadingId, error: ttsError } = useTtsPlayback()
   const workerUrl = config.workerUrl?.trim()
   const connected = Boolean(activeChannel || workerUrl)

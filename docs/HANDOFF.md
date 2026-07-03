@@ -107,6 +107,14 @@
 - 三层修复（5775789）：① `writeJSON` 返回 boolean + 失败广播 `bw:storage-full`，main.tsx 全屏 alert（每分钟至多一次）；② 戏剧消息图片改存 IndexedDB（`dmimg:{msgId}`，消息里只留 `idb:` 引用；`components/ui/IdbImg.tsx` 异步显示；respond 喂 vision 前 `resolveImgSrc` 解析回 dataURL）；③ DramaRoom 挂载时一次性迁移历史消息图片（标记 `burne-home-core:drama-img-mig`）。
 - ⚠️ **未完的根治（下窗优先做）**：主聊天 Chat / 小手机 Phone 的消息图片还是 dataURL 存 localStorage；整个对话库（chat/phone/drama 的 messages）最好整体迁 IndexedDB；整包备份也要把 IDB 图片包含进去（现在只含 localStorage）。丢掉的对话找不回来，靠剧情摘要兜底。
 
+**H14. 存储体检 + 背景图搬家（存储警告仍跳、早晨记录又丢、一打开跳回旧页面——继续追）**
+- 她报告：img-mig2 上线后**警告还在跳**、早晨的剧情记录又丢、「一打开就跳回没有记录/中断的页面」（＝写满后所有保存失败，刷新回滚到最后一次成功快照）。消息图片搬完还满 → 剩下的大头是**三张全屏背景图**（聊天/戏剧/小手机，每张压缩后仍 200~500KB）和纯文本大库（drama 剧本+角色卡文本可以很大）。
+- **背景图全部迁 IndexedDB**：`appearanceStore.update` / `phoneStore.setPersona` 在 store 层拦截——dataURL 进来就 `putImgRef('bg', 唯一id)` 换成 `idb:` 引用（换图/移除会顺手 `idbDel` 旧图）。渲染端新 hook `lib/useImgSrc.ts`（idb: → dataURL，空结果小退避重试 4 次，防刚上传还没落盘）；改了 Chat 背景、DramaBg、PhonePage 背景、AppearanceManager 两个缩略图。AppLayout 挂一次性迁移（flag `img-mig3`，**先 await 写进 IDB 再瘦 localStorage**，不丢图）。
+- ⚠️ 踩坑：AppearanceManager 缩略图 style 同时给 `background`（简写）和 `backgroundImage`，React 在两者间切换时会把样式清空（简写/单属性冲突），异步 hook 一来就踩中 → 改成 `backgroundColor`。**别改回简写**。
+- **设置 → 数据·备份 新增「存储体检 🩺」**：逐 key 列出占用（中文名+KB+条形图，降序前 12），总量条 x/5MB 带红黄绿；大项(>800KB)标红并给瘦身提示（删旧剧本/旧会话/♻️重启对话）。main.tsx 存储满 alert 文案也指到体检。**下次她再报"满"，让她截体检面板，一眼定位大头。**
+- ⏭ 若体检显示 `drama`/`char-lib` 纯文本就有几 MB：下一步是把整个对话库搬 IndexedDB（需要 store 异步初始化改造，动静大，单独一窗做）。
+- 程妄卡蓝问号仍未闭环：Worker 已部署成功(/img 在线)，前端改写也已上线——待确认她是否**强制刷新**过 + workers.dev 在她手机运营商下通不通（验证链接见对话）。
+
 **H13. 存储根治后半程 + 重启对话**
 - **主聊天/小手机消息图片也迁 IndexedDB**（她的"存储满"警告一直跳＝大头在这）：发送时 `putImgRef('cimg'/'pimg', msgId, dataUrl)` 只存 `idb:` 引用（`lib/imgRef.ts`）；显示 IdbImg；lightbox 点击时 resolve；vision 喂图前 respond 里批量 resolve（Chat/Phone 都改了）；AppLayout 挂一次性迁移（flag `img-mig2`，两库都搬）。chatStore/phoneStore 加 `replaceSessions`。截图导出的离屏树也用 IdbImg（异步加载，选完消息到点生成之间图已就位）。
 - **戏剧 ⋮ 菜单加「♻️ 重启对话」**（`clearMessages`）：清空消息+摘要+summaryAt，角色/世界观/世界书保留——聊崩了不用重建剧场。

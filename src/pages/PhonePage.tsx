@@ -14,6 +14,7 @@ import { cleanReply } from '@/lib/cleanReply'
 import { chatComplete } from '@/api/llm'
 import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { fileToDataUrl } from '@/lib/image'
+import { useImgSrc } from '@/lib/useImgSrc'
 import IdbImg from '@/components/ui/IdbImg'
 import { putImgRef, resolveImgRef } from '@/lib/imgRef'
 import Avatar from '@/components/ui/Avatar'
@@ -92,6 +93,7 @@ export default function PhonePage() {
   const ttsEnabled = useTtsStore((s) => s.config.enabled)
   const { play, playingId, loadingId } = useTtsPlayback()
   const persona = usePhoneStore((s) => s.persona)
+  const bgImgSrc = useImgSrc(persona.bgImg)
   const sessions = usePhoneStore((s) => s.sessions)
   const activeId = usePhoneStore((s) => s.activeId)
   const setMessages = usePhoneStore((s) => s.setMessages)
@@ -523,11 +525,11 @@ export default function PhonePage() {
   return (
     <div className="relative flex h-full flex-col pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       {/* 小手机背景：自定义图优先（铺满+柔白让消息清楚）；否则在主题背景上盖柔白，像一块手机屏 */}
-      {persona.bgImg ? (
+      {bgImgSrc ? (
         <>
           <div
             className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-center"
-            style={{ backgroundImage: `url(${persona.bgImg})` }}
+            style={{ backgroundImage: `url(${bgImgSrc})` }}
           />
           <div
             className="pointer-events-none absolute inset-0 -z-10"

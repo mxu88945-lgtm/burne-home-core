@@ -1,11 +1,21 @@
 /**
  * 外观自定义（Zustand，本地持久化）：目前为聊天背景图。
- * 图片以压缩后的 dataURL 形式只存在本设备，不上传、不进仓库。
+ * 图片只存本设备，不上传、不进仓库。
+ * 背景图本体存 IndexedDB（`idb:` 引用），不占 localStorage 的 5MB（写满会静默丢对话，见 HANDOFF H0）。
  */
 
 import { create } from 'zustand'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
+import { putImgRef } from '@/lib/imgRef'
+import { idbDel } from '@/lib/idb'
+
+/** dataURL 背景 → 存 IDB 换成 `idb:` 引用；顺手删旧图。每次换新 key，保证引用字符串变化触发重渲。 */
+function divertBg(next: string, prev: string): string {
+  if (prev.startsWith('idb:') && next !== prev) void idbDel(prev.slice(4))
+  if (!next.startsWith('data:')) return next
+  return putImgRef('bg', `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, next)
+}
 
 export interface Appearance {
   /** 聊天背景图（dataURL，空则用主题底色） */
@@ -45,7 +55,10 @@ interface AppearanceState {
 export const useAppearanceStore = create<AppearanceState>((set, get) => ({
   appearance: { ...DEFAULT_APPEARANCE, ...readJSON<Partial<Appearance>>(STORAGE_KEYS.appearance, {}) },
   update: (patch) => {
-    const appearance = { ...get().appearance, ...patch }
+    const prev = get().appearance
+    if (typeof patch.chatBg === 'string') patch = { ...patch, chatBg: divertBg(patch.chatBg, prev.chatBg) }
+    if (typeof patch.dramaBg === 'string') patch = { ...patch, dramaBg: divertBg(patch.dramaBg, prev.dramaBg) }
+    const appearance = { ...prev, ...patch }
     writeJSON(STORAGE_KEYS.appearance, appearance)
     set({ appearance })
   },

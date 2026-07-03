@@ -5,6 +5,7 @@ import Pet from '@/components/ui/Pet'
 import MusicPlayer from '@/components/ui/MusicPlayer'
 import { useChatStore } from '@/store/chatStore'
 import { usePhoneStore } from '@/store/phoneStore'
+import { useAppearanceStore } from '@/store/appearanceStore'
 import { idbSet } from '@/lib/idb'
 
 export default function AppLayout() {
@@ -56,6 +57,35 @@ export default function AppLayout() {
         localStorage.setItem(KEY, '1')
       } catch (e) {
         console.warn('[img-mig2] 迁移失败，下次再试', e)
+      }
+    })()
+  }, [])
+
+  // 一次性迁移：三张全屏背景图（聊天/戏剧/小手机）→ IndexedDB。
+  // 每张压缩后仍 200~500KB，三张就能吃掉配额一大截。先确认写进 IDB 再瘦 localStorage，不丢图。
+  useEffect(() => {
+    const KEY = 'burne-home-core:img-mig3'
+    if (localStorage.getItem(KEY)) return
+    void (async () => {
+      try {
+        const ap = useAppearanceStore.getState().appearance
+        for (const field of ['chatBg', 'dramaBg'] as const) {
+          const v = ap[field]
+          if (v.startsWith('data:')) {
+            const k = `bg:mig-${field}`
+            await idbSet(k, v)
+            useAppearanceStore.getState().update({ [field]: `idb:${k}` })
+          }
+        }
+        const ph = usePhoneStore.getState()
+        if (ph.persona.bgImg?.startsWith('data:')) {
+          const k = 'bg:mig-phone'
+          await idbSet(k, ph.persona.bgImg)
+          ph.setPersona({ bgImg: `idb:${k}` })
+        }
+        localStorage.setItem(KEY, '1')
+      } catch (e) {
+        console.warn('[img-mig3] 迁移失败，下次再试', e)
       }
     })()
   }, [])

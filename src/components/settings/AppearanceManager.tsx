@@ -6,6 +6,7 @@ import { usePersonaStore } from '@/store/personaStore'
 import { usePetStore, PET_CHOICES } from '@/store/petStore'
 import { useMusicStore } from '@/store/musicStore'
 import { fileToDataUrl } from '@/lib/image'
+import { useImgSrc } from '@/lib/useImgSrc'
 import Avatar from '@/components/ui/Avatar'
 import PetCritter, { type PetVariant } from '@/components/ui/PetCritter'
 
@@ -71,6 +72,8 @@ export default function AppearanceManager() {
   const musicEnabled = useMusicStore((s) => s.enabled)
   const setMusicEnabled = useMusicStore((s) => s.setEnabled)
   const [err, setErr] = useState('')
+  const chatBgSrc = useImgSrc(appearance.chatBg)
+  const dramaBgSrc = useImgSrc(appearance.dramaBg)
 
   return (
     <div className="space-y-3">
@@ -179,8 +182,8 @@ export default function AppearanceManager() {
           <div
             className="h-14 w-14 shrink-0 rounded-xl bg-cover bg-center"
             style={{
-              backgroundImage: appearance.chatBg ? `url(${appearance.chatBg})` : undefined,
-              background: appearance.chatBg ? undefined : 'var(--card-strong)',
+              backgroundImage: chatBgSrc ? `url(${chatBgSrc})` : undefined,
+              backgroundColor: chatBgSrc ? undefined : 'var(--card-strong)',
               border: '1px solid var(--card-border)',
             }}
           />
@@ -348,8 +351,8 @@ export default function AppearanceManager() {
           <div
             className="h-14 w-14 shrink-0 rounded-xl bg-cover bg-center"
             style={{
-              backgroundImage: appearance.dramaBg ? `url(${appearance.dramaBg})` : undefined,
-              background: appearance.dramaBg ? undefined : 'var(--card-strong)',
+              backgroundImage: dramaBgSrc ? `url(${dramaBgSrc})` : undefined,
+              backgroundColor: dramaBgSrc ? undefined : 'var(--card-strong)',
               border: '1px solid var(--card-border)',
             }}
           />

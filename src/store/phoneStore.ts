@@ -10,6 +10,8 @@
 import { create } from 'zustand'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
+import { putImgRef } from '@/lib/imgRef'
+import { idbDel } from '@/lib/idb'
 
 export interface PhoneMsg {
   id: string
@@ -129,6 +131,14 @@ interface PhoneState {
 export const usePhoneStore = create<PhoneState>((set, get) => ({
   ...load(),
   setPersona: (p) => {
+    // 聊天背景图本体进 IndexedDB，localStorage 只留 `idb:` 引用（5MB 事故根治，见 HANDOFF H0）
+    const prevBg = get().persona.bgImg || ''
+    if ('bgImg' in p && p.bgImg !== prevBg) {
+      if (prevBg.startsWith('idb:')) void idbDel(prevBg.slice(4))
+      if (p.bgImg && p.bgImg.startsWith('data:')) {
+        p = { ...p, bgImg: putImgRef('bg', `phone-${Date.now()}`, p.bgImg) }
+      }
+    }
     const persona = { ...get().persona, ...p }
     save({ persona, sessions: get().sessions, activeId: get().activeId })
     set({ persona })
