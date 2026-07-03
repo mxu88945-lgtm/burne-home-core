@@ -7,7 +7,16 @@
  * 好处：不再依赖用户自己的 Worker，人人可用。
  */
 
-const HOSTS = ['files.catbox.moe', 'catbox.moe', 'i.imgur.com', 'files.charhub.io', 'avatars.charhub.io']
+const HOSTS = [
+  'files.catbox.moe',
+  'catbox.moe',
+  'i.imgur.com',
+  'files.charhub.io',
+  'avatars.charhub.io',
+  'iili.io', // imgloc.com / freeimage.host 的图片 CDN
+  'i.imgs.ovh',
+  'imgloc.com',
+]
 const HOST_RE = new RegExp(
   `https://(?:${HOSTS.map((h) => h.replace(/\./g, '\\.')).join('|')})/[^\\s"'()<>]+`,
   'g',

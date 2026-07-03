@@ -354,6 +354,34 @@ export default function DramaRoom() {
     return (await idbGet<string>(src.slice(4))) || ''
   }
 
+  /** 发一条指定文本的用户消息 + 触发自动回复（供开场白卡的 /say 快捷按钮调用） */
+  function sendText(text: string) {
+    const t = text.trim()
+    if (!t || busyChar) return
+    addMessage(sc.id, { id: dramaMsgId(), who: meChar?.id ?? '__me__', text: t, at: now() })
+    if (effectiveAuto) {
+      if (aiChars.length <= 1) {
+        const tgt = autoTarget()
+        if (tgt) void respond(tgt)
+      } else {
+        void pickSpeaker(t).then((tgt) => {
+          if (tgt) void respond(tgt)
+        })
+      }
+    }
+  }
+  // 用 ref 存最新的 sendText，避免 window 监听器闭包拿到旧的 scene/角色
+  const sendTextRef = useRef(sendText)
+  sendTextRef.current = sendText
+  useEffect(() => {
+    function onCardSay(e: MessageEvent) {
+      const d = e.data as { __bwCardSay?: unknown }
+      if (d && typeof d.__bwCardSay === 'string') sendTextRef.current(d.__bwCardSay)
+    }
+    window.addEventListener('message', onCardSay)
+    return () => window.removeEventListener('message', onCardSay)
+  }, [])
+
   /** 发送：@角色名＝让该角色接话；1v1 发完自动让那个 AI 回；群聊照旧 */
   function onSend() {
     const t = draft.trim()

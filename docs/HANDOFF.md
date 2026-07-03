@@ -111,7 +111,12 @@
 - 🐛 **整卡变 GitHub Pages 404**（她："渲染开场白开始有显示，发一条消息后变成仓库页面"）：根因＝`htmlCard.tsx` 的 sandbox `srcDoc` iframe **继承父页 github.io 的 base URL**，卡片里带**相对地址**的链接/表单/`<meta refresh>` 一跳转就解析成 `github.io/burne-home-core/xxx` → 仓库 404 页盖住整卡。修：卡片脚本前先注入**导航守卫**——拦截会离开本卡的链接点击（放行 `#` 锚点和 `javascript:`）、表单提交、`window.open`，并剥掉 `<meta http-equiv=refresh>`。Playwright 实测：带守卫点相对链接不跳转，不带则跳走。⚠️ 守卫拦不住脚本里的 `location.href=`（sandbox 里 location 不可改写），若某卡仍跳需要她发卡文件、精准掐它那段脚本。
 - 会话列表预览去原始码：`DramaRoom` 预览行原样 `.slice(26)` 会露 `<div style="max-width:340`，改成先剥 ```代码围栏/`<标签>`/markdown 记号再截。
 - ⋮ 菜单「♻️ 重启对话（清空聊天记录）」→ 按她要求简化成「♻️ 重启对话」（确认弹窗里本就写明清空范围）。
-- ⏭ 待办：祁漾卡的图挂在 **imgloc.com**（不在 weserv 改写名单里，显示"image not found"）。要么那些图已被删、要么需把 imgloc 的图片域名加进 `imgProxy.ts`——等她发卡文件确认真实图址再加。
+- ⏭ 待办：祁漾卡的图挂在 **imgloc.com**（不在 weserv 改写名单里，显示"image not found"）。要么那些图已被删、要么需把 imgloc 的图片域名加进 `imgProxy.ts`——等她发卡文件确认真实图址再加。 → **H18 已解决**。
+
+**H18. 拿到祁漾卡文件，定位并做完整修复（快捷回复按钮 + 图床）**
+- 解析 388.png 拿到真相：卡里那些「关注/送礼/发弹幕」按钮全是 `<a href="/say *动作文本*">`——**SillyTavern 的 `/say` 快捷回复约定**（点了把「动作文本」当用户消息发出去）。我们不是 Tavern，`/say ...` 是相对地址 → 沙箱继承 github.io base → 点一下就 404 盖住整卡（就是 H17 那个 bug 的真身，她说的"发一条消息"其实是点了卡里的按钮）。
+- 升级 H17 守卫：不只是拦，而是把 `/say|/send 文本` 提取出来 `postMessage({__bwCardSay})` 给父页；`DramaRoom` 加 window 监听 + `sendText()` 代发（用 ref 存最新闭包防 scene 过期，busyChar 时忽略防打断）。→ 点关注/送礼真能发出动作、祁漾会回应了。Playwright 实测：/say 提取正确、点击不跳转、# 锚点和 javascript: 放行。
+- 卡图真实域名是 **iili.io**（imgloc 的图片 CDN，18 张）+ **i.imgs.ovh**（8 张），已加进 `imgProxy.ts` 的 weserv 名单（顺带 imgloc.com）。字体走 fonts.googleapis.com 不管（图片代理只管图，字体回落系统字）。若个别图仍"not found"＝原图已从图床删除，非代码问题。
 
 **H16. 卡图蓝问号终于闭环：改走 images.weserv.nl（放弃自建 Worker /img）**
 - 真相：她能打开 `workers.dev` 拿到 Worker 的 JSON（`{"error":"upstream 520"}`）→ **运营商没墙 workers.dev**，但 Worker 去抓 catbox 时 **catbox 回 520**（catbox 挡 Cloudflare Worker/数据中心流量）。用她卡里**真实存在**的图测也 520，坐实是 catbox 拒绝 Worker，不是我示例 URL 假（`2jqk09.png` 确实是我瞎编的）。
