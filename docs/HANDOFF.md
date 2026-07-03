@@ -107,6 +107,12 @@
 - 三层修复（5775789）：① `writeJSON` 返回 boolean + 失败广播 `bw:storage-full`，main.tsx 全屏 alert（每分钟至多一次）；② 戏剧消息图片改存 IndexedDB（`dmimg:{msgId}`，消息里只留 `idb:` 引用；`components/ui/IdbImg.tsx` 异步显示；respond 喂 vision 前 `resolveImgSrc` 解析回 dataURL）；③ DramaRoom 挂载时一次性迁移历史消息图片（标记 `burne-home-core:drama-img-mig`）。
 - ⚠️ **未完的根治（下窗优先做）**：主聊天 Chat / 小手机 Phone 的消息图片还是 dataURL 存 localStorage；整个对话库（chat/phone/drama 的 messages）最好整体迁 IndexedDB；整包备份也要把 IDB 图片包含进去（现在只含 localStorage）。丢掉的对话找不回来，靠剧情摘要兜底。
 
+**H16. 卡图蓝问号终于闭环：改走 images.weserv.nl（放弃自建 Worker /img）**
+- 真相：她能打开 `workers.dev` 拿到 Worker 的 JSON（`{"error":"upstream 520"}`）→ **运营商没墙 workers.dev**，但 Worker 去抓 catbox 时 **catbox 回 520**（catbox 挡 Cloudflare Worker/数据中心流量）。用她卡里**真实存在**的图测也 520，坐实是 catbox 拒绝 Worker，不是我示例 URL 假（`2jqk09.png` 确实是我瞎编的）。
+- 换方案：`lib/imgProxy.ts` 不再改写到自己的 Worker，改写到成熟图片 CDN **`https://images.weserv.nl/?url=<去掉 https:// 的主机名+路径>`**。她实测该 CDN 在国内能直连、且抓 catbox 正常出图（"一只小狗🐶"）。**好处：不再依赖用户配 Worker，人人可用**；她也不用再重部署 Worker。
+- proxyCardImages 第二参数 workerUrl 已弃用（保留签名兼容 dramaRich 调用）。Worker 的 `/img` 端点留着无害（没人用了）。
+- ⏭ 若哪天 weserv 也抽风：备选是给 Worker 的 upstream fetch 加浏览器 UA/Referer 再试（要她重部署），或换其它图片代理。
+
 **H15. 第二波搬家：贴纸图 + 消息内嵌贴纸 + 全部头像图（她的体检截图定案：93% 满）**
 - 体检面板立功：总 4.67/5MB。大头＝小手机 1.57MB（消息里每条贴纸都内嵌整张 dataURL！）、戏剧 1.2MB、角色卡库 824KB、**表情贴纸库 738KB**、我的资料 131KB（俩头像）。
 - 全部迁 IndexedDB：**Avatar 组件内建 `useImgSrc` 解析**（全 App 头像的唯一渲染口，一处改处处生效；⚠️ 调用方 style 的 `background` 简写在组件里转成 `backgroundColor`，React 简写/单属性切换会清空样式，别改回）。store 层拦截：stickerStore.add（`simg:`）、profileStore.setProfile（avatarA/BImg→`av:`）、phoneStore.setPersona（avatarImg）、dramaStore/charLibStore addChar+updateChar（`divertAvatar`，在 lib/imgRef.ts）。**头像会被复制到多库共享同一 key，所以换头像不删旧 idb key**（孤儿几十 KB 无所谓），只有背景图是独占才删。
