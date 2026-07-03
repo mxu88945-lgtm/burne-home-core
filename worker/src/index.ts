@@ -94,6 +94,29 @@ export default {
       if (path === '/stt' && req.method === 'POST') return await handleStt(req, env)
       if (path === '/clone' && req.method === 'POST') return await handleClone(req, env)
       if (path === '/image' && req.method === 'POST') return await handleImage(req, env)
+      // 图片中转：角色卡里的海外图床（catbox 等）国内连不上，让 Worker 代取。
+      // GET /img?u=<encodeURIComponent(https://files.catbox.moe/xxx.png)>
+      if (path === '/img' && req.method === 'GET') {
+        const u = url.searchParams.get('u') || ''
+        let target: URL
+        try {
+          target = new URL(u)
+        } catch {
+          return json({ error: 'bad url' }, { status: 400 })
+        }
+        // 只放行常见卡图床，避免变成任意站点的免费代理
+        const ALLOW_HOSTS = ['files.catbox.moe', 'catbox.moe', 'i.imgur.com', 'files.charhub.io', 'avatars.charhub.io']
+        if (target.protocol !== 'https:' || !ALLOW_HOSTS.includes(target.hostname)) {
+          return json({ error: 'host not allowed' }, { status: 403 })
+        }
+        const r = await fetch(target.toString(), { cf: { cacheEverything: true, cacheTtl: 86400 } } as RequestInit)
+        if (!r.ok) return json({ error: `upstream ${r.status}` }, { status: 502 })
+        const ct = r.headers.get('Content-Type') || 'application/octet-stream'
+        if (!/^image\//i.test(ct)) return json({ error: 'not an image' }, { status: 502 })
+        return new Response(r.body, {
+          headers: { ...CORS, 'Content-Type': ct, 'Cache-Control': 'public, max-age=86400' },
+        })
+      }
 
       const mGet = path.match(/^\/spaces\/([^/]+)\/memories$/)
       if (mGet && req.method === 'GET') {

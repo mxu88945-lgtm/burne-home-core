@@ -11,6 +11,8 @@ import { memo, useState, type ReactNode } from 'react'
 import { HtmlCard, isRichHtml } from '@/lib/htmlCard'
 import { Math, renderMath } from '@/lib/mathRender'
 import { applyMacros } from '@/lib/macros'
+import { proxyCardImages } from '@/lib/imgProxy'
+import { useSyncStore } from '@/store/syncStore'
 import { SafeHtml, hasInlineHtml, isFullHtmlDoc } from '@/lib/safeHtml'
 
 /** 状态栏行的起始标记（emoji） */
@@ -147,8 +149,9 @@ function unwrapHtmlFence(s: string): string {
 export const DramaRich = memo(DramaRichInner)
 
 function DramaRichInner({ text: raw, user, char }: { text: string; user?: string; char?: string }) {
-  // 先把 {{user}}/{{char}} 换成真实名字（卡里常用，尤其开场白 HTML）
-  const text = applyMacros(unwrapHtmlFence(raw), { user, char })
+  const workerUrl = useSyncStore((s) => s.config.workerUrl)
+  // 先把 {{user}}/{{char}} 换成真实名字（卡里常用，尤其开场白 HTML）；再把海外图床改走 Worker 中转
+  const text = proxyCardImages(applyMacros(unwrapHtmlFence(raw), { user, char }), workerUrl)
   const fenced = text.includes('```')
   // 整段 HTML 文档（带 <style>/<html>/<script> 的开场白/播放器）→ 沙箱 iframe 真渲染
   if (!fenced && isFullHtmlDoc(text)) return <HtmlCard html={text} />
