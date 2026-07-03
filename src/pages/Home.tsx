@@ -20,21 +20,34 @@ function QuickEntry({
   Icon,
   title,
   sub,
+  tint,
   onClick,
 }: {
   to: string
   Icon: ComponentType<{ className?: string }>
   title: string
   sub: string
+  /** 专属主色（hex），做图标牌的柔和渐变 */
+  tint: string
   onClick?: () => void
 }) {
   return (
     <Link
       to={to}
       onClick={onClick}
-      className="glass flex flex-col items-center gap-1.5 rounded-2xl px-4 py-5 text-center transition active:scale-[0.98]"
+      className="glass flex flex-col items-center gap-2 rounded-2xl px-4 py-5 text-center transition active:scale-[0.98]"
     >
-      <Icon className="h-6 w-6 text-accent" />
+      <span
+        className="grid h-12 w-12 place-items-center rounded-2xl"
+        style={{
+          background: `linear-gradient(135deg, ${tint}33, ${tint}14)`,
+          boxShadow: `0 6px 16px ${tint}26`,
+          border: `1px solid ${tint}33`,
+          color: tint,
+        }}
+      >
+        <Icon className="h-6 w-6" />
+      </span>
       <span className="text-sm font-medium text-ink">{title}</span>
       <span className="text-[11px] text-muted">{sub}</span>
     </Link>
@@ -86,8 +99,13 @@ export default function Home() {
   return (
     <div className="home-glassy space-y-3">
       {/* 情侣主视觉 */}
-      <section className="glass-strong rounded-3xl px-6 py-6 text-center">
-        <div className="flex items-center justify-center gap-5">
+      <section className="glass-strong relative overflow-hidden rounded-3xl px-6 py-6 text-center">
+        {/* 头像后一层柔光晕，暖一点、不再白惨惨 */}
+        <div
+          className="pointer-events-none absolute left-1/2 top-0 h-40 w-64 -translate-x-1/2 -translate-y-1/3 rounded-full"
+          style={{ background: 'radial-gradient(circle, var(--accent), transparent 68%)', opacity: 0.16 }}
+        />
+        <div className="relative flex items-center justify-center gap-5">
           <Avatar
             img={profile.avatarAImg}
             emoji={profile.avatarA}
@@ -121,10 +139,22 @@ export default function Home() {
           const norm = v.trim().replace(/[./]/g, '-')
           if (norm) setProfile({ anniversary: norm })
         }}
-        className="glass w-full rounded-3xl px-6 py-6 text-center transition active:scale-[0.99]"
+        className="glass relative w-full overflow-hidden rounded-3xl px-6 py-6 text-center transition active:scale-[0.99]"
       >
-        <div className="text-5xl font-semibold text-accent">{days}</div>
-        <div className="label mt-1">一起的 {days} 天</div>
+        <div
+          className="mx-auto text-6xl font-bold leading-none"
+          style={{
+            background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
+            WebkitBackgroundClip: 'text',
+            backgroundClip: 'text',
+            color: 'transparent',
+          }}
+        >
+          {days}
+        </div>
+        <div className="label mt-2">
+          <span className="text-accent">♡</span> 一起的 {days} 天
+        </div>
         <div className="mt-1 flex items-center justify-center gap-1 text-[11px] text-muted">
           Since {profile.anniversary}
           <EditIcon className="h-3 w-3" />
@@ -134,30 +164,38 @@ export default function Home() {
       {/* 生理期日历卡（两块居中靠拢，不疏远） */}
       <Link
         to="/calendar"
-        className="glass flex items-center justify-center gap-5 rounded-3xl px-6 py-5 transition active:scale-[0.99]"
+        className="glass flex items-center justify-center gap-4 rounded-3xl px-6 py-5 transition active:scale-[0.99]"
       >
+        <span
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl"
+          style={{
+            background: 'linear-gradient(135deg, #f7a8c433, #f7a8c414)',
+            border: '1px solid #f7a8c433',
+            color: '#ef7a9b',
+          }}
+        >
+          <HeartIcon className="h-5 w-5" />
+        </span>
         <div className="text-right">
-          <div className="label flex items-center justify-end gap-1.5">
-            生理期 <HeartIcon className="h-3.5 w-3.5 text-accent" />
-          </div>
+          <div className="label">生理期</div>
           <div className="mt-1 text-[11px] text-muted">{pSub}</div>
         </div>
-        <div className="text-2xl font-semibold text-accent">{pMain}</div>
+        <div className="text-2xl font-semibold" style={{ color: '#ef7a9b' }}>{pMain}</div>
       </Link>
 
       {/* 小手机 + 今天聊聊（并排两块） */}
       <section className="grid grid-cols-2 gap-3">
-        <QuickEntry to="/phone" Icon={PhoneIcon} title="小手机" sub="像发消息一样聊 · 短句" />
-        <QuickEntry to="/chat" Icon={ChatIcon} title="今天聊聊" sub="说点什么吧" onClick={startBlank} />
+        <QuickEntry to="/phone" Icon={PhoneIcon} title="小手机" sub="像发消息一样聊 · 短句" tint="#6aa9f0" />
+        <QuickEntry to="/chat" Icon={ChatIcon} title="今天聊聊" sub="说点什么吧" tint="#f48fb1" onClick={startBlank} />
       </section>
 
       {/* 快捷入口（四个平铺） */}
       <section className="grid grid-cols-2 gap-3">
-        <QuickEntry to="/memories" Icon={DatabaseIcon} title="我们的记忆" sub="摘要 · 核心 · 全部" />
-        <QuickEntry to="/reading" Icon={BookIcon} title="一起看书" sub="和 TA 共读一本书" />
+        <QuickEntry to="/memories" Icon={DatabaseIcon} title="我们的记忆" sub="摘要 · 核心 · 全部" tint="#b191e0" />
+        <QuickEntry to="/reading" Icon={BookIcon} title="一起看书" sub="和 TA 共读一本书" tint="#e6a760" />
         {/* 有剧场→直接进聊天房间（☰ 抽屉里切对话）；还没有→落地管理页新建 */}
-        <QuickEntry to={hasDrama ? '/drama/room' : '/drama'} Icon={UsersIcon} title="戏剧" sub="多角色群聊 · 扮演" />
-        <QuickEntry to="/settings" Icon={GearIcon} title="设置" sub="同步 · 备份 · 隐私" />
+        <QuickEntry to={hasDrama ? '/drama/room' : '/drama'} Icon={UsersIcon} title="戏剧" sub="多角色群聊 · 扮演" tint="#ef7a9b" />
+        <QuickEntry to="/settings" Icon={GearIcon} title="设置" sub="同步 · 备份 · 隐私" tint="#5cb6a6" />
       </section>
 
       <button
