@@ -35,6 +35,9 @@ export default function CharLibrary() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [editing, setEditing] = useState<LibChar | 'new' | null>(null)
   const [err, setErr] = useState('')
+  const [urlOpen, setUrlOpen] = useState(false)
+  const [urlInput, setUrlInput] = useState('')
+  const [urlLoading, setUrlLoading] = useState(false)
 
   async function onImport(file: File) {
     setErr('')
@@ -51,6 +54,28 @@ export default function CharLibrary() {
       })
     } catch (e) {
       setErr(`导入角色卡失败：${(e as Error).message}`)
+    }
+  }
+
+  async function onImportUrl() {
+    const url = urlInput.trim()
+    if (!url) return
+    setErr('')
+    setUrlLoading(true)
+    try {
+      const res = await fetch(url, { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
+      const type = blob.type || (url.toLowerCase().includes('.png') ? 'image/png' : 'application/json')
+      const rawName = url.split('/').pop()?.split('?')[0] || 'character-card.json'
+      const name = decodeURIComponent(rawName)
+      await onImport(new File([blob], name, { type }))
+      setUrlInput('')
+      setUrlOpen(false)
+    } catch (e) {
+      setErr(`从链接导入失败：${(e as Error).message}`)
+    } finally {
+      setUrlLoading(false)
     }
   }
 
@@ -105,6 +130,9 @@ export default function CharLibrary() {
           <button onClick={() => fileRef.current?.click()} className="glass rounded-full px-3.5 py-2 text-[13px] text-ink">
             导入角色卡
           </button>
+          <button onClick={() => setUrlOpen(true)} className="glass rounded-full px-3.5 py-2 text-[13px] text-ink">
+            URL
+          </button>
         </div>
       </div>
       <div className="px-1">
@@ -124,6 +152,32 @@ export default function CharLibrary() {
         }}
       />
       {err && <div className="px-1 text-[12px] text-red-500">{err}</div>}
+      {urlOpen && (
+        <div className="glass rounded-3xl p-4">
+          <div className="mb-2 text-[13px] font-medium text-ink">从 URL 导入角色卡</div>
+          <input
+            className="w-full rounded-2xl border border-line bg-white/70 px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            placeholder="粘贴 JSON / PNG 角色卡链接"
+          />
+          <div className="mt-3 flex justify-end gap-2">
+            <button
+              onClick={() => {
+                setUrlOpen(false)
+                setUrlInput('')
+              }}
+              className="glass rounded-full px-4 py-2 text-[13px] text-muted"
+              disabled={urlLoading}
+            >
+              取消
+            </button>
+            <button onClick={onImportUrl} className="btn-primary rounded-full px-4 py-2 text-[13px]" disabled={urlLoading || !urlInput.trim()}>
+              {urlLoading ? '导入中...' : '导入'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {chars.length === 0 ? (
         <div className="glass rounded-3xl px-6 py-12 text-center">
