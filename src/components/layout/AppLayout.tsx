@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, type CSSProperties } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import AppHeader from './AppHeader'
 import Pet from '@/components/ui/Pet'
@@ -11,6 +11,7 @@ import { useStickerStore } from '@/store/stickerStore'
 import { useDramaStore } from '@/store/dramaStore'
 import { useCharLibStore } from '@/store/charLibStore'
 import { idbSet } from '@/lib/idb'
+import plushBg from '@/assets/themes/plush-bg'
 
 export default function AppLayout() {
   const { pathname } = useLocation()
@@ -204,7 +205,8 @@ export default function AppLayout() {
         right: 0,
         height: 'var(--app-height, 100dvh)',
         transform: 'translateY(var(--app-offset, 0px))',
-      }}
+        '--aurora-wallpaper': `url(${plushBg})`,
+      } as CSSProperties}
     >
       <div className="relative mx-auto flex h-full w-full max-w-[440px] flex-col border-line sm:border-x">
         {isHome && <AppHeader />}
