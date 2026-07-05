@@ -194,7 +194,7 @@ export default function AppLayout() {
   const isChat = pathname === '/chat' || pathname === '/phone'
 
   return (
-    // iOS PWA 默认用 100vh 吃满物理屏幕；键盘弹出时 main.tsx 才会临时改 --app-height。
+    // 滚动锁：固定壳 + 可视视口尺寸/位移，键盘弹出时整体贴住键盘上方
     <div
       className="app-bg flex flex-col overflow-hidden"
       style={{
@@ -202,9 +202,7 @@ export default function AppLayout() {
         top: 0,
         left: 0,
         right: 0,
-        bottom: 0,
-        height: 'var(--app-height, 100vh)',
-        minHeight: '100vh',
+        height: 'var(--app-height, 100dvh)',
         transform: 'translateY(var(--app-offset, 0px))',
       }}
     >
