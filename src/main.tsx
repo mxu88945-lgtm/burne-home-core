@@ -7,14 +7,23 @@ import { applyTheme, readStoredTheme } from '@/store/themeStore'
 // 渲染前先应用已保存的主题，避免首屏闪烁
 applyTheme(readStoredTheme())
 
-// 用可视视口驱动 App 尺寸/位移：键盘弹出时整体缩到键盘上方且不被顶飞
+// iOS PWA 里 visualViewport.height 容易只算到 WebKit 认可的可视区，导致底部露白。
+// 默认让外壳吃满 100vh；只有键盘真的弹出、可视区明显变矮时，才临时缩到键盘上方。
 function syncViewport() {
   const vv = window.visualViewport
-  const h = vv ? vv.height : window.innerHeight
-  const top = vv ? vv.offsetTop : 0
   const root = document.documentElement
-  root.style.setProperty('--app-height', `${Math.round(h)}px`)
-  root.style.setProperty('--app-offset', `${Math.round(top)}px`)
+  const layoutHeight = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0)
+  const visualHeight = vv ? Math.round(vv.height) : layoutHeight
+  const offsetTop = vv ? Math.round(vv.offsetTop) : 0
+  const keyboardOpen = visualHeight > 0 && layoutHeight - visualHeight > 120
+
+  if (keyboardOpen) {
+    root.style.setProperty('--app-height', `${visualHeight}px`)
+    root.style.setProperty('--app-offset', `${offsetTop}px`)
+  } else {
+    root.style.setProperty('--app-height', '100vh')
+    root.style.setProperty('--app-offset', '0px')
+  }
 }
 syncViewport()
 window.visualViewport?.addEventListener('resize', syncViewport)
