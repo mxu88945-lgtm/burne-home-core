@@ -1,8 +1,7 @@
 /**
  * 主题系统（Zustand）。
  *
- * 四套玻璃拟态主题：黛绿 / 琉璃 / 液璃 / 素白。
- * 黛绿、琉璃用整屏壁纸做背景（图在 src/assets/themes，背景由 index.css 的 .app-bg 套用）。
+ * 三套玻璃拟态主题：黛绿 / 液态玻璃 / 素白。
  * 当前主题持久化到 localStorage，并写到 <html data-theme="..."> 上，
  * 具体配色由 index.css 里的 CSS 变量定义。
  */
@@ -12,7 +11,7 @@ import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
 import sageBg from '@/assets/themes/sage-bg.jpg'
 
-export type ThemeId = 'sage' | 'aurora' | 'liquid' | 'ink'
+export type ThemeId = 'sage' | 'liquid' | 'ink'
 
 export interface ThemeMeta {
   id: ThemeId
@@ -27,30 +26,26 @@ export interface ThemeMeta {
 
 export const THEMES: ThemeMeta[] = [
   { id: 'sage', name: '黛绿', emoji: '🍃', desc: '薄荷流光 · 玻璃泡泡', swatches: ['#E5E9F2', '#D7E8D5', '#C8D5DD', '#AFC7B4', '#96B3A2'], bgImage: sageBg },
-  { id: 'aurora', name: '琉璃', emoji: '🫧', desc: '清浅少女粉 · 柔光', swatches: ['#FDF5F8', '#FCEAF2', '#FCE4EF', '#F6D4E3', '#EFC4D8'] },
-  { id: 'liquid', name: '液璃', emoji: '💧', desc: '淡彩水膜 · 液态折光', swatches: ['#F8FCFF', '#EAF7FF', '#F7ECFF', '#DFF8EF', '#F7D5E6'] },
+  { id: 'liquid', name: '液态玻璃', emoji: '💧', desc: '深水绿幕 · 水滴折光', swatches: ['#0B1B18', '#183C34', '#3F6A60', '#7C8CF2', '#DDEBE5'] },
   { id: 'ink', name: '素白', emoji: '🤍', desc: '极简中性白 · 墨黑', swatches: ['#FFFFFF', '#F2F3F4', '#E7E9EA', '#C6C9CB', '#383A3C'] },
 ]
 
-const DEFAULT_THEME: ThemeId = 'aurora'
+const DEFAULT_THEME: ThemeId = 'liquid'
 
-/** 各主题的顶部条颜色（状态栏 / theme-color）。
- *  三套统一成同一片「奶白」——和 .app-bg 顶部那条奶白渐变一致，
- *  这样切主题时状态栏永远不串色（iOS 装机版不实时刷新也无所谓）。 */
+/** 各主题的顶部条颜色（状态栏 / theme-color）。 */
 export const BAR_COLORS: Record<ThemeId, string> = {
   sage: '#f4f1ec',
-  aurora: '#f4f1ec',
-  liquid: '#f4f1ec',
+  liquid: '#10241f',
   ink: '#f4f1ec',
 }
 
 function isThemeId(v: unknown): v is ThemeId {
-  return v === 'sage' || v === 'aurora' || v === 'liquid' || v === 'ink'
+  return v === 'sage' || v === 'liquid' || v === 'ink'
 }
 
 /** 把主题写到 <html> 上，并同步 theme-color meta —— 启动时也会调用，避免闪烁。
- *  顶部状态栏色：装机版 iOS 是启动时读一次，换主题后退出重开即读到新色（index.html 预热脚本也按本地存储补一遍）。
- *  这里把 meta 节点整个换新（而非只改属性），尽量提高浏览器/部分 iOS 实时刷新的命中率。 */
+ *  老版本保存过 aurora 的用户，会在读取时自动落回新的液态玻璃主题。
+ */
 export function applyTheme(id: ThemeId) {
   document.documentElement.dataset.theme = id
   const color = BAR_COLORS[id]
