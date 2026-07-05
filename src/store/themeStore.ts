@@ -11,10 +11,10 @@ import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
 import sageBg from '@/assets/themes/sage-bg.jpg'
 
-export type ThemeId = 'sage' | 'liquid' | 'ink'
+export type ThemeId = 'sage' | 'aurora' | 'liquid' | 'ink'
 
 export interface ThemeMeta {
-  id: ThemeId
+  id: Exclude<ThemeId, 'aurora'>
   name: string
   emoji: string
   desc: string
@@ -35,19 +35,21 @@ const DEFAULT_THEME: ThemeId = 'liquid'
 /** 各主题的顶部条颜色（状态栏 / theme-color）。 */
 export const BAR_COLORS: Record<ThemeId, string> = {
   sage: '#f4f1ec',
+  aurora: '#10241f',
   liquid: '#10241f',
   ink: '#f4f1ec',
 }
 
 function isThemeId(v: unknown): v is ThemeId {
-  return v === 'sage' || v === 'liquid' || v === 'ink'
+  return v === 'sage' || v === 'aurora' || v === 'liquid' || v === 'ink'
 }
 
 /** 把主题写到 <html> 上，并同步 theme-color meta —— 启动时也会调用，避免闪烁。
  *  老版本保存过 aurora 的用户，会在读取时自动落回新的液态玻璃主题。
  */
 export function applyTheme(id: ThemeId) {
-  document.documentElement.dataset.theme = id
+  const actualId = id === 'aurora' ? 'liquid' : id
+  document.documentElement.dataset.theme = actualId
   const color = BAR_COLORS[id]
   const old = document.querySelector('meta[name="theme-color"]')
   const meta = document.createElement('meta')
@@ -59,6 +61,7 @@ export function applyTheme(id: ThemeId) {
 
 export function readStoredTheme(): ThemeId {
   const raw = readJSON<{ id?: string }>(STORAGE_KEYS.theme, {})
+  if (raw.id === 'aurora') return 'liquid'
   return isThemeId(raw.id) ? raw.id : DEFAULT_THEME
 }
 
