@@ -1,7 +1,7 @@
 /**
  * 主题系统（Zustand）。
  *
- * 三套玻璃拟态主题：黛绿 / 琉璃 / 素白。
+ * 四套玻璃拟态主题：黛绿 / 琉璃 / 液璃 / 素白。
  * 黛绿、琉璃用整屏壁纸做背景（图在 src/assets/themes，背景由 index.css 的 .app-bg 套用）。
  * 当前主题持久化到 localStorage，并写到 <html data-theme="..."> 上，
  * 具体配色由 index.css 里的 CSS 变量定义。
@@ -12,7 +12,7 @@ import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
 import sageBg from '@/assets/themes/sage-bg.jpg'
 
-export type ThemeId = 'sage' | 'aurora' | 'ink'
+export type ThemeId = 'sage' | 'aurora' | 'liquid' | 'ink'
 
 export interface ThemeMeta {
   id: ThemeId
@@ -28,6 +28,7 @@ export interface ThemeMeta {
 export const THEMES: ThemeMeta[] = [
   { id: 'sage', name: '黛绿', emoji: '🍃', desc: '薄荷流光 · 玻璃泡泡', swatches: ['#E5E9F2', '#D7E8D5', '#C8D5DD', '#AFC7B4', '#96B3A2'], bgImage: sageBg },
   { id: 'aurora', name: '琉璃', emoji: '🫧', desc: '清浅少女粉 · 柔光', swatches: ['#FDF5F8', '#FCEAF2', '#FCE4EF', '#F6D4E3', '#EFC4D8'] },
+  { id: 'liquid', name: '液璃', emoji: '💧', desc: '淡彩水膜 · 液态折光', swatches: ['#F8FCFF', '#EAF7FF', '#F7ECFF', '#DFF8EF', '#F7D5E6'] },
   { id: 'ink', name: '素白', emoji: '🤍', desc: '极简中性白 · 墨黑', swatches: ['#FFFFFF', '#F2F3F4', '#E7E9EA', '#C6C9CB', '#383A3C'] },
 ]
 
@@ -39,11 +40,12 @@ const DEFAULT_THEME: ThemeId = 'aurora'
 export const BAR_COLORS: Record<ThemeId, string> = {
   sage: '#f4f1ec',
   aurora: '#f4f1ec',
+  liquid: '#f4f1ec',
   ink: '#f4f1ec',
 }
 
 function isThemeId(v: unknown): v is ThemeId {
-  return v === 'sage' || v === 'aurora' || v === 'ink'
+  return v === 'sage' || v === 'aurora' || v === 'liquid' || v === 'ink'
 }
 
 /** 把主题写到 <html> 上，并同步 theme-color meta —— 启动时也会调用，避免闪烁。
