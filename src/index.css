@@ -50,6 +50,28 @@
   --bar: rgba(255, 255, 255, 0.2);
 }
 
+/* 💧 液璃 Liquid —— 更透明的淡彩水膜 + 边缘折光 */
+[data-theme='liquid'] {
+  --bg-to: #eef8fa;
+  --bg-mesh:
+    radial-gradient(72% 48% at 12% 22%, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0) 62%),
+    radial-gradient(62% 44% at 88% 18%, rgba(233, 245, 255, 0.92) 0%, rgba(233, 245, 255, 0) 60%),
+    radial-gradient(62% 48% at 18% 78%, rgba(219, 250, 235, 0.72) 0%, rgba(219, 250, 235, 0) 62%),
+    radial-gradient(70% 52% at 82% 82%, rgba(250, 218, 235, 0.66) 0%, rgba(250, 218, 235, 0) 62%),
+    linear-gradient(145deg, #f8fcff 0%, #eef8fb 42%, #f8f0f8 100%);
+  --text: #52606a;
+  --text-soft: #98a6af;
+  --label: #aab7c0;
+  --accent: #d978a4;
+  --accent-2: #8ec9dc;
+  --card: rgba(255, 255, 255, 0.24);
+  --card-strong: rgba(255, 255, 255, 0.38);
+  --card-border: rgba(255, 255, 255, 0.82);
+  --shadow: rgba(94, 136, 154, 0.16);
+  --on-accent: #fff;
+  --bar: rgba(255, 255, 255, 0.18);
+}
+
 /* 🤍 素白 Ink —— 极简中性白 + 墨黑（编辑器纸感，无暖粉） */
 [data-theme='ink'] {
   --bg-to: #e6e8ea;
@@ -139,6 +161,40 @@ body {
       inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
+  [data-theme='liquid'] .glass,
+  [data-theme='liquid'] .glass-strong {
+    position: relative;
+    overflow: hidden;
+    border-color: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(28px) saturate(1.7) contrast(1.03);
+    -webkit-backdrop-filter: blur(28px) saturate(1.7) contrast(1.03);
+    box-shadow:
+      0 18px 50px var(--shadow),
+      inset 0 1px 0 rgba(255, 255, 255, 0.82),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.28);
+  }
+  [data-theme='liquid'] .glass::before,
+  [data-theme='liquid'] .glass-strong::before {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.12) 38%, rgba(255, 255, 255, 0) 58%),
+      radial-gradient(90% 55% at 12% 0%, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0) 62%);
+    opacity: 0.72;
+  }
+  [data-theme='liquid'] .glass::after,
+  [data-theme='liquid'] .glass-strong::after {
+    content: '';
+    pointer-events: none;
+    position: absolute;
+    inset: 1px;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.38);
+  }
+
   /* 主页：卡片更薄更透视（壁纸透出更多；靠大模糊保证文字仍清楚） */
   .home-glassy .glass {
     background: rgba(255, 255, 255, 0.12);
@@ -156,6 +212,12 @@ body {
     background: var(--bar);
     backdrop-filter: blur(16px) saturate(1.3);
     -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  }
+  [data-theme='liquid'] .glass-bar {
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(24px) saturate(1.6);
+    -webkit-backdrop-filter: blur(24px) saturate(1.6);
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.36);
   }
 
   /* 衬线斜体浪漫标题 */
