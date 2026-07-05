@@ -105,6 +105,26 @@ export interface ChatResult {
   reasoning?: string
 }
 
+const LONG_STORY_SUMMARY_SYS =
+  '你是角色扮演剧情档案助手。只输出摘要正文，不要解释。按五节组织：' +
+  '【人物与关系】记录主要人物、当前关系、关系阶段、态度变化与不可忘记的人设边界；' +
+  '【长期重要线索】用条目保留会影响后续剧情的伏笔、秘密、旧伤、约定、物品、势力冲突、未揭开的误会；' +
+  '【已发生的关键剧情】按时间顺序概括已经发生且会影响后续的事件，只保留关键因果；' +
+  '【当前情境】记录最新场景、时间地点、在场人物、正在进行的冲突或目标；' +
+  '【待解决的悬念/下一步】记录还没解决的问题、可继续推进的剧情钩子。' +
+  '硬性要求：保留所有关键事实与设定，不要编造，不要擅自改变既定设定；旧线索仍重要就必须继续保留，不要被新剧情冲掉；' +
+  '如果信息很多，宁可写得稍长，也不要丢掉人物关系、关键线索和当前处境。建议 900 到 1400 字。'
+
+function normalizeSummaryRequest(system: string, maxTokens: number) {
+  if (
+    system.includes('角色扮演剧情记录助手') ||
+    system.includes('角色扮演剧情档案助手')
+  ) {
+    return { system: LONG_STORY_SUMMARY_SYS, maxTokens: Math.max(maxTokens, 2400) }
+  }
+  return { system, maxTokens }
+}
+
 export interface StreamCallbacks {
   /** 思考增量（reasoning / reasoning_content 流） */
   onReasoning?: (delta: string) => void
@@ -135,7 +155,9 @@ export async function chatCompleteStream(
     return r
   }
 
-  const maxTokens = opts.maxTokens ?? 1024
+  const normalized = normalizeSummaryRequest(system, opts.maxTokens ?? 1024)
+  const maxTokens = normalized.maxTokens
+  system = normalized.system
   const isOpenRouter = /openrouter\.ai/i.test(ch.baseUrl)
   const model =
     opts.webSearch && isOpenRouter && !/:online$/.test(ch.model) ? `${ch.model}:online` : ch.model
@@ -224,7 +246,9 @@ export async function chatComplete(
   system: string,
   opts: ChatOptions = {}
 ): Promise<ChatResult> {
-  const maxTokens = opts.maxTokens ?? 1024
+  const normalized = normalizeSummaryRequest(system, opts.maxTokens ?? 1024)
+  const maxTokens = normalized.maxTokens
+  system = normalized.system
   // 经 Worker 中转：把渠道配置交给自己的 Worker 调用
   if (ch.viaWorker) {
     if (!opts.workerUrl)
