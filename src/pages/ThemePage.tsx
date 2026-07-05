@@ -19,6 +19,10 @@ export default function ThemePage() {
       <div className="space-y-3">
         {THEMES.map((t) => {
           const active = t.id === theme
+          const previewBackground = t.bgImage
+            ? `linear-gradient(rgba(255,255,255,.18), rgba(255,255,255,.18)), url(${t.bgImage})`
+            : `linear-gradient(120deg, ${t.swatches.join(', ')})`
+
           return (
             <button
               key={t.id}
@@ -26,21 +30,16 @@ export default function ThemePage() {
               className="glass w-full overflow-hidden rounded-3xl p-3 text-left"
               style={{ borderColor: active ? 'var(--accent)' : 'var(--card-border)' }}
             >
-              {/* 配色预览条（有壁纸的主题直接显示壁纸） */}
+              {/* 配色预览条：用 CSS 背景承载壁纸，避免 iOS/PWA 把 dataURL img 画成坏图标。 */}
               <div
                 className="relative h-20 w-full overflow-hidden rounded-2xl"
                 style={{
-                  background: `linear-gradient(120deg, ${t.swatches.join(', ')})`,
+                  background: previewBackground,
+                  backgroundSize: t.bgImage ? 'cover' : undefined,
+                  backgroundPosition: t.bgImage ? 'center' : undefined,
                   boxShadow: 'inset 0 1px 0 rgba(255,255,255,.5)',
                 }}
               >
-                {t.bgImage && (
-                  <img
-                    src={t.bgImage}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
-                )}
                 {/* 玻璃小球示意 */}
                 <span
                   className="absolute right-4 top-1/2 h-12 w-12 -translate-y-1/2 rounded-full"
