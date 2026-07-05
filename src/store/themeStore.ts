@@ -12,7 +12,7 @@ import { STORAGE_KEYS } from '@/lib/constants'
 import sageBg from '@/assets/themes/sage-bg.jpg'
 import plushBg from '@/assets/themes/plush-bg'
 
-export type ThemeId = 'sage' | 'aurora' | 'ink'
+export type ThemeId = 'sage' | 'plush' | 'ink'
 
 export interface ThemeMeta {
   id: ThemeId
@@ -27,21 +27,23 @@ export interface ThemeMeta {
 
 export const THEMES: ThemeMeta[] = [
   { id: 'sage', name: '黛绿', emoji: '🍃', desc: '薄荷流光 · 玻璃泡泡', swatches: ['#E5E9F2', '#D7E8D5', '#C8D5DD', '#AFC7B4', '#96B3A2'], bgImage: sageBg },
-  { id: 'aurora', name: '毛玻璃', emoji: '🫧', desc: '软白玩偶 · 轻雾玻璃', swatches: ['#FCFAF7', '#F2EEE8', '#E4EAF0', '#D9D1C6', '#B6A897'], bgImage: plushBg },
+  { id: 'plush', name: '毛玻璃', emoji: '🫧', desc: '软白玩偶 · 轻雾玻璃', swatches: ['#FCFAF7', '#F2EEE8', '#E4EAF0', '#D9D1C6', '#B6A897'], bgImage: plushBg },
   { id: 'ink', name: '素白', emoji: '🤍', desc: '极简中性白 · 墨黑', swatches: ['#FFFFFF', '#F2F3F4', '#E7E9EA', '#C6C9CB', '#383A3C'] },
 ]
 
-const DEFAULT_THEME: ThemeId = 'aurora'
+const DEFAULT_THEME: ThemeId = 'plush'
 
 /** 各主题的顶部条颜色（状态栏 / theme-color）。 */
 export const BAR_COLORS: Record<ThemeId, string> = {
   sage: '#f4f1ec',
-  aurora: '#f4f1ec',
+  plush: '#f4f1ec',
   ink: '#f4f1ec',
 }
 
-function isThemeId(v: unknown): v is ThemeId {
-  return v === 'sage' || v === 'aurora' || v === 'ink'
+function normalizeThemeId(v: unknown): ThemeId | null {
+  if (v === 'sage' || v === 'plush' || v === 'ink') return v
+  if (v === 'aurora' || v === 'liquid') return 'plush'
+  return null
 }
 
 /** 把主题写到 <html> 上，并同步 theme-color meta —— 启动时也会调用，避免闪烁。 */
@@ -58,7 +60,8 @@ export function applyTheme(id: ThemeId) {
 
 export function readStoredTheme(): ThemeId {
   const raw = readJSON<{ id?: string }>(STORAGE_KEYS.theme, {})
-  return isThemeId(raw.id) ? raw.id : DEFAULT_THEME
+  const id = normalizeThemeId(raw.id)
+  return id ?? DEFAULT_THEME
 }
 
 interface ThemeState {
