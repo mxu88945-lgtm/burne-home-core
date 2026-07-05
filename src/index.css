@@ -28,9 +28,9 @@
   --bar: rgba(255, 255, 255, 0.2);
 }
 
-/* 🫧 毛玻璃 Aurora（默认）—— 软白玩偶壁纸 + 轻雾玻璃，状态栏保持奶白 */
+/* 🫧 毛玻璃 Plush（默认）—— 软白玩偶壁纸 + 轻雾玻璃，状态栏保持奶白 */
 :root,
-[data-theme='aurora'] {
+[data-theme='plush'] {
   --bg-to: #f8f5ef;
   --bg-mesh:
     radial-gradient(120% 70% at 50% 108%, rgba(255, 255, 255, 0.78) 0%, transparent 60%),
@@ -120,7 +120,7 @@ body {
       url('./assets/themes/sage-bg.jpg');
   }
   /* 毛玻璃：玩偶壁纸 + 柔白雾层，保持轻软，也避免强行染 iOS 刘海。 */
-  [data-theme='aurora'] .app-bg {
+  [data-theme='plush'] .app-bg {
     background-image:
       var(--top-fade),
       linear-gradient(rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.44)),
