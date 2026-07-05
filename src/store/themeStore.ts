@@ -12,10 +12,10 @@ import { STORAGE_KEYS } from '@/lib/constants'
 import sageBg from '@/assets/themes/sage-bg.jpg'
 import plushBg from '@/assets/themes/plush-bg'
 
-export type ThemeId = 'sage' | 'plush' | 'ink'
+export type ThemeId = 'sage' | 'plush' | 'aurora' | 'ink'
 
 export interface ThemeMeta {
-  id: ThemeId
+  id: Exclude<ThemeId, 'aurora'>
   name: string
   emoji: string
   desc: string
@@ -37,6 +37,7 @@ const DEFAULT_THEME: ThemeId = 'plush'
 export const BAR_COLORS: Record<ThemeId, string> = {
   sage: '#f4f1ec',
   plush: '#f4f1ec',
+  aurora: '#f4f1ec',
   ink: '#f4f1ec',
 }
 
@@ -48,7 +49,8 @@ function normalizeThemeId(v: unknown): ThemeId | null {
 
 /** 把主题写到 <html> 上，并同步 theme-color meta —— 启动时也会调用，避免闪烁。 */
 export function applyTheme(id: ThemeId) {
-  document.documentElement.dataset.theme = id
+  const actualId = id === 'aurora' ? 'plush' : id
+  document.documentElement.dataset.theme = actualId
   const color = BAR_COLORS[id]
   const old = document.querySelector('meta[name="theme-color"]')
   const meta = document.createElement('meta')
