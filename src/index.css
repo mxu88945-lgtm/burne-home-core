@@ -28,29 +28,27 @@
   --bar: rgba(255, 255, 255, 0.2);
 }
 
-/* 💧 液态玻璃 Liquid Glass —— 深水绿幕 + 水滴边框折光（aurora 仅作旧缓存别名） */
+/* 🫧 毛玻璃 Aurora（默认）—— 软白玩偶壁纸 + 轻雾玻璃，状态栏保持奶白 */
 :root,
-[data-theme='aurora'],
-[data-theme='liquid'] {
-  --bg-to: #0d241f;
+[data-theme='aurora'] {
+  --bg-to: #f8f5ef;
   --bg-mesh:
-    radial-gradient(90% 62% at 18% 0%, rgba(216, 238, 231, 0.24) 0%, rgba(216, 238, 231, 0) 58%),
-    radial-gradient(72% 52% at 86% 12%, rgba(109, 147, 134, 0.3) 0%, rgba(109, 147, 134, 0) 58%),
-    radial-gradient(78% 58% at 16% 84%, rgba(24, 91, 74, 0.48) 0%, rgba(24, 91, 74, 0) 62%),
-    radial-gradient(82% 62% at 84% 92%, rgba(14, 72, 56, 0.54) 0%, rgba(14, 72, 56, 0) 60%),
-    linear-gradient(150deg, #142b26 0%, #0d231e 46%, #092019 100%);
-  --top-fade: linear-gradient(180deg, #06100e 0%, rgba(6, 16, 14, 0.88) 8%, rgba(6, 16, 14, 0) 24%);
-  --text: #eaf5f1;
-  --text-soft: #a9bbb4;
-  --label: #9fb4ad;
-  --accent: #7885e8;
-  --accent-2: #55b7c6;
-  --card: rgba(196, 226, 216, 0.14);
-  --card-strong: rgba(209, 235, 227, 0.2);
-  --card-border: rgba(219, 242, 235, 0.46);
-  --shadow: rgba(0, 9, 7, 0.38);
+    radial-gradient(120% 70% at 50% 108%, rgba(255, 255, 255, 0.78) 0%, transparent 60%),
+    radial-gradient(80% 58% at 12% 70%, rgba(230, 236, 242, 0.56) 0%, transparent 56%),
+    radial-gradient(72% 52% at 90% 82%, rgba(230, 218, 204, 0.42) 0%, transparent 56%),
+    linear-gradient(180deg, #fbfaf6 0%, #f4f0e9 48%, #ece7df 100%);
+  --top-fade: linear-gradient(180deg, #f4f1ec 0%, rgba(244, 241, 236, 0) 15%);
+  --text: #605b56;
+  --text-soft: #9b9691;
+  --label: #b3aca4;
+  --accent: #a88f7b;
+  --accent-2: #c7b6a7;
+  --card: rgba(255, 255, 255, 0.34);
+  --card-strong: rgba(255, 255, 255, 0.5);
+  --card-border: rgba(255, 255, 255, 0.76);
+  --shadow: rgba(137, 122, 104, 0.14);
   --on-accent: #fff;
-  --bar: rgba(7, 20, 17, 0.48);
+  --bar: rgba(255, 255, 255, 0.32);
 }
 
 /* 🤍 素白 Ink —— 极简中性白 + 墨黑（编辑器纸感，无暖粉） */
@@ -121,6 +119,14 @@ body {
       linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.16)),
       url('./assets/themes/sage-bg.jpg');
   }
+  /* 毛玻璃：玩偶壁纸 + 柔白雾层，保持轻软，也避免强行染 iOS 刘海。 */
+  [data-theme='aurora'] .app-bg {
+    background-image:
+      var(--top-fade),
+      linear-gradient(rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.44)),
+      var(--aurora-wallpaper),
+      var(--bg-mesh);
+  }
 
   /* 毛玻璃卡片：半透明 + 背景模糊 + 顶部高光（玻璃光泽） */
   .glass {
@@ -142,77 +148,16 @@ body {
       inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
 
-  [data-theme='liquid'] .glass,
-  [data-theme='liquid'] .glass-strong,
-  [data-theme='aurora'] .glass,
-  [data-theme='aurora'] .glass-strong {
-    position: relative;
-    overflow: hidden;
-    border-color: rgba(221, 245, 238, 0.5);
-    background:
-      linear-gradient(145deg, rgba(234, 252, 246, 0.18), rgba(157, 193, 181, 0.08) 42%, rgba(32, 72, 61, 0.2)),
-      var(--card);
-    backdrop-filter: blur(30px) saturate(1.55) contrast(1.08);
-    -webkit-backdrop-filter: blur(30px) saturate(1.55) contrast(1.08);
-    box-shadow:
-      0 18px 50px var(--shadow),
-      inset 0 1px 0 rgba(244, 255, 251, 0.62),
-      inset 0 -1px 0 rgba(219, 245, 238, 0.16),
-      inset 1px 0 0 rgba(255, 255, 255, 0.16),
-      inset -1px 0 0 rgba(12, 31, 26, 0.24);
-  }
-  [data-theme='liquid'] .glass::before,
-  [data-theme='liquid'] .glass-strong::before,
-  [data-theme='aurora'] .glass::before,
-  [data-theme='aurora'] .glass-strong::before {
-    content: '';
-    pointer-events: none;
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background:
-      linear-gradient(118deg, rgba(255, 255, 255, 0) 0 13%, rgba(239, 255, 251, 0.3) 18%, rgba(255, 255, 255, 0.08) 23%, rgba(255, 255, 255, 0) 32%),
-      linear-gradient(155deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.08) 34%, rgba(255, 255, 255, 0) 56%),
-      radial-gradient(90% 55% at 14% 0%, rgba(231, 255, 248, 0.28), rgba(255, 255, 255, 0) 64%);
-    opacity: 0.85;
-  }
-  [data-theme='liquid'] .glass::after,
-  [data-theme='liquid'] .glass-strong::after,
-  [data-theme='aurora'] .glass::after,
-  [data-theme='aurora'] .glass-strong::after {
-    content: '';
-    pointer-events: none;
-    position: absolute;
-    inset: 1px;
-    border-radius: inherit;
-    border: 1px solid rgba(232, 255, 248, 0.28);
-    box-shadow:
-      inset 0 0 18px rgba(210, 246, 236, 0.12),
-      inset 0 0 2px rgba(255, 255, 255, 0.6);
-  }
-
   /* 主页：卡片更薄更透视（壁纸透出更多；靠大模糊保证文字仍清楚） */
   .home-glassy .glass {
-    background: rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.18);
     backdrop-filter: blur(24px) saturate(1.35);
     -webkit-backdrop-filter: blur(24px) saturate(1.35);
   }
   .home-glassy .glass-strong {
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.26);
     backdrop-filter: blur(26px) saturate(1.45);
     -webkit-backdrop-filter: blur(26px) saturate(1.45);
-  }
-  [data-theme='liquid'] .home-glassy .glass,
-  [data-theme='aurora'] .home-glassy .glass {
-    background:
-      linear-gradient(145deg, rgba(235, 255, 249, 0.2), rgba(16, 50, 42, 0.22)),
-      rgba(197, 230, 220, 0.1);
-  }
-  [data-theme='liquid'] .home-glassy .glass-strong,
-  [data-theme='aurora'] .home-glassy .glass-strong {
-    background:
-      linear-gradient(145deg, rgba(235, 255, 249, 0.24), rgba(16, 50, 42, 0.28)),
-      rgba(197, 230, 220, 0.14);
   }
 
   /* 顶栏毛玻璃条（半透明，可透出下方内容） */
@@ -220,16 +165,6 @@ body {
     background: var(--bar);
     backdrop-filter: blur(16px) saturate(1.3);
     -webkit-backdrop-filter: blur(16px) saturate(1.3);
-  }
-  [data-theme='liquid'] .glass-bar,
-  [data-theme='aurora'] .glass-bar {
-    background: rgba(7, 20, 17, 0.46);
-    border-bottom: 1px solid rgba(221, 245, 238, 0.18);
-    backdrop-filter: blur(26px) saturate(1.5);
-    -webkit-backdrop-filter: blur(26px) saturate(1.5);
-    box-shadow:
-      inset 0 -1px 0 rgba(232, 255, 248, 0.2),
-      0 10px 34px rgba(0, 9, 7, 0.22);
   }
 
   /* 衬线斜体浪漫标题 */
@@ -252,13 +187,6 @@ body {
     background: var(--accent);
     color: var(--on-accent);
     box-shadow: 0 8px 20px var(--shadow);
-  }
-  [data-theme='liquid'] .btn-primary,
-  [data-theme='aurora'] .btn-primary {
-    background: linear-gradient(135deg, #6f7fe6, #56b8c5);
-    box-shadow:
-      0 10px 28px rgba(49, 89, 102, 0.34),
-      inset 0 1px 0 rgba(255, 255, 255, 0.38);
   }
   .btn-primary:active {
     filter: brightness(0.96);
