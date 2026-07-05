@@ -249,6 +249,8 @@ function LibCharEditor({ target, onClose }: { target: LibChar | 'new'; onClose: 
   const [apiChannelId, setApiChannelId] = useState<string | undefined>(base?.apiChannelId)
   const [voiceId, setVoiceId] = useState(base?.voiceId ?? '')
   const [chanOpen, setChanOpen] = useState(false)
+  const [secOpen, setSecOpen] = useState({ persona: true, greeting: true })
+  const [full, setFull] = useState<null | { title: string; value: string; placeholder?: string; onSave: (v: string) => void }>(null)
   const imgRef = useRef<HTMLInputElement>(null)
   const chanName = channels.find((c) => c.id === apiChannelId)?.name
   const inputCls = 'w-full rounded-xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent'
@@ -297,14 +299,47 @@ function LibCharEditor({ target, onClose }: { target: LibChar | 'new'; onClose: 
             placeholder="角色名字"
           />
         </div>
-        <div>
-          <div className="mb-1 text-[12px] text-muted">角色设定 / 人设</div>
-          <textarea className={inputCls + ' min-h-[220px] leading-relaxed'} rows={12} value={persona} onChange={(e) => setPersona(e.target.value)} placeholder="身份、性别、年龄、性格、说话风格、背景关系…" />
-        </div>
-        <div>
-          <div className="mb-1 text-[12px] text-muted">开场白（开 1v1 时的出场第一条 · 可留空）</div>
-          <textarea className={inputCls + ' min-h-[120px] leading-relaxed'} rows={6} value={greeting} onChange={(e) => setGreeting(e.target.value)} placeholder="角色出场说的第一句/一段" />
-        </div>
+        {([
+          ['persona', '角色设定 / 人设', persona, setPersona, '身份、性别、年龄、性格、说话风格、背景关系…', 'min-h-[220px]', 12],
+          ['greeting', '开场白（开 1v1 时的出场第一条 · 可留空）', greeting, setGreeting, '角色出场说的第一句/一段', 'min-h-[120px]', 6],
+        ] as const).map(([k, title, value, setter, placeholder, minH, rows]) => (
+          <div key={k}>
+            <div className="mb-1 flex items-center justify-between gap-2 text-[12px] text-muted">
+              <button
+                type="button"
+                onClick={() => setSecOpen((o) => ({ ...o, [k]: !o[k] }))}
+                className="flex min-w-0 flex-1 items-center gap-1 text-left"
+              >
+                <span className="shrink-0">{secOpen[k] ? '▾' : '▸'}</span>
+                <span className="truncate">{title}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFull({ title, value, placeholder, onSave: setter })}
+                className="glass rounded-full px-2.5 py-1 text-[11px] text-ink"
+              >
+                全页
+              </button>
+            </div>
+            {secOpen[k] ? (
+              <textarea
+                className={inputCls + ` ${minH} leading-relaxed`}
+                rows={rows}
+                value={value}
+                onChange={(e) => setter(e.target.value)}
+                placeholder={placeholder}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSecOpen((o) => ({ ...o, [k]: true }))}
+                className="w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-left text-[12px] leading-relaxed text-muted"
+              >
+                {value.trim() ? value.replace(/\s+/g, ' ').slice(0, 64) : '已收起，点这里展开'}
+              </button>
+            )}
+          </div>
+        ))}
         <div>
           <div className="mb-1 text-[12px] text-muted">气泡颜色</div>
           <div className="flex flex-wrap gap-2">
@@ -349,6 +384,53 @@ function LibCharEditor({ target, onClose }: { target: LibChar | 'new'; onClose: 
             ))}
           </div>
         </div>
+      </div>
+      {full && (
+        <BigTextEditor
+          title={full.title}
+          value={full.value}
+          placeholder={full.placeholder}
+          onClose={() => setFull(null)}
+          onSave={(v) => {
+            full.onSave(v)
+            setFull(null)
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+function BigTextEditor({
+  title,
+  value,
+  placeholder,
+  onSave,
+  onClose,
+}: {
+  title: string
+  value: string
+  placeholder?: string
+  onSave: (value: string) => void
+  onClose: () => void
+}) {
+  const [text, setText] = useState(value)
+
+  return (
+    <div className="fixed inset-0 z-[70] flex flex-col" style={{ background: 'var(--bg-to, #f7f1f4)' }}>
+      <div className="glass-bar flex items-center justify-between gap-2 px-3 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
+        <button onClick={onClose} className="px-2 py-1.5 text-sm text-muted">取消</button>
+        <div className="min-w-0 flex-1 truncate text-center text-[15px] font-medium text-ink">{title}</div>
+        <button onClick={() => onSave(text)} className="btn-primary rounded-full px-5 py-1.5 text-sm">保存</button>
+      </div>
+      <div className="min-h-0 flex-1 p-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <textarea
+          autoFocus
+          className="h-full w-full resize-none rounded-2xl border border-line bg-white/70 px-3.5 py-3 text-[15px] leading-relaxed text-ink outline-none focus:border-accent"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={placeholder}
+        />
       </div>
     </div>
   )
