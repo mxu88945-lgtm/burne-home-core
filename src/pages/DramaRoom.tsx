@@ -53,6 +53,7 @@ export default function DramaRoom() {
   const libChars = useCharLibStore((s) => s.chars)
   const addLibChar = useCharLibStore((s) => s.addChar)
   const setMessages = useDramaStore((s) => s.setMessages)
+  const patchSceneMessages = useDramaStore((s) => s.patchSceneMessages)
   const setSummary = useDramaStore((s) => s.setSummary)
   const setSummaryAt = useDramaStore((s) => s.setSummaryAt)
   const setSceneAuto = useDramaStore((s) => s.setSceneAuto)
@@ -1002,8 +1003,8 @@ export default function DramaRoom() {
     const c = charById(sc.messages[i].who)
     if (!c || c.isMe) return
     const removed = sc.messages.slice(i)
-    setMessages(sc.id, sc.messages.slice(0, i))
-    setSummaryAt(sc.id, Math.min(sc.summaryAt ?? 0, i)) // 别让摘要"超前"于现存对话
+    // 原子化合并：删消息 + 调摘要位置，只触发一次磁盘保存，解决点击重写时的瞬间卡顿
+    patchSceneMessages(sc.id, sc.messages.slice(0, i), Math.min(sc.summaryAt ?? 0, i))
     const ok = await respond(c)
     if (!ok) restoreMsgs(removed)
   }
