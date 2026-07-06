@@ -138,6 +138,8 @@ interface DramaState extends Persisted {
   updateChar: (sceneId: string, charId: string, patch: Partial<DramaChar>) => void
   removeChar: (sceneId: string, charId: string) => void
   setMessages: (sceneId: string, messages: DramaMsg[]) => void
+  /** 原子化合并修改：删消息 + 调摘要位置（regenMsg 用，省一次磁盘序列化） */
+  patchSceneMessages: (sceneId: string, messages: DramaMsg[], summaryAt: number) => void
   /** 重启对话：清空消息与剧情摘要（角色/世界观/世界书保留） */
   clearMessages: (sceneId: string) => void
   addMessage: (sceneId: string, msg: DramaMsg) => void
@@ -282,6 +284,9 @@ export const useDramaStore = create<DramaState>((set, get) => {
       patchScene(sceneId, (s) => ({ ...s, chars: s.chars.filter((c) => c.id !== charId) })),
 
     setMessages: (sceneId, messages) => patchScene(sceneId, (s) => ({ ...s, messages })),
+
+    patchSceneMessages: (sceneId, messages, summaryAt) =>
+      patchScene(sceneId, (s) => ({ ...s, messages, summaryAt })),
 
     clearMessages: (sceneId) => patchScene(sceneId, (s) => ({ ...s, messages: [], summary: '', summaryAt: 0 })),
 
