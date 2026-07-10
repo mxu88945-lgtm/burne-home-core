@@ -4,8 +4,8 @@ import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  // 相对路径：本地和 GitHub Pages 子路径下都能正确加载资源
-  base: './',
+  // GitHub Pages 项目站点需要设置子路径
+  base: '/burne-home-core/',
   plugins: [react()],
   resolve: {
     alias: {
