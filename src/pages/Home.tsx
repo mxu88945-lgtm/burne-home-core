@@ -35,10 +35,10 @@ function QuickEntry({
     <Link
       to={to}
       onClick={onClick}
-      className="glass flex min-h-[96px] flex-col items-center justify-center gap-1.5 rounded-2xl px-2 py-3 text-center transition active:scale-[0.98]"
+      className="glass flex min-h-[108px] flex-col items-center justify-center gap-2 rounded-2xl px-3 py-4 text-center transition active:scale-[0.98]"
     >
       <span
-        className="grid h-9 w-9 place-items-center rounded-xl"
+        className="grid h-10 w-10 place-items-center rounded-xl"
         style={{
           background: `linear-gradient(135deg, ${tint}33, ${tint}14)`,
           boxShadow: `0 6px 16px ${tint}26`,
@@ -46,9 +46,9 @@ function QuickEntry({
           color: tint,
         }}
       >
-        <Icon className="h-5 w-5" />
+        <Icon className="h-[22px] w-[22px]" />
       </span>
-      <span className="text-[13px] font-medium leading-tight text-ink">{title}</span>
+      <span className="text-sm font-medium leading-tight text-ink">{title}</span>
       <span className="line-clamp-1 text-[10px] leading-tight text-muted">{sub}</span>
     </Link>
   )
@@ -99,7 +99,7 @@ export default function Home() {
   return (
     <div className="home-glassy space-y-2.5">
       {/* 情侣主视觉 */}
-      <section className="glass-strong relative overflow-hidden rounded-3xl px-4 py-4 text-center">
+      <section className="glass-strong relative overflow-hidden rounded-3xl px-4 py-5 text-center">
         {/* 头像后一层柔光晕，暖一点、不再白惨惨 */}
         <div
           className="pointer-events-none absolute left-1/2 top-0 h-40 w-64 -translate-x-1/2 -translate-y-1/3 rounded-full"
@@ -109,7 +109,7 @@ export default function Home() {
           <Avatar
             img={profile.avatarAImg}
             emoji={profile.avatarA}
-            className="h-14 w-14 rounded-full text-2xl"
+            className="h-16 w-16 rounded-full text-2xl"
             textCls="text-2xl"
             style={avatarStyle}
           />
@@ -117,12 +117,12 @@ export default function Home() {
           <Avatar
             img={profile.avatarBImg}
             emoji={profile.avatarB}
-            className="h-14 w-14 rounded-full text-2xl"
+            className="h-16 w-16 rounded-full text-2xl"
             textCls="text-2xl"
             style={avatarStyle}
           />
         </div>
-        <h2 className="headline mt-3 text-xl leading-tight text-ink">
+        <h2 className="headline mt-4 text-xl leading-tight text-ink">
           {profile.nameA} <span className="text-accent">♡</span> {profile.nameB}
         </h2>
         <p className="mx-auto mt-1.5 line-clamp-1 max-w-[20rem] text-[11px] leading-relaxed text-muted">
@@ -140,7 +140,7 @@ export default function Home() {
             const norm = v.trim().replace(/[./]/g, '-')
             if (norm) setProfile({ anniversary: norm })
           }}
-          className="glass relative flex min-h-[82px] w-full items-center justify-center gap-5 overflow-hidden rounded-2xl px-5 py-3 text-center transition active:scale-[0.99]"
+          className="glass relative flex min-h-[88px] w-full items-center justify-center gap-5 overflow-hidden rounded-2xl px-5 py-3 text-center transition active:scale-[0.99]"
         >
           <div
             className="text-4xl font-bold leading-none"
@@ -163,7 +163,7 @@ export default function Home() {
 
         <Link
           to="/calendar"
-          className="glass flex min-h-[82px] items-center justify-center gap-4 rounded-2xl px-5 py-3 transition active:scale-[0.99]"
+          className="glass flex min-h-[88px] items-center justify-center gap-4 rounded-2xl px-5 py-3 transition active:scale-[0.99]"
         >
           <span
             className="grid h-10 w-10 shrink-0 place-items-center rounded-xl"
