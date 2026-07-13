@@ -1695,7 +1695,7 @@ export default function Chat() {
       {!selectMode && (
         <div
           className={[
-            'pointer-events-none absolute bottom-24 right-3 z-10 flex flex-col gap-1.5 transition-opacity duration-300',
+            'pointer-events-none absolute bottom-32 right-4 z-10 flex flex-col gap-1.5 transition-opacity duration-300',
             showScrollBtns ? 'opacity-100' : 'opacity-0',
           ].join(' ')}
         >
