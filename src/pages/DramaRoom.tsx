@@ -156,11 +156,13 @@ export default function DramaRoom() {
   const mediaRecRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scrollTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
   const charMemTurnRef = useRef<Record<string, number>>({}) // 各角色距上次私人记忆更新的发言数
 
   const messages = scene?.messages ?? []
   useEffect(() => {
     scrollToEnd() // 多次补滚到真底部，避免发完消息悬在半空
+    return cancelScrollToEnd
   }, [messages.length, busyChar])
 
   // 输入框自适应高度（随内容增高，最高 120px）
@@ -174,19 +176,36 @@ export default function DramaRoom() {
   // 自动更新剧情摘要：累计未并入摘要的新消息够 N 条就后台增量刷新。
   // 基于持久化的 summaryAt 计数（退出/刷新都不丢），并跳过刚进入时的误触发。
   const prevLenRef = useRef<number | null>(null)
+  const prevSummarySceneRef = useRef('')
+  const autoSummaryPendingRef = useRef(false)
   useEffect(() => {
     const len = scene?.messages.length ?? 0
-    if (prevLenRef.current === null) {
+    const sceneId = scene?.id ?? ''
+    if (prevSummarySceneRef.current !== sceneId) {
+      prevSummarySceneRef.current = sceneId
       prevLenRef.current = len
-      return // 首次挂载不触发，避免一进剧场就烧 token
+      autoSummaryPendingRef.current = false
+      return // 首次进入这个剧场不触发，避免切场景就烧 token
     }
-    const grew = len > prevLenRef.current
+    const grew = prevLenRef.current !== null && len > prevLenRef.current
     prevLenRef.current = len
     // 注意：AI 回复入库时 busyChar 仍为真，所以这里不能因 busyChar 而跳过，
     // 否则新增长在 busy 期间被吞掉、busy 结束后又没增长 → 自动摘要永远不触发。
     // 摘要走独立记忆渠道、summaryBusy 防重入，与回复并发无妨。
-    if (!grew || !autoSummary || summaryBusy) return
-    if (len - (scene?.summaryAt ?? 0) >= autoSummaryEvery) void genSummary(true)
+    const due = len - (scene?.summaryAt ?? 0) >= autoSummaryEvery
+    if (!autoSummary || !due) {
+      if (!due) autoSummaryPendingRef.current = false
+      return
+    }
+    if (summaryBusy) {
+      // 摘要生成期间又长出新消息：记下来，当前轮结束后补跑，别把这次增长吞掉。
+      if (grew) autoSummaryPendingRef.current = true
+      return
+    }
+    if (grew || autoSummaryPendingRef.current) {
+      autoSummaryPendingRef.current = false
+      void genSummary(true)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene?.messages.length, autoSummary, autoSummaryEvery, summaryBusy])
 
@@ -235,13 +254,20 @@ export default function DramaRoom() {
   }, [])
 
   /** 滚到最新消息底部。键盘弹出有动画 + 视口缩放，分几次补滚才稳。 */
+  function cancelScrollToEnd() {
+    scrollTimersRef.current.forEach(clearTimeout)
+    scrollTimersRef.current = []
+  }
+
   function scrollToEnd() {
+    // 新一轮滚动前取消旧任务，避免消息/生成状态连续变化时叠出一串延迟滚动。
+    cancelScrollToEnd()
     const jump = () => {
       const el = listRef.current
       if (el) el.scrollTop = el.scrollHeight
     }
     requestAnimationFrame(jump)
-    ;[120, 300, 500].forEach((t) => setTimeout(jump, t))
+    scrollTimersRef.current = [120, 300, 500].map((t) => setTimeout(jump, t))
   }
 
   if (!scene) {
