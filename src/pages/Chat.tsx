@@ -728,21 +728,24 @@ export default function Chat() {
     const transcript = recent
       .map((m) => `${m.role === 'me' ? memName : name}：${m.text}${m.image ? '［图片］' : ''}`)
       .join('\n')
-    // 已有记忆（紧凑：id+长短+标题），最多 60 条，省 token
+    // 已有记忆：带一小段内容，管家才判断得出重复、过时和被纠正；仍截断省 token。
     const memList = memoriesRef.slice(0, 60)
     const memListText = memList.length
       ? memList
-          .map((m) => `[${m.id}]（${m.kind === 'long' ? '长' : '短'}${m.starred ? '★' : ''}）${m.title}`)
+          .map((m) => {
+            const brief = m.content.replace(/\s+/g, ' ').trim().slice(0, 120)
+            return `[${m.id}]（${m.kind === 'long' ? '长' : '短'}${m.starred ? '★' : ''}）${m.title}｜${brief}`
+          })
           .join('\n')
       : '（空）'
 
     const sys = '你是记忆管理助手，只输出 JSON，不要任何多余文字。'
     const ask =
-      `你在维护${memName}的长期记忆库。看【已有记忆】和【最近对话】，判断要不要：新增、删除（重复/过时/已被取代的）、改长短期。\n` +
-      `⚠️ 高门槛、宁缺毋滥：日常闲聊/寒暄/一时情绪/临时小事都【不要】记；带★标星的【绝不能删】。多数情况三个数组都空。\n` +
+      `你在维护${memName}的长期记忆库。看【已有记忆】和【最近对话】，判断要不要：新增、删除（重复/过时/已被取代的）、修订非标星旧记忆。\n` +
+      `⚠️ 高门槛、宁缺毋滥：日常闲聊/寒暄/一时情绪/临时小事都【不要】记；带★标星的【绝不能删、不能改】。多数情况三个数组都空。\n` +
       `长期(long)=人设/重要事实/长期偏好/郑重承诺/重大事件；短期(short)=有时效的近期安排等。称呼她用「${memName}」。\n` +
       (force ? `${memName}已明确要求记住，请务必在 add 里提取其指向的内容。\n` : '') +
-      `只输出 JSON：{"add":[{"title":"简短标题","content":"内容","kind":"long"|"short"}],"delete":["要删的记忆id"],"update":[{"id":"记忆id","kind":"long"|"short"}]}\n\n` +
+      `只输出 JSON：{"add":[{"title":"简短标题","content":"内容","kind":"long"|"short"}],"delete":["要删的记忆id"],"update":[{"id":"记忆id","title":"可选新标题","content":"可选修订内容","kind":"long"|"short"}]}\n\n` +
       `【已有记忆】\n${memListText}\n\n【最近对话】\n${transcript}`
     try {
       let text = ''
@@ -769,7 +772,7 @@ export default function Chat() {
         add?: { title?: string; content?: string; kind?: string }[]
         items?: { title?: string; content?: string; kind?: string }[] // 兼容旧格式
         delete?: string[]
-        update?: { id?: string; kind?: string }[]
+        update?: { id?: string; title?: string; content?: string; kind?: string }[]
       }
       const byId = new Map(memoriesRef.map((m) => [m.id, m]))
       let added = 0
@@ -799,12 +802,20 @@ export default function Chat() {
           removed++
         }
       }
-      // 改长短期
+      // 修订旧记忆（标星是人工确认的核心记忆，自动管家不得改）
       for (const u of data.update || []) {
         const m = u.id ? byId.get(u.id) : undefined
         const kind = u.kind === 'long' || u.kind === 'short' ? u.kind : undefined
-        if (m && kind && m.kind !== kind) {
-          updateMemory(m.id, { kind })
+        if (m && !m.starred) {
+          const title = (u.title || '').trim()
+          const content = (u.content || '').trim()
+          const patch: Partial<typeof m> = {
+            ...(kind && kind !== m.kind ? { kind } : {}),
+            ...(title && title !== m.title ? { title } : {}),
+            ...(content && content !== m.content ? { content } : {}),
+          }
+          if (!Object.keys(patch).length) continue
+          updateMemory(m.id, patch)
           changed++
         }
       }
@@ -898,18 +909,21 @@ export default function Chat() {
       const note = periodChatNote(periodState.days, profile.nameA || '她', periodState.periodLen)
       if (note) system += `\n\n${note}`
     }
-    // 注入长期记忆，让 TA 真的「记得」你们的事（概述 + 所有标星 + 最近 15 条，省 token）
+    // 注入长期记忆：核心标星始终优先；长期记忆多带、短期少带，避免旧长期被新琐事挤走。
     {
       const memState = useMemoryStore.getState()
-      const starred = memState.memories.filter((m) => m.starred)
-      const recent = memState.memories.filter((m) => !m.starred).slice(0, 15)
-      const picked = [...starred, ...recent]
+      const byRecent = (a: (typeof memState.memories)[number], b: (typeof memState.memories)[number]) =>
+        b.updatedAt.localeCompare(a.updatedAt)
+      const starred = memState.memories.filter((m) => m.starred).sort(byRecent)
+      const long = memState.memories.filter((m) => !m.starred && m.kind === 'long').sort(byRecent).slice(0, 20)
+      const short = memState.memories.filter((m) => !m.starred && m.kind === 'short').sort(byRecent).slice(0, 6)
+      const picked = [...starred, ...long, ...short]
       const lines = picked
-        .map((m) => `· ${m.title ? `${m.title}：` : ''}${m.content}`)
+        .map((m) => `· [${m.starred ? '核心' : m.kind === 'long' ? '长期' : '近期'}] ${m.title ? `${m.title}：` : ''}${m.content}`)
         .join('\n')
       if (memState.overview.trim() || lines) {
         system +=
-          `\n\n【关于${profile.nameA || '她'}和你们的长期记忆——请当作你真实记得的事，自然运用，不要生硬复述、也不要暴露这是设定】`
+          `\n\n【关于${profile.nameA || '她'}和你们的长期记忆——请当作你真实记得的事，自然运用，不要生硬复述、不要暴露这是设定；若与她当前说法冲突，以她当前明确表达为准】`
         if (memState.overview.trim()) system += `\n（概述）${memState.overview.trim()}`
         if (lines) system += `\n${lines}`
       }
