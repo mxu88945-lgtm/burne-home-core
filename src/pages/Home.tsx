@@ -130,8 +130,8 @@ export default function Home() {
         </p>
       </section>
 
-      {/* 纪念日 + 生理期并排：信息不减，纵向收紧到一屏内。 */}
-      <section className="grid grid-cols-2 gap-2.5">
+      {/* 纪念日 + 生理期：两条独立横幅，保留主页的重要感。 */}
+      <section className="space-y-2.5">
         <button
           type="button"
           onClick={() => {
@@ -140,10 +140,10 @@ export default function Home() {
             const norm = v.trim().replace(/[./]/g, '-')
             if (norm) setProfile({ anniversary: norm })
           }}
-          className="glass relative min-h-[96px] overflow-hidden rounded-2xl px-3 py-3 text-center transition active:scale-[0.99]"
+          className="glass relative flex min-h-[82px] w-full items-center justify-center gap-5 overflow-hidden rounded-2xl px-5 py-3 text-center transition active:scale-[0.99]"
         >
           <div
-            className="mx-auto text-4xl font-bold leading-none"
+            className="text-4xl font-bold leading-none"
             style={{
               background: 'linear-gradient(135deg, var(--accent), var(--accent-2))',
               WebkitBackgroundClip: 'text',
@@ -153,31 +153,33 @@ export default function Home() {
           >
             {days}
           </div>
-          <div className="label mt-1 text-[11px]"><span className="text-accent">♡</span> 一起的 {days} 天</div>
-          <div className="mt-0.5 flex items-center justify-center gap-1 text-[9px] text-muted">
-            Since {profile.anniversary}<EditIcon className="h-2.5 w-2.5" />
+          <div className="text-left">
+            <div className="label text-[11px]"><span className="text-accent">♡</span> 一起的 {days} 天</div>
+            <div className="mt-1 flex items-center gap-1 text-[10px] text-muted">
+              Since {profile.anniversary}<EditIcon className="h-3 w-3" />
+            </div>
           </div>
         </button>
 
         <Link
           to="/calendar"
-          className="glass flex min-h-[96px] items-center justify-center gap-2 rounded-2xl px-3 py-3 transition active:scale-[0.99]"
+          className="glass flex min-h-[82px] items-center justify-center gap-4 rounded-2xl px-5 py-3 transition active:scale-[0.99]"
         >
           <span
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl"
             style={{
               background: 'linear-gradient(135deg, #f7a8c433, #f7a8c414)',
               border: '1px solid #f7a8c433',
               color: '#ef7a9b',
             }}
           >
-            <HeartIcon className="h-4 w-4" />
+            <HeartIcon className="h-5 w-5" />
           </span>
-          <div className="min-w-0 text-left">
-            <div className="label text-[10px]">生理期</div>
-            <div className="mt-0.5 whitespace-nowrap text-lg font-semibold" style={{ color: '#ef7a9b' }}>{pMain}</div>
-            <div className="truncate text-[9px] text-muted">{pSub}</div>
+          <div className="text-right">
+            <div className="label text-[11px]">生理期</div>
+            <div className="mt-1 whitespace-nowrap text-[10px] text-muted">{pSub}</div>
           </div>
+          <div className="whitespace-nowrap text-2xl font-semibold" style={{ color: '#ef7a9b' }}>{pMain}</div>
         </Link>
       </section>
 
