@@ -120,8 +120,8 @@ export default function DramaRoom() {
   const dramaBgRef = useRef<HTMLInputElement>(null) // ⚙ 里就地换背景图
   // 全屏大编辑器（世界观/剧情摘要这类长文，别在小框里憋屈地写）
   const [bigEdit, setBigEdit] = useState<null | { title: string; value: string; placeholder?: string; onSave: (v: string) => void }>(null)
-  // ⚙ 三个板块的收起/展开
-  const [secOpen, setSecOpen] = useState({ members: true, look: true, plot: true })
+  // ⚙ 设置抽屉分区：一次只看一组，避免所有高级项堆成一条超长表单。
+  const [settingsTab, setSettingsTab] = useState<'members' | 'look' | 'plot'>('members')
   const [err, setErr] = useState('')
   const [leftOpen, setLeftOpen] = useState(false) // 左☰：角色/剧场
   const [rightOpen, setRightOpen] = useState(false) // 右⚙：世界观/剧情摘要
@@ -1238,19 +1238,38 @@ export default function DramaRoom() {
             className="drawer-right drawer-panel absolute right-0 top-0 flex h-full w-[86%] max-w-[340px] flex-col gap-2.5 overflow-y-auto rounded-l-3xl px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(0.9rem,env(safe-area-inset-top))]"
             onClick={(e) => e.stopPropagation()}
           >
-          <div className="flex items-center justify-between px-1">
-            <div className="headline text-base text-ink">本剧场设置</div>
-            <button onClick={() => setRightOpen(false)} aria-label="关闭" className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-black/5">
-              ✕
-            </button>
+          <div className="sticky top-0 z-10 -mx-1 space-y-2 rounded-2xl bg-[rgba(250,248,245,0.94)] px-1 pb-2 pt-0.5 shadow-[0_8px_18px_rgba(80,60,45,0.06)]">
+            <div className="flex items-center justify-between px-1">
+              <div>
+                <div className="headline text-base text-ink">本剧场设置</div>
+                <div className="mt-0.5 max-w-[220px] truncate text-[10px] text-muted">{sc.title}</div>
+              </div>
+              <button onClick={() => setRightOpen(false)} aria-label="关闭" className="flex h-8 w-8 items-center justify-center rounded-full text-muted hover:bg-black/5">
+                ✕
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-1 rounded-2xl bg-black/[0.035] p-1">
+              {([
+                ['members', `成员 ${sc.chars.length}`],
+                ['look', '外观'],
+                ['plot', '剧情记忆'],
+              ] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => setSettingsTab(id)}
+                  className={`rounded-xl px-1 py-2 text-[11px] transition ${settingsTab === id ? 'bg-white text-ink shadow-sm' : 'text-muted'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
           {/* 成员（从左抽屉并进来的：左边现在是会话列表） */}
-          <div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
-            <button onClick={() => setSecOpen((o) => ({ ...o, members: !o.members }))} className="flex w-full items-center justify-between px-2.5 pb-0.5 pt-1.5">
+          {settingsTab === 'members' && (<div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
+            <div className="flex w-full items-center justify-between px-2.5 pb-0.5 pt-1.5">
               <span className="label">成员 · {sc.chars.length}</span>
-              <span className="text-[12px] text-muted">{secOpen.members ? '▾' : '▸'}</span>
-            </button>
-            {secOpen.members && (<>
+              <span className="text-[10px] text-muted">角色与独立记忆</span>
+            </div>
             {sc.chars.map((c) => (
               <div key={c.id} className="flex items-center gap-1.5 rounded-xl px-2 py-1.5">
                 <Avatar img={c.avatarImg} emoji={c.avatar} className="h-8 w-8 shrink-0 rounded-full text-base" textCls="text-base" style={{ background: c.color + '33' }} />
@@ -1314,15 +1333,13 @@ export default function DramaRoom() {
                 勾「这是我」的卡由你发言，其余是 AI 角色；导入现成卡请到 角色库。
               </p>
             </div>
-            </>)}
-          </div>
+          </div>)}
           {/* 外观 */}
-          <div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
-            <button onClick={() => setSecOpen((o) => ({ ...o, look: !o.look }))} className="flex w-full items-center justify-between px-2.5 pb-0.5 pt-1.5">
+          {settingsTab === 'look' && (<div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
+            <div className="flex w-full items-center justify-between px-2.5 pb-0.5 pt-1.5">
               <span className="label">外观</span>
-              <span className="text-[12px] text-muted">{secOpen.look ? '▾' : '▸'}</span>
-            </button>
-            {secOpen.look && (<>
+              <span className="text-[10px] text-muted">样式与自动回复</span>
+            </div>
             <div className="flex items-center justify-between rounded-xl px-2.5 py-2.5">
               <span className="text-sm text-ink">显示样式</span>
               <div className="flex gap-1.5">
@@ -1415,16 +1432,14 @@ export default function DramaRoom() {
             <p className="px-2.5 pb-1 text-[10px] leading-relaxed text-muted">
               开＝你发完 TA 自动回，群聊会自动判断该谁接话（点到名就是谁）；关＝用「@角色」点名。
             </p>
-            </>)}
-          </div>
+          </div>)}
 
           {/* 剧情 · 记忆 */}
-          <div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
-            <button onClick={() => setSecOpen((o) => ({ ...o, plot: !o.plot }))} className="flex w-full items-center justify-between px-2.5 pb-0.5 pt-1.5">
+          {settingsTab === 'plot' && (<div className="shrink-0 rounded-2xl bg-white/45 p-1.5">
+            <div className="flex w-full items-center justify-between px-2.5 pb-0.5 pt-1.5">
               <span className="label">剧情 · 记忆</span>
-              <span className="text-[12px] text-muted">{secOpen.plot ? '▾' : '▸'}</span>
-            </button>
-            {secOpen.plot && (<>
+              <span className="text-[10px] text-muted">上下文与设定</span>
+            </div>
 
             {/* 世界观 */}
             <button onClick={() => setWorldOpen((o) => !o)} className="flex w-full items-center justify-between rounded-xl px-2.5 py-2.5 text-left hover:bg-white/40">
@@ -1676,8 +1691,7 @@ export default function DramaRoom() {
                 </>
               )
             })()}
-            </>)}
-          </div>
+          </div>)}
           </div>
         </div>
       )}
