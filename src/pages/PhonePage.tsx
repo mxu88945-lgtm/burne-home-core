@@ -250,6 +250,17 @@ export default function PhonePage() {
     setMessages(history)
     if (connected) await respond(history)
   }
+  async function retryFailedMessage(id: string) {
+    if (sending) return
+    const failedAt = messages.findIndex((m) => m.id === id)
+    if (failedAt < 0) return
+    const history = messages
+      .slice(0, failedAt)
+      .filter((m) => !m.failed && !(m.role === 'ta' && m.text.trim().startsWith('（没发出去：')))
+    if (![...history].reverse().some((m) => m.role === 'me')) return
+    setMessages(history)
+    await respond(history)
+  }
   async function pickBg(file: File) {
     setErr('')
     try {
@@ -517,7 +528,10 @@ export default function PhonePage() {
         void extractMemories([...history, { id: 'tmp', role: 'ta', text: reply, at: '' }], force)
       }
     } catch (e) {
-      setMessages((p) => [...p, { id: newId(), role: 'ta', text: `（没发出去：${(e as Error).message}）`, at: now() }])
+      setMessages((p) => [
+        ...p,
+        { id: newId(), role: 'ta', text: `（没发出去：${(e as Error).message}）`, at: now(), failed: true },
+      ])
     } finally {
       setSending(false)
     }
@@ -815,7 +829,8 @@ export default function PhonePage() {
             }
             // 连发多条只在「这一串的第一条」显示头像，其余用占位对齐（两边都有头像）
             const firstOfRun = i === 0 || messages[i - 1].role !== m.role || !!messages[i - 1].task
-            const canSpeak = !me && ttsEnabled && m.text.trim()
+            const failed = !me && (m.failed || m.text.trim().startsWith('（没发出去：'))
+            const canSpeak = !failed && !me && ttsEnabled && m.text.trim()
             return (
               <div key={m.id} className={`flex items-start gap-2 ${me ? 'flex-row-reverse' : ''}`}>
                 {firstOfRun ? (
@@ -866,6 +881,19 @@ export default function PhonePage() {
                         <span className="mr-1 text-[12px]">{loadingId === m.id ? '⏳' : '🔊'}</span>
                       )}
                       {m.text}
+                      {failed && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            void retryFailedMessage(m.id)
+                          }}
+                          disabled={sending}
+                          className="mt-2 flex items-center gap-1 rounded-full bg-black/5 px-2.5 py-1 text-[12px] font-medium text-ink disabled:opacity-40"
+                        >
+                          ↻ 重新发送
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -996,7 +1024,13 @@ export default function PhonePage() {
         {stickerOpen && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setStickerOpen(false)} />
-            <div className="glass-strong absolute inset-x-3 bottom-16 z-20 max-h-60 overflow-y-auto rounded-2xl p-3">
+            <div
+              className="absolute inset-x-3 z-40 max-h-[55vh] overflow-y-auto rounded-2xl border border-black/10 p-3 shadow-2xl"
+              style={{
+                bottom: 'calc(env(safe-area-inset-bottom) + 4.75rem)',
+                background: 'rgba(255, 255, 255, 0.96)',
+              }}
+            >
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-[12px] text-muted">表情贴纸（点发送）</span>
                 <button
@@ -1018,7 +1052,7 @@ export default function PhonePage() {
                       if (window.confirm(`删除贴纸「${s.name}」？`)) removeSticker(s.id)
                     }}
                     title={s.name}
-                    className="flex aspect-square items-center justify-center rounded-xl bg-white/40 active:scale-95"
+                    className="flex aspect-square items-center justify-center rounded-xl bg-black/[0.035] active:scale-95"
                   >
                     {s.img ? (
                       <IdbImg src={s.img} alt={s.name} className="h-full w-full rounded-xl object-contain p-0.5" />

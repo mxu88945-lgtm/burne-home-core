@@ -15,9 +15,19 @@ export default function IdbImg({ src, ...rest }: { src: string } & Omit<ImgHTMLA
     let alive = true
     if (src.startsWith('idb:')) {
       setUrl('')
-      void idbGet<string>(src.slice(4)).then((d) => {
-        if (alive && d) setUrl(d)
-      })
+      // Safari 冷启动时，贴纸面板可能比 IndexedDB 恢复得更快；空结果稍后重试，
+      // 避免图片贴纸第一次打开时只剩一格空白占位。
+      void (async () => {
+        for (let i = 0; i < 4; i++) {
+          const d = await idbGet<string>(src.slice(4))
+          if (!alive) return
+          if (d) {
+            setUrl(d)
+            return
+          }
+          await new Promise((resolve) => setTimeout(resolve, 250 * (i + 1)))
+        }
+      })()
     } else {
       setUrl(src)
     }
