@@ -95,7 +95,7 @@ export default function DataPage() {
     try {
       const b = parseFullBackup(await readFileText(file))
       if (window.confirm('将用备份覆盖当前全部数据并刷新页面。确定？')) {
-        applyFullBackup(b)
+        await applyFullBackup(b)
         location.reload()
       }
     } catch (e) {
@@ -142,9 +142,10 @@ export default function DataPage() {
         </label>
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => {
-              downloadFullBackup(includeKeys)
-              setMsg(includeKeys ? '已导出（含 API Key）' : '已导出（不含 API Key）')
+            onClick={async () => {
+              setMsg('正在整理对话与图片…')
+              await downloadFullBackup(includeKeys)
+              setMsg(includeKeys ? '已导出（含 API Key 与图片）' : '已导出（含图片，不含 API Key）')
             }}
             className="btn-primary rounded-xl px-4 py-2 text-sm"
           >
