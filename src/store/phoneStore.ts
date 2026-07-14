@@ -18,6 +18,8 @@ export interface PhoneMsg {
   role: 'me' | 'ta'
   text: string
   at: string
+  /** 模型请求失败时保留为可重试的提示消息 */
+  failed?: boolean
   /** 图片消息（dataURL，可选） */
   image?: string
   /** 表情贴纸消息（emoji 或图片 dataURL） */
