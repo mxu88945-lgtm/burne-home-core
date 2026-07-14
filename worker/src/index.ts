@@ -48,7 +48,12 @@ interface MemoryItem {
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
-  content: string
+  content:
+    | string
+    | Array<
+        | { type: 'text'; text: string }
+        | { type: 'image_url'; image_url: { url: string } }
+      >
 }
 
 const CORS: Record<string, string> = {
@@ -157,7 +162,9 @@ async function handleChat(req: Request, env: Env): Promise<Response> {
     temperature?: number
     maxTokens?: number
   }
-  const messages = (body.messages || []).filter((m) => m.content && m.content.trim())
+  const messages = (body.messages || []).filter((m) =>
+    typeof m.content === 'string' ? m.content.trim() : Array.isArray(m.content) && m.content.length,
+  )
   while (messages.length && messages[0].role !== 'user') messages.shift()
   if (!messages.length) return json({ reply: '' })
 
@@ -208,7 +215,24 @@ async function callAnthropic(
       max_tokens: tuning?.maxTokens ?? 1024,
       ...(tuning?.temperature != null ? { temperature: tuning.temperature } : {}),
       system,
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+      messages: messages.map((m) => ({
+        role: m.role,
+        content:
+          typeof m.content === 'string'
+            ? m.content
+            : m.content.map((part) => {
+                if (part.type === 'text') return part
+                const match = /^data:(.+?);base64,(.*)$/.exec(part.image_url.url)
+                return {
+                  type: 'image',
+                  source: {
+                    type: 'base64',
+                    media_type: match?.[1] || 'image/jpeg',
+                    data: match?.[2] || '',
+                  },
+                }
+              }),
+      })),
     }),
   })
   if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`)
