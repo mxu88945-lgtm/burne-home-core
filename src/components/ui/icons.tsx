@@ -143,3 +143,16 @@ export function PhoneIcon({ className }: P) {
     </svg>
   )
 }
+
+/** 表情贴纸 · 折角小贴纸 */
+export function StickerIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M6 4h8l4 4v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" />
+      <path d="M14 4v4h4" />
+      <circle cx="8.5" cy="12" r=".7" fill="currentColor" stroke="none" />
+      <circle cx="13.5" cy="12" r=".7" fill="currentColor" stroke="none" />
+      <path d="M8.5 15c.8.7 1.6 1 2.5 1s1.7-.3 2.5-1" />
+    </svg>
+  )
+}

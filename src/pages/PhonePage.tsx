@@ -18,6 +18,7 @@ import { useImgSrc } from '@/lib/useImgSrc'
 import IdbImg from '@/components/ui/IdbImg'
 import { putImgRef, resolveImgRef } from '@/lib/imgRef'
 import Avatar from '@/components/ui/Avatar'
+import { StickerIcon } from '@/components/ui/icons'
 
 function newId() {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `pm-${Date.now()}-${Math.random()}`
@@ -1039,6 +1040,15 @@ export default function PhonePage() {
             className="mb-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full text-xl text-muted hover:bg-white/40 hover:text-ink"
           >
             ＋
+          </button>
+          <button
+            type="button"
+            onClick={() => setStickerOpen((o) => !o)}
+            aria-label="打开表情包"
+            title="表情包"
+            className="mb-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full text-ink hover:bg-white/40"
+          >
+            <StickerIcon className="h-5 w-5" />
           </button>
           <textarea
             ref={inputRef}
