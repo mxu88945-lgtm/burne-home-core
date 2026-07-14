@@ -816,7 +816,7 @@ export default function PhonePage() {
             const firstOfRun = i === 0 || messages[i - 1].role !== m.role || !!messages[i - 1].task
             const canSpeak = !me && ttsEnabled && m.text.trim()
             return (
-              <div key={m.id} className={`flex items-end gap-2 ${me ? 'flex-row-reverse' : ''}`}>
+              <div key={m.id} className={`flex items-start gap-2 ${me ? 'flex-row-reverse' : ''}`}>
                 {firstOfRun ? (
                   <Avatar
                     img={me ? profile.avatarAImg : persona.avatarImg}
@@ -1039,14 +1039,6 @@ export default function PhonePage() {
             className="mb-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full text-xl text-muted hover:bg-white/40 hover:text-ink"
           >
             ＋
-          </button>
-          <button
-            type="button"
-            onClick={() => setStickerOpen((o) => !o)}
-            aria-label="表情贴纸"
-            className="mb-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full text-lg text-muted hover:bg-white/40 hover:text-ink"
-          >
-            😀
           </button>
           <textarea
             ref={inputRef}
