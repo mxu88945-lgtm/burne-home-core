@@ -251,6 +251,20 @@ export async function chatComplete(
   system = normalized.system
   // 经 Worker 中转：把渠道配置交给自己的 Worker 调用
   if (ch.viaWorker) {
+    // 旧 Worker 只会处理纯文字。当前模型本身支持读图时，多模态消息直接交给
+    // 同一个渠道/模型，保留真实图片内容；不要降级成“发送了一张图片”的文字。
+    if (messages.some((message) => Array.isArray(message.content))) {
+      try {
+        return await chatComplete(
+          { ...ch, viaWorker: false },
+          messages,
+          system,
+          { ...opts, maxTokens },
+        )
+      } catch (error) {
+        throw new Error(`图片直连当前模型失败：${(error as Error).message}`)
+      }
+    }
     if (!opts.workerUrl)
       throw new Error('勾选了「经 Worker 中转」但未配置 Worker 地址')
     const text = await sendChat({
