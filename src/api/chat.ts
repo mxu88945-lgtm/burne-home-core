@@ -54,6 +54,18 @@ export async function sendChat(opts: {
 }): Promise<string> {
   const base = opts.workerUrl.replace(/\/+$/, '')
   const normalized = normalizeSummaryRequest(opts.system, opts.maxTokens)
+  // 已部署的旧 Worker 只接受字符串 content；读图会由前端配置的视觉渠道直连。
+  // 没配视觉渠道时至少把图片降级成文字占位，避免 `.trim is not a function`
+  // 让图片之后的每一轮消息都永久失败。
+  const messages = opts.messages.map((message) => {
+    if (typeof message.content === 'string') return message
+    const text = message.content
+      .filter((part): part is { type: 'text'; text: string } => part.type === 'text')
+      .map((part) => part.text)
+      .join('\n')
+      .trim()
+    return { ...message, content: `${text}${text ? '\n' : ''}［发送了一张图片］` }
+  })
   const res = await fetch(`${base}/chat`, {
     method: 'POST',
     headers: {
@@ -61,7 +73,7 @@ export async function sendChat(opts: {
       ...(opts.syncKey ? { 'X-Sync-Key': opts.syncKey } : {}),
     },
     body: JSON.stringify({
-      messages: opts.messages,
+      messages,
       system: normalized.system,
       ...(opts.provider ? { provider: opts.provider } : {}),
       ...(opts.model ? { model: opts.model } : {}),

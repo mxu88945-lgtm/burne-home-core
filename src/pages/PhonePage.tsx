@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useProfileStore } from '@/store/profileStore'
-import { useApiStore } from '@/store/apiStore'
+import { useApiStore, type ApiChannel } from '@/store/apiStore'
+import { useVisionStore } from '@/store/visionStore'
 import { useSyncStore } from '@/store/syncStore'
 import { useUsageStore } from '@/store/usageStore'
 import { useMemoryStore } from '@/store/memoryStore'
@@ -89,6 +90,7 @@ export default function PhonePage() {
   const { profile } = useProfileStore()
   const activeChannel = useApiStore((s) => s.getActive())
   const channels = useApiStore((s) => s.channels)
+  const visionCfg = useVisionStore((s) => s.config)
   const { config } = useSyncStore()
   const addUsage = useUsageStore((s) => s.add)
   const addMemory = useMemoryStore((s) => s.addMemory)
@@ -445,6 +447,21 @@ export default function PhonePage() {
       })
     while (apiMsgs.length && apiMsgs[0].role !== 'user') apiMsgs.shift()
 
+    // 小手机也复用「读图模型」。主聊天渠道不支持图片时，不再把整段会话卡死。
+    const hasImage = apiMsgs.some((message) => Array.isArray(message.content))
+    const useVision =
+      hasImage && visionCfg.enabled && visionCfg.apiKey.trim() && visionCfg.model.trim()
+    const responseChannel: ApiChannel | undefined = useVision
+      ? {
+          id: 'phone-vision',
+          name: '读图',
+          provider: 'openai',
+          baseUrl: visionCfg.baseUrl,
+          apiKey: visionCfg.apiKey,
+          model: visionCfg.model,
+        }
+      : phoneChannel
+
     const base =
       persona.systemPrompt.trim() ||
       `你是${name}，${userName} 手机里最亲密的人，黏人、温柔、爱聊天。`
@@ -473,8 +490,8 @@ export default function PhonePage() {
     setErr('')
     try {
       let reply = ''
-      if (phoneChannel) {
-        const r = await chatComplete(phoneChannel, apiMsgs, system, {
+      if (responseChannel) {
+        const r = await chatComplete(responseChannel, apiMsgs, system, {
           workerUrl,
           syncKey: config.syncKey,
           temperature: 0.85,
@@ -484,7 +501,7 @@ export default function PhonePage() {
         if (r.usage) {
           addUsage({
             at: new Date().toISOString(),
-            provider: phoneChannel.provider,
+            provider: responseChannel.provider,
             model: r.usage.model,
             promptTokens: r.usage.promptTokens,
             completionTokens: r.usage.completionTokens,
