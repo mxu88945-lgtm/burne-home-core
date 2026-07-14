@@ -49,6 +49,8 @@ interface StickerState {
   stickers: Sticker[]
   add: (s: Omit<Sticker, 'id'>) => Promise<void>
   remove: (id: string) => void
+  /** 删除所有上传图片贴纸，保留内置 emoji。 */
+  clearUploaded: () => Promise<void>
   /** 整体替换（图片迁移到 IndexedDB 用） */
   replaceAll: (stickers: Sticker[]) => void
 }
@@ -77,6 +79,17 @@ export const useStickerStore = create<StickerState>((set, get) => ({
     const old = get().stickers.find((s) => s.id === id)
     if (old?.img?.startsWith('idb:')) void idbDel(old.img.slice(4))
     const stickers = get().stickers.filter((s) => s.id !== id)
+    writeJSON(STORAGE_KEYS.stickers, stickers)
+    set({ stickers })
+  },
+  clearUploaded: async () => {
+    const uploaded = get().stickers.filter((sticker) => Boolean(sticker.img))
+    await Promise.all(
+      uploaded.map((sticker) =>
+        sticker.img?.startsWith('idb:') ? idbDel(sticker.img.slice(4)) : Promise.resolve(),
+      ),
+    )
+    const stickers = get().stickers.filter((sticker) => !sticker.img)
     writeJSON(STORAGE_KEYS.stickers, stickers)
     set({ stickers })
   },

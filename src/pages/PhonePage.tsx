@@ -143,6 +143,7 @@ export default function PhonePage() {
   const addSticker = useStickerStore((s) => s.add)
   const removeSticker = useStickerStore((s) => s.remove)
   const replaceStickers = useStickerStore((s) => s.replaceAll)
+  const clearUploadedStickers = useStickerStore((s) => s.clearUploaded)
   const endRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const avatarRef = useRef<HTMLInputElement>(null)
@@ -158,6 +159,14 @@ export default function PhonePage() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
+
+  // 旧版本曾生成只有 `idb:` 目录、没有图片本体的空贴纸。按用户要求一次性
+  // 清掉全部上传图片贴纸，保留内置 emoji；之后重新上传会走可靠的等待落盘流程。
+  useEffect(() => {
+    const resetKey = 'burne-home-core:uploaded-stickers-reset-20260714'
+    if (localStorage.getItem(resetKey)) return
+    void clearUploadedStickers().then(() => localStorage.setItem(resetKey, '1'))
+  }, [clearUploadedStickers])
 
   // 旧版整包备份只带了 `idb:` 引用。若贴纸本体缺失，优先从已经发送过的
   // 同名贴纸消息中找回并补进贴纸库，修复后强制图片组件重新读取一次。
