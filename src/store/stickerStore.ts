@@ -9,7 +9,7 @@
 import { create } from 'zustand'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
-import { putImgRef } from '@/lib/imgRef'
+import { idbDel, idbSet } from '@/lib/idb'
 
 export interface Sticker {
   id: string
@@ -47,7 +47,7 @@ function newId() {
 
 interface StickerState {
   stickers: Sticker[]
-  add: (s: Omit<Sticker, 'id'>) => void
+  add: (s: Omit<Sticker, 'id'>) => Promise<void>
   remove: (id: string) => void
   /** 整体替换（图片迁移到 IndexedDB 用） */
   replaceAll: (stickers: Sticker[]) => void
@@ -60,15 +60,22 @@ function load(): Sticker[] {
 
 export const useStickerStore = create<StickerState>((set, get) => ({
   stickers: load(),
-  add: (s) => {
+  add: async (s) => {
     const id = newId()
-    // 图片本体进 IndexedDB，localStorage 只留 `idb:` 引用（5MB 事故根治，见 HANDOFF H0）
-    const img = s.img && s.img.startsWith('data:') ? putImgRef('simg', id, s.img) : s.img
+    // 先等图片本体落盘，再登记引用；避免页面退出/同步时留下只有目录的空贴纸。
+    let img = s.img
+    if (img?.startsWith('data:')) {
+      const key = `simg:${id}`
+      await idbSet(key, img)
+      img = `idb:${key}`
+    }
     const stickers = [{ ...s, img, id }, ...get().stickers]
     writeJSON(STORAGE_KEYS.stickers, stickers)
     set({ stickers })
   },
   remove: (id) => {
+    const old = get().stickers.find((s) => s.id === id)
+    if (old?.img?.startsWith('idb:')) void idbDel(old.img.slice(4))
     const stickers = get().stickers.filter((s) => s.id !== id)
     writeJSON(STORAGE_KEYS.stickers, stickers)
     set({ stickers })

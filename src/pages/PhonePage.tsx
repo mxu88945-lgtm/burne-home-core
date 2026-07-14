@@ -17,6 +17,7 @@ import { fileToDataUrl } from '@/lib/image'
 import { useImgSrc } from '@/lib/useImgSrc'
 import IdbImg from '@/components/ui/IdbImg'
 import { putImgRef, resolveImgRef } from '@/lib/imgRef'
+import { idbSet } from '@/lib/idb'
 import Avatar from '@/components/ui/Avatar'
 import { StickerIcon } from '@/components/ui/icons'
 
@@ -129,6 +130,7 @@ export default function PhonePage() {
   const [pendingImage, setPendingImage] = useState('')
   const [lightbox, setLightbox] = useState('')
   const [stickerOpen, setStickerOpen] = useState(false)
+  const [stickerImageVersion, setStickerImageVersion] = useState(0)
   const [nowTs, setNowTs] = useState(Date.now())
   const [memToast, setMemToast] = useState('')
   const memToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -140,6 +142,7 @@ export default function PhonePage() {
   const stickers = useStickerStore((s) => s.stickers)
   const addSticker = useStickerStore((s) => s.add)
   const removeSticker = useStickerStore((s) => s.remove)
+  const replaceStickers = useStickerStore((s) => s.replaceAll)
   const endRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const avatarRef = useRef<HTMLInputElement>(null)
@@ -155,6 +158,40 @@ export default function PhonePage() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
+
+  // 旧版整包备份只带了 `idb:` 引用。若贴纸本体缺失，优先从已经发送过的
+  // 同名贴纸消息中找回并补进贴纸库，修复后强制图片组件重新读取一次。
+  useEffect(() => {
+    if (!stickerOpen) return
+    let cancelled = false
+    void (async () => {
+      let repaired = 0
+      const messageStickers = sessions.flatMap((session) =>
+        session.messages.map((message) => message.sticker).filter(Boolean),
+      )
+      for (const sticker of stickers) {
+        if (!sticker.img?.startsWith('idb:') || (await resolveImgRef(sticker.img))) continue
+        const candidates = messageStickers.filter(
+          (candidate) => candidate?.name === sticker.name && candidate.img && candidate.img !== sticker.img,
+        )
+        for (const candidate of candidates) {
+          const body = await resolveImgRef(candidate!.img!)
+          if (!body) continue
+          await idbSet(sticker.img.slice(4), body)
+          repaired++
+          break
+        }
+      }
+      if (!cancelled && repaired) {
+        replaceStickers(stickers.map((sticker) => ({ ...sticker })))
+        setStickerImageVersion((version) => version + 1)
+        showMemToast(`已找回 ${repaired} 张贴纸`)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [stickerOpen])
 
   function autoGrow() {
     const el = inputRef.current
@@ -274,7 +311,7 @@ export default function PhonePage() {
     try {
       const url = await fileToDataUrl(file, 320, 0.85)
       const nm = (window.prompt('给这个贴纸起个名字（TA 会按名字挑着发）', '贴纸') || '').trim()
-      addSticker({ name: nm || '贴纸', img: url })
+      await addSticker({ name: nm || '贴纸', img: url })
     } catch (e) {
       setErr((e as Error).message)
     }
@@ -1044,7 +1081,7 @@ export default function PhonePage() {
               <div className="grid grid-cols-5 gap-2">
                 {stickers.map((s) => (
                   <button
-                    key={s.id}
+                    key={`${s.id}:${stickerImageVersion}`}
                     type="button"
                     onClick={() => sendSticker(s)}
                     onContextMenu={(e) => {
