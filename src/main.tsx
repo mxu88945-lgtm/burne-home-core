@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 import { applyTheme, readStoredTheme } from '@/store/themeStore'
+import { hydrateDramaStore } from '@/store/dramaStore'
+import { hydrateCharLibStore } from '@/store/charLibStore'
 
 // 渲染前先应用已保存的主题，避免首屏闪烁
 applyTheme(readStoredTheme())
@@ -36,8 +38,27 @@ window.addEventListener('bw:storage-full', () => {
   )
 })
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-)
+window.addEventListener('bw:storage-write-failed', () => {
+  const now = Date.now()
+  if (now - lastStorageWarn < 60_000) return
+  lastStorageWarn = now
+  window.alert('⚠️ 本地大仓库刚才没有写入成功。请先不要关闭页面，确认手机存储空间后重试刚才的操作。')
+})
+
+async function startApp() {
+  try {
+    // 两个最大文本仓先恢复/迁移，再渲染页面，避免空状态误覆盖旧数据。
+    await Promise.all([hydrateDramaStore(), hydrateCharLibStore()])
+  } catch (err) {
+    console.error('[startup] 大仓库恢复失败', err)
+    window.alert('本地数据仓库暂时读取失败，请不要编辑或删除内容。刷新页面重试；原数据仍保留在本机。')
+    return
+  }
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  )
+}
+
+void startApp()

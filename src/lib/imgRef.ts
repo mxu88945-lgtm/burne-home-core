@@ -13,6 +13,13 @@ export function putImgRef(prefix: string, id: string, dataUrl: string): string {
   return `idb:${key}`
 }
 
+/** 关键消息发送用：确认图片已经落盘后才返回引用，避免关页/写入失败留下空壳。 */
+export async function saveImgRef(prefix: string, id: string, dataUrl: string): Promise<string> {
+  const key = `${prefix}:${id}`
+  await idbSet(key, dataUrl)
+  return `idb:${key}`
+}
+
 /** `idb:` 引用 → dataURL；普通地址原样返回；取不到返回 '' */
 export async function resolveImgRef(src: string): Promise<string> {
   if (!src.startsWith('idb:')) return src

@@ -143,9 +143,13 @@ export default function DataPage() {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={async () => {
-              setMsg('正在整理对话与图片…')
-              await downloadFullBackup(includeKeys)
-              setMsg(includeKeys ? '已导出（含 API Key 与图片）' : '已导出（含图片，不含 API Key）')
+              try {
+                setMsg('正在整理对话与图片…')
+                await downloadFullBackup(includeKeys)
+                setMsg(includeKeys ? '已导出（含 API Key 与图片）' : '已导出（含图片，不含 API Key）')
+              } catch (e) {
+                setMsg(`导出失败：${(e as Error).message}`)
+              }
             }}
             className="btn-primary rounded-xl px-4 py-2 text-sm"
           >
@@ -250,7 +254,7 @@ export default function DataPage() {
                 })}
             </div>
             <p className="text-[11px] leading-relaxed text-muted">
-              图片、歌曲、书这些「大件」都放在另一个大仓库（IndexedDB），不占上面的额度。这里只算文字类数据。
+              戏剧、角色卡、图片、歌曲和书这些「大件」都放在大仓库（IndexedDB），不占上面的 5 MB 额度；戏剧与角色卡只在这里留一个很小的启动索引。
             </p>
 
             {/* 大仓库（IndexedDB）用量：直接回答「大仓库会不会也满」 */}
@@ -262,7 +266,7 @@ export default function DataPage() {
                 return (
                   <div className="mt-1 rounded-xl bg-black/5 p-3">
                     <div className="flex justify-between text-[12px] text-ink">
-                      <span>大仓库（图片/歌曲/书）</span>
+                      <span>大仓库（戏剧/角色卡/图片/歌曲/书）</span>
                       <b>
                         {usedMb < 1024 ? `${usedMb.toFixed(0)} MB` : `${(usedMb / 1024).toFixed(2)} GB`} /{' '}
                         {quotaMb < 1024 ? `${quotaMb.toFixed(0)} MB` : `${(quotaMb / 1024).toFixed(1)} GB`}
@@ -273,7 +277,7 @@ export default function DataPage() {
                     </div>
                     <p className="mt-1 text-[11px] leading-relaxed text-muted">
                       这个仓库比上面那个大几百倍（{quotaMb < 1024 ? `约 ${quotaMb.toFixed(0)} MB` : `约 ${(quotaMb / 1024).toFixed(1)} GB`}），
-                      图片歌曲都存这儿，正常用一辈子也满不了。放心～
+                      剧本、角色卡、图片和歌曲都存这儿，正常使用很难装满。放心～
                     </p>
                   </div>
                 )

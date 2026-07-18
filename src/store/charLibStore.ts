@@ -6,7 +6,7 @@
  */
 
 import { create } from 'zustand'
-import { readJSON, writeJSON } from '@/api/storage'
+import { loadLargeJSON, readLargeJSONSync, writeLargeJSON } from '@/api/largeStorage'
 import { STORAGE_KEYS } from '@/lib/constants'
 import type { LoreEntry } from '@/store/dramaStore'
 import type { RegexScript } from '@/lib/regexScript'
@@ -53,10 +53,17 @@ interface State {
   replaceChars: (chars: LibChar[]) => void
 }
 
-const init = readJSON<{ chars?: LibChar[] }>(STORAGE_KEYS.charLib, {})
+interface Persisted { chars?: LibChar[] }
+const init = readLargeJSONSync<Persisted>(STORAGE_KEYS.charLib, {})
+
+/** App 首屏前从 IndexedDB 恢复；旧 localStorage 数据会在这里安全搬家。 */
+export async function hydrateCharLibStore(): Promise<void> {
+  const data = await loadLargeJSON<Persisted>(STORAGE_KEYS.charLib, {})
+  useCharLibStore.setState({ chars: data.chars || [] })
+}
 
 export const useCharLibStore = create<State>((set, get) => {
-  const persist = (chars: LibChar[]) => writeJSON(STORAGE_KEYS.charLib, { chars })
+  const persist = (chars: LibChar[]) => writeLargeJSON(STORAGE_KEYS.charLib, { chars })
   return {
     chars: init.chars || [],
 

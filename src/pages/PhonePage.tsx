@@ -17,7 +17,7 @@ import { sendChat, type ChatApiMessage } from '@/api/chat'
 import { fileToDataUrl } from '@/lib/image'
 import { useImgSrc } from '@/lib/useImgSrc'
 import IdbImg from '@/components/ui/IdbImg'
-import { putImgRef, resolveImgRef } from '@/lib/imgRef'
+import { saveImgRef, resolveImgRef } from '@/lib/imgRef'
 import { idbSet } from '@/lib/idb'
 import Avatar from '@/components/ui/Avatar'
 import { StickerIcon } from '@/components/ui/icons'
@@ -332,13 +332,22 @@ export default function PhonePage() {
     const text = draft.trim()
     if ((!text && !pendingImage) || sending) return
     const mid = newId()
+    let imageRef: string | undefined
+    if (pendingImage) {
+      try {
+        imageRef = await saveImgRef('pimg', mid, pendingImage)
+      } catch (e) {
+        setErr(`图片保存失败：${(e as Error).message}`)
+        return
+      }
+    }
     const mine: PhoneMsg = {
       id: mid,
       role: 'me',
       text,
       at: now(),
       // 图片本体进 IndexedDB，消息里只存引用（别撑爆 localStorage）
-      ...(pendingImage ? { image: putImgRef('pimg', mid, pendingImage) } : {}),
+      ...(imageRef ? { image: imageRef } : {}),
     }
     const history = [...messages, mine]
     setMessages(history)
