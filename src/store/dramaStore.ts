@@ -5,7 +5,7 @@
  */
 
 import { create } from 'zustand'
-import { readJSON, writeJSON } from '@/api/storage'
+import { loadLargeJSON, readLargeJSONSync, writeLargeJSON } from '@/api/largeStorage'
 import { STORAGE_KEYS, CURRENT_WINDOW_ID } from '@/lib/constants'
 import type { RegexScript } from '@/lib/regexScript'
 import { divertAvatar } from '@/lib/imgRef'
@@ -116,7 +116,7 @@ interface Persisted {
 
 const DEFAULT_TEXT_STYLE = { size: 15, text: '', quote: '', inner: '' }
 const DEFAULT: Persisted = { scenes: [], activeId: '', flat: false, autoSummary: true, autoSummaryEvery: 8, autoCharMemory: false, histCount: 24, summaryTrim: false, textStyle: DEFAULT_TEXT_STYLE, autoCompress: false, autoCompressOver: 80 }
-const init = { ...DEFAULT, ...readJSON<Partial<Persisted>>(STORAGE_KEYS.drama, {}) }
+const init = { ...DEFAULT, ...readLargeJSONSync<Partial<Persisted>>(STORAGE_KEYS.drama, {}) }
 
 function uid(): string {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `d-${Date.now()}-${Math.random()}`
@@ -170,7 +170,7 @@ interface DramaState extends Persisted {
 
 export const useDramaStore = create<DramaState>((set, get) => {
   const persist = (scenes: DramaScene[], activeId = get().activeId) =>
-    writeJSON(STORAGE_KEYS.drama, {
+    writeLargeJSON(STORAGE_KEYS.drama, {
       scenes,
       activeId,
       flat: get().flat,
@@ -396,6 +396,12 @@ export const useDramaStore = create<DramaState>((set, get) => {
     },
   }
 })
+
+/** App 首屏前从 IndexedDB 恢复；旧 localStorage 数据会在这里安全搬家。 */
+export async function hydrateDramaStore(): Promise<void> {
+  const data = { ...DEFAULT, ...(await loadLargeJSON<Partial<Persisted>>(STORAGE_KEYS.drama, {})) }
+  useDramaStore.setState({ ...data, textStyle: { ...DEFAULT_TEXT_STYLE, ...data.textStyle } })
+}
 
 /** 生成消息 id（页面用） */
 export function dramaMsgId(): string {

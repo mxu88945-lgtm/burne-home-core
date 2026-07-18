@@ -6,6 +6,7 @@
 import type { BackupFile, MemoryItem } from '@/types/memory'
 import { BACKUP_VERSION } from '@/lib/constants'
 import { idbGet, idbSet } from '@/lib/idb'
+import { flushLargeStorage } from '@/api/largeStorage'
 
 /** 打包成备份对象 */
 export function buildBackup(memories: MemoryItem[]): BackupFile {
@@ -88,6 +89,12 @@ export interface FullBackup {
 function sanitize(store: Record<string, unknown>) {
   const api = store[`${NS_PREFIX}api`] as { channels?: { apiKey?: string }[] } | undefined
   if (api?.channels) api.channels = api.channels.map((c) => ({ ...c, apiKey: '' }))
+  const imagegen = store[`${NS_PREFIX}imagegen`] as { channels?: { apiKey?: string }[] } | undefined
+  if (imagegen?.channels) imagegen.channels = imagegen.channels.map((c) => ({ ...c, apiKey: '' }))
+  for (const suffix of ['vision', 'stt', 'tts', 'memory-model'] as const) {
+    const config = store[`${NS_PREFIX}${suffix}`] as { apiKey?: string } | undefined
+    if (config && 'apiKey' in config) config.apiKey = ''
+  }
   const sync = store[`${NS_PREFIX}sync`] as { syncKey?: string } | undefined
   if (sync) delete sync.syncKey
   const notion = store[`${NS_PREFIX}notion-config`] as { token?: string } | undefined
@@ -109,6 +116,8 @@ function collectIdbKeys(value: unknown, keys: Set<string>): void {
 }
 
 export async function buildFullBackup(includeKeys: boolean): Promise<FullBackup> {
+  // 用户刚改完内容就点备份时，先等大状态仓的排队写入完成，避免导出上一拍的旧快照。
+  await flushLargeStorage()
   const store: Record<string, unknown> = {}
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i)
@@ -178,9 +187,18 @@ export function parseFullBackup(raw: string): FullBackup {
 
 /** 写回本地（覆盖）。调用方应在之后刷新页面以重载状态。 */
 export async function applyFullBackup(b: FullBackup): Promise<void> {
+  // 先恢复大仓库；全部成功后再动 localStorage，失败时当前数据仍完整可用。
+  await Promise.all(Object.entries(b.idb ?? {}).map(([key, value]) => idbSet(key, value)))
   for (const [k, v] of Object.entries(b.store)) {
     if (!k.startsWith(NS_PREFIX)) continue
     localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v))
   }
-  await Promise.all(Object.entries(b.idb ?? {}).map(([key, value]) => idbSet(key, value)))
+  // 「覆盖全部数据」应清掉本机独有、备份里没有的旧设置，避免两份状态混在一起。
+  const keep = new Set(Object.keys(b.store).filter((k) => k.startsWith(NS_PREFIX)))
+  const stale: string[] = []
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i)
+    if (key?.startsWith(NS_PREFIX) && !keep.has(key)) stale.push(key)
+  }
+  stale.forEach((key) => localStorage.removeItem(key))
 }

@@ -21,6 +21,7 @@ import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import Avatar from '@/components/ui/Avatar'
 import IdbImg from '@/components/ui/IdbImg'
 import { idbGet, idbSet } from '@/lib/idb'
+import { saveImgRef } from '@/lib/imgRef'
 import BackBar from '@/components/layout/BackBar'
 import DramaBg from '@/components/ui/DramaBg'
 import { useAppearanceStore } from '@/store/appearanceStore'
@@ -178,6 +179,7 @@ export default function DramaRoom() {
   const prevLenRef = useRef<number | null>(null)
   const prevSummarySceneRef = useRef('')
   const autoSummaryPendingRef = useRef(false)
+  const autoCompressAttemptRef = useRef('')
   useEffect(() => {
     const len = scene?.messages.length ?? 0
     const sceneId = scene?.id ?? ''
@@ -218,8 +220,19 @@ export default function DramaRoom() {
   // 自动压缩：消息超过阈值就把较早对话并进摘要（留最近 24 条），省 token + 给存储减负
   useEffect(() => {
     const len = scene?.messages.length ?? 0
-    if (!autoCompress || summaryBusy || busyChar) return
-    if (len >= Math.max(40, autoCompressOver)) void compress(true)
+    if (!autoCompress) {
+      autoCompressAttemptRef.current = ''
+      return
+    }
+    if (summaryBusy || busyChar) return
+    const threshold = Math.max(40, autoCompressOver)
+    const attemptKey = `${scene?.id ?? ''}:${len}:${threshold}`
+    // 同一批消息失败后不要因 summaryBusy true→false 立刻无限补打 API；
+    // 等消息再次增长、切剧场或用户重新开关后再尝试。
+    if (len >= threshold && autoCompressAttemptRef.current !== attemptKey) {
+      autoCompressAttemptRef.current = attemptKey
+      void compress(true)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene?.messages.length, autoCompress, autoCompressOver, summaryBusy, busyChar])
 
@@ -354,15 +367,18 @@ export default function DramaRoom() {
   }
 
   /** 发送我（女主）的一条。图片本体进 IndexedDB，消息里只存 `idb:` 引用（不占 localStorage 5MB 配额） */
-  function sendMine() {
+  async function sendMine(): Promise<boolean> {
     const text = draft.trim()
-    if (!text && !pendingImage) return
+    if (!text && !pendingImage) return false
     const msgId = dramaMsgId()
     let imageRef: string | undefined
     if (pendingImage) {
-      const key = `dmimg:${msgId}`
-      void idbSet(key, pendingImage)
-      imageRef = `idb:${key}`
+      try {
+        imageRef = await saveImgRef('dmimg', msgId, pendingImage)
+      } catch (e) {
+        setErr(`图片保存失败：${(e as Error).message}`)
+        return false
+      }
     }
     addMessage(sc.id, {
       id: msgId,
@@ -373,6 +389,7 @@ export default function DramaRoom() {
     })
     setDraft('')
     setPendingImage('')
+    return true
   }
 
   /** 把 `idb:` 图片引用解析回 dataURL（喂模型 vision 用） */
@@ -410,7 +427,7 @@ export default function DramaRoom() {
   }, [])
 
   /** 发送：@角色名＝让该角色接话；1v1 发完自动让那个 AI 回；群聊照旧 */
-  function onSend() {
+  async function onSend() {
     const t = draft.trim()
     const m = t.match(/^@(\S+)$/)
     if (m && !pendingImage) {
@@ -424,10 +441,9 @@ export default function DramaRoom() {
       setErr(`没找到角色「${nm}」，@后面填角色名`)
       return
     }
-    const had = !!(t || pendingImage)
-    sendMine()
+    const sent = await sendMine()
     // 自动回复（1v1 默认开 / ⚙ 可手动开）：1v1 让那个 AI 回；群聊自动判断该谁接话
-    if (had && effectiveAuto && !busyChar) {
+    if (sent && effectiveAuto && !busyChar) {
       if (aiChars.length <= 1) {
         const tgt = autoTarget()
         if (tgt) void respond(tgt)

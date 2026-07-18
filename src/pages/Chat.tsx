@@ -28,7 +28,7 @@ import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, ArrowUpIcon, MicI
 import { renderRichText, stripLinks } from '@/lib/richText'
 import { cleanReply } from '@/lib/cleanReply'
 import IdbImg from '@/components/ui/IdbImg'
-import { putImgRef, resolveImgRef } from '@/lib/imgRef'
+import { saveImgRef, resolveImgRef } from '@/lib/imgRef'
 import { useImgSrc } from '@/lib/useImgSrc'
 import { usePeriodStore } from '@/store/periodStore'
 import { periodChatNote } from '@/lib/period'
@@ -560,13 +560,22 @@ export default function Chat() {
     const text = (textOverride ?? draft).trim()
     if ((!text && !pendingImage && !pendingFile) || sending) return
     const mid = newId()
+    let imageRef: string | undefined
+    if (pendingImage) {
+      try {
+        imageRef = await saveImgRef('cimg', mid, pendingImage)
+      } catch (e) {
+        setImgErr(`图片保存失败：${(e as Error).message}`)
+        return
+      }
+    }
     const mine: Msg = {
       id: mid,
       role: 'me',
       text,
       at: now(),
       // 图片本体进 IndexedDB，消息里只存引用（别撑爆 localStorage）
-      ...(pendingImage ? { image: putImgRef('cimg', mid, pendingImage) } : {}),
+      ...(imageRef ? { image: imageRef } : {}),
       ...(pendingFile ? { file: pendingFile } : {}),
     }
     const history = [...messages, mine]
