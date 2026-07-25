@@ -19,6 +19,7 @@ import { useImgSrc } from '@/lib/useImgSrc'
 import IdbImg from '@/components/ui/IdbImg'
 import { saveImgRef, resolveImgRef } from '@/lib/imgRef'
 import { buildPhoneApiPayload } from '@/lib/phoneApiMessages'
+import { LatestRequestGate } from '@/lib/latestRequestGate'
 import { idbSet } from '@/lib/idb'
 import Avatar from '@/components/ui/Avatar'
 import { CameraIcon, ImageIcon, StickerIcon } from '@/components/ui/icons'
@@ -38,8 +39,6 @@ const ME_COLOR_DEFAULT = '#d98caa'
 const TA_COLOR_DEFAULT = '#86868c'
 /** 等用户把一轮话说完再回；输入下一句时会重新开始等待。 */
 const REPLY_DEBOUNCE_MS = 6000
-/** 上一轮请求仍在收尾时，短暂轮询，避免两次模型请求并发。 */
-const REPLY_BUSY_RETRY_MS = 400
 /** 按气泡底色亮度自动选字色：浅底用深字、深底用白字（避免浅粉上白字发虚） */
 function textOn(hex: string): 'text-white' | 'text-ink' {
   let h = (hex || '').replace('#', '')
@@ -181,8 +180,7 @@ export default function PhonePage() {
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const queuedImageIdsRef = useRef(new Set<string>())
   const queuedSessionIdRef = useRef('')
-  const respondingRef = useRef(false)
-  const responseVersionRef = useRef(0)
+  const responseGateRef = useRef(new LatestRequestGate())
   const isTouch =
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
@@ -293,7 +291,9 @@ export default function PhonePage() {
   }
 
   function invalidateActiveResponse() {
-    if (respondingRef.current) responseVersionRef.current += 1
+    responseGateRef.current.invalidate()
+    // 旧网络请求可能还在后台收尾，但从这一刻起它已经不能再更新界面。
+    setSending(false)
   }
 
   function queueReply(sessionId: string, imageIds: readonly string[] = []) {
@@ -305,10 +305,6 @@ export default function PhonePage() {
     imageIds.forEach((id) => queuedImageIdsRef.current.add(id))
     setReplyQueued(true)
     const runQueuedReply = () => {
-      if (respondingRef.current) {
-        replyTimerRef.current = setTimeout(runQueuedReply, REPLY_BUSY_RETRY_MS)
-        return
-      }
       replyTimerRef.current = null
       const activeSessionId = usePhoneStore.getState().activeId
       if (activeSessionId !== sessionId) {
@@ -530,9 +526,7 @@ export default function PhonePage() {
   }
 
   async function respond(history: PhoneMsg[], activeImageIds: readonly string[] = []) {
-    const responseVersion = responseVersionRef.current + 1
-    responseVersionRef.current = responseVersion
-    respondingRef.current = true
+    const responseVersion = responseGateRef.current.begin()
     setSending(true)
     setErr('')
     try {
@@ -615,7 +609,7 @@ export default function PhonePage() {
         )
       }
       // 用户在请求期间又补发了消息：丢弃这份过时回复，等新一批消息统一再回。
-      if (responseVersion !== responseVersionRef.current) return
+      if (!responseGateRef.current.isCurrent(responseVersion)) return
       // 清掉思考/工具调用模型漏出来的标签（<think>/<arg_value> 等）
       reply = cleanReply(reply)
       // 解析 TA 下的倒计时指令卡 [[task|分钟|内容]]
@@ -688,14 +682,14 @@ export default function PhonePage() {
         void extractMemories([...history, { id: 'tmp', role: 'ta', text: reply, at: '' }], force)
       }
     } catch (e) {
-      if (responseVersion !== responseVersionRef.current) return
+      if (!responseGateRef.current.isCurrent(responseVersion)) return
       setMessages((p) => [
         ...p,
         { id: newId(), role: 'ta', text: `（没发出去：${(e as Error).message}）`, at: now(), failed: true },
       ])
     } finally {
-      respondingRef.current = false
-      setSending(false)
+      // 旧请求晚到时，不能把更新一轮仍在进行的状态误清掉。
+      if (responseGateRef.current.isCurrent(responseVersion)) setSending(false)
     }
   }
 
