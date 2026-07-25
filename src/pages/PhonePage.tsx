@@ -36,8 +36,10 @@ function hexToRgba(hex: string, a: number): string {
 }
 const ME_COLOR_DEFAULT = '#d98caa'
 const TA_COLOR_DEFAULT = '#86868c'
-/** 等用户把一轮话说完再回；每条消息仍然立刻以独立气泡显示。 */
-const REPLY_DEBOUNCE_MS = 2600
+/** 等用户把一轮话说完再回；输入下一句时会重新开始等待。 */
+const REPLY_DEBOUNCE_MS = 6000
+/** 上一轮请求仍在收尾时，短暂轮询，避免两次模型请求并发。 */
+const REPLY_BUSY_RETRY_MS = 400
 /** 按气泡底色亮度自动选字色：浅底用深字、深底用白字（避免浅粉上白字发虚） */
 function textOn(hex: string): 'text-white' | 'text-ink' {
   let h = (hex || '').replace('#', '')
@@ -179,6 +181,8 @@ export default function PhonePage() {
   const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const queuedImageIdsRef = useRef(new Set<string>())
   const queuedSessionIdRef = useRef('')
+  const respondingRef = useRef(false)
+  const responseVersionRef = useRef(0)
   const isTouch =
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
@@ -288,6 +292,10 @@ export default function PhonePage() {
     setReplyQueued(false)
   }
 
+  function invalidateActiveResponse() {
+    if (respondingRef.current) responseVersionRef.current += 1
+  }
+
   function queueReply(sessionId: string, imageIds: readonly string[] = []) {
     if (replyTimerRef.current) clearTimeout(replyTimerRef.current)
     if (queuedSessionIdRef.current && queuedSessionIdRef.current !== sessionId) {
@@ -296,7 +304,11 @@ export default function PhonePage() {
     queuedSessionIdRef.current = sessionId
     imageIds.forEach((id) => queuedImageIdsRef.current.add(id))
     setReplyQueued(true)
-    replyTimerRef.current = setTimeout(() => {
+    const runQueuedReply = () => {
+      if (respondingRef.current) {
+        replyTimerRef.current = setTimeout(runQueuedReply, REPLY_BUSY_RETRY_MS)
+        return
+      }
       replyTimerRef.current = null
       const activeSessionId = usePhoneStore.getState().activeId
       if (activeSessionId !== sessionId) {
@@ -310,7 +322,8 @@ export default function PhonePage() {
       queuedSessionIdRef.current = ''
       setReplyQueued(false)
       void respond(sessionMessages(sessionId), activeImageIds)
-    }, REPLY_DEBOUNCE_MS)
+    }
+    replyTimerRef.current = setTimeout(runQueuedReply, REPLY_DEBOUNCE_MS)
   }
 
   function completeTask(id: string) {
@@ -367,7 +380,6 @@ export default function PhonePage() {
     }
   }
   function sendSticker(s: Sticker) {
-    if (sending) return
     setStickerOpen(false)
     setAttachOpen(false)
     const mine: PhoneMsg = {
@@ -378,6 +390,7 @@ export default function PhonePage() {
       sticker: { emoji: s.emoji, img: s.img, name: s.name },
     }
     const history = [...sessionMessages(activeId), mine]
+    invalidateActiveResponse()
     setMessages(history)
     if (connected) queueReply(activeId)
   }
@@ -426,7 +439,7 @@ export default function PhonePage() {
 
   async function send() {
     const text = draft.trim()
-    if ((!text && !pendingImage) || sending) return
+    if (!text && !pendingImage) return
     const mid = newId()
     let imageRef: string | undefined
     if (pendingImage) {
@@ -446,6 +459,7 @@ export default function PhonePage() {
       ...(imageRef ? { image: imageRef } : {}),
     }
     const history = [...sessionMessages(activeId), mine]
+    invalidateActiveResponse()
     setMessages(history)
     if (text) autoTitle(text)
     setDraft('')
@@ -516,6 +530,9 @@ export default function PhonePage() {
   }
 
   async function respond(history: PhoneMsg[], activeImageIds: readonly string[] = []) {
+    const responseVersion = responseVersionRef.current + 1
+    responseVersionRef.current = responseVersion
+    respondingRef.current = true
     setSending(true)
     setErr('')
     try {
@@ -597,6 +614,8 @@ export default function PhonePage() {
           }),
         )
       }
+      // 用户在请求期间又补发了消息：丢弃这份过时回复，等新一批消息统一再回。
+      if (responseVersion !== responseVersionRef.current) return
       // 清掉思考/工具调用模型漏出来的标签（<think>/<arg_value> 等）
       reply = cleanReply(reply)
       // 解析 TA 下的倒计时指令卡 [[task|分钟|内容]]
@@ -669,11 +688,13 @@ export default function PhonePage() {
         void extractMemories([...history, { id: 'tmp', role: 'ta', text: reply, at: '' }], force)
       }
     } catch (e) {
+      if (responseVersion !== responseVersionRef.current) return
       setMessages((p) => [
         ...p,
         { id: newId(), role: 'ta', text: `（没发出去：${(e as Error).message}）`, at: now(), failed: true },
       ])
     } finally {
+      respondingRef.current = false
       setSending(false)
     }
   }
@@ -743,7 +764,7 @@ export default function PhonePage() {
         <div className="min-w-0 flex-1" onClick={editName}>
           <div className="headline truncate text-lg not-italic font-semibold leading-tight text-ink">{name}</div>
           <div className="mt-0.5 truncate text-[11px] text-muted">
-            {sending ? '正在输入…' : replyQueued ? '等你说完…' : persona.signature || '点这里写个性签名'}
+            {replyQueued ? '等你说完…' : sending ? '正在输入…' : persona.signature || '点这里写个性签名'}
           </div>
         </div>
         <div className="relative flex flex-none items-center gap-2">
@@ -903,6 +924,7 @@ export default function PhonePage() {
                   onClick={() => {
                     setMenuOpen(false)
                     if (window.confirm('清空和 TA 的聊天记录？')) {
+                      invalidateActiveResponse()
                       cancelQueuedReply()
                       clear()
                     }
@@ -1046,7 +1068,7 @@ export default function PhonePage() {
               </div>
             )
           })}
-          {sending && (
+          {sending && !replyQueued && (
             <div className="flex items-end gap-2">
               {messages.length > 0 && messages[messages.length - 1].role === 'ta' ? (
                 <div className="h-7 w-7 flex-none" aria-hidden />
@@ -1294,7 +1316,11 @@ export default function PhonePage() {
             ref={inputRef}
             value={draft}
             rows={1}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value)
+              // 已经发过一条后，只要还在敲下一句，就继续等，不抢在用户前面回复。
+              if (replyQueued) queueReply(activeId)
+            }}
             onFocus={() => {
               setAttachOpen(false)
               setStickerOpen(false)
@@ -1312,9 +1338,8 @@ export default function PhonePage() {
           <button
             type="button"
             onClick={send}
-            disabled={sending}
             aria-label="发送"
-            className="btn-primary mb-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full text-base disabled:opacity-40"
+            className="btn-primary mb-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full text-base"
           >
             ↑
           </button>
@@ -1340,6 +1365,7 @@ export default function PhonePage() {
               <button
                 type="button"
                 onClick={() => {
+                  invalidateActiveResponse()
                   cancelQueuedReply()
                   createSession()
                   setDrawerOpen(false)
@@ -1356,6 +1382,7 @@ export default function PhonePage() {
                   <div
                     key={s.id}
                     onClick={() => {
+                      invalidateActiveResponse()
                       cancelQueuedReply()
                       switchSession(s.id)
                       setDrawerOpen(false)
@@ -1383,7 +1410,10 @@ export default function PhonePage() {
                       onClick={(e) => {
                         e.stopPropagation()
                         if (window.confirm(`删除对话「${s.title}」？`)) {
-                          if (s.id === activeId) cancelQueuedReply()
+                          if (s.id === activeId) {
+                            invalidateActiveResponse()
+                            cancelQueuedReply()
+                          }
                           removeSession(s.id)
                         }
                       }}
