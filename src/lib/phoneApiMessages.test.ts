@@ -34,7 +34,7 @@ describe('buildPhoneApiPayload', () => {
       src.endsWith('new') ? 'data:image/jpeg;base64,new' : 'data:image/jpeg;base64,old',
     )
 
-    const payload = await buildPhoneApiPayload(history, 'new', resolveImage)
+    const payload = await buildPhoneApiPayload(history, ['new'], resolveImage)
 
     expect(resolveImage).toHaveBeenCalledOnce()
     expect(resolveImage).toHaveBeenCalledWith('idb:pimg:new')
@@ -54,12 +54,43 @@ describe('buildPhoneApiPayload', () => {
       { id: 'missing', role: 'me', text: '这张图', at, image: 'idb:pimg:missing' },
     ]
 
-    const payload = await buildPhoneApiPayload(history, 'missing', async () => '')
+    const payload = await buildPhoneApiPayload(history, ['missing'], async () => '')
 
     expect(payload.hasActiveImage).toBe(false)
     expect(payload.messages).toEqual([
       { role: 'user', content: '这张图\n［发送了一张图片，但图片已无法读取］' },
     ])
   })
-})
 
+  it('keeps every new image in a batched user turn', async () => {
+    const history: PhoneMsg[] = [
+      { id: 'old', role: 'me', text: '旧图', at, image: 'idb:pimg:old' },
+      { id: 'reply', role: 'ta', text: '看到了', at },
+      { id: 'first', role: 'me', text: '第一张', at, image: 'idb:pimg:first' },
+      { id: 'text', role: 'me', text: '再补一句', at },
+      { id: 'second', role: 'me', text: '第二张', at, image: 'idb:pimg:second' },
+    ]
+    const resolveImage = vi.fn(async (src: string) => `data:image/jpeg;base64,${src.split(':').pop()}`)
+
+    const payload = await buildPhoneApiPayload(history, ['first', 'second'], resolveImage)
+
+    expect(resolveImage).toHaveBeenCalledTimes(2)
+    expect(resolveImage).not.toHaveBeenCalledWith('idb:pimg:old')
+    expect(payload.hasActiveImage).toBe(true)
+    expect(payload.messages[2]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'text', text: '第一张' },
+        { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,first' } },
+      ],
+    })
+    expect(payload.messages[3]).toEqual({ role: 'user', content: '再补一句' })
+    expect(payload.messages[4]).toEqual({
+      role: 'user',
+      content: [
+        { type: 'text', text: '第二张' },
+        { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,second' } },
+      ],
+    })
+  })
+})

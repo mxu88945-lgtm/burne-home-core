@@ -16,14 +16,17 @@ export interface PhoneApiPayload {
  */
 export async function buildPhoneApiPayload(
   history: PhoneMsg[],
-  activeImageId: string | undefined,
+  activeImageIds: readonly string[] | undefined,
   resolveImage: ResolvePhoneImage,
 ): Promise<PhoneApiPayload> {
-  let activeImageUrl = ''
-  if (activeImageId) {
-    const activeImage = history.find((message) => message.id === activeImageId)?.image
-    if (activeImage) activeImageUrl = await resolveImage(activeImage)
-  }
+  const activeIds = new Set(activeImageIds)
+  const activeImageUrls = new Map<string, string>()
+  await Promise.all(
+    history.map(async (message) => {
+      if (!message.image || !activeIds.has(message.id)) return
+      activeImageUrls.set(message.id, await resolveImage(message.image))
+    }),
+  )
 
   const messages: ChatApiMessage[] = history
     .filter((message) => message.text.trim() || message.image || message.sticker || message.task)
@@ -43,9 +46,11 @@ export async function buildPhoneApiPayload(
       }
       if (message.image) {
         const text = message.text.trim()
-        if (message.id !== activeImageId || !activeImageUrl) {
+        const isActive = activeIds.has(message.id)
+        const activeImageUrl = activeImageUrls.get(message.id)
+        if (!isActive || !activeImageUrl) {
           const marker =
-            message.id === activeImageId
+            isActive
               ? '［发送了一张图片，但图片已无法读取］'
               : '［之前发送了一张图片］'
           return { role, content: `${text}${text ? '\n' : ''}${marker}` }
@@ -71,4 +76,3 @@ export async function buildPhoneApiPayload(
     hasActiveImage: messages.some((message) => Array.isArray(message.content)),
   }
 }
-
