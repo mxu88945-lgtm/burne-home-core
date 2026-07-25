@@ -144,6 +144,27 @@ export function PhoneIcon({ className }: P) {
   )
 }
 
+/** 图片图库 */
+export function ImageIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <circle cx="8.5" cy="9" r="1.5" />
+      <path d="m5 17 4.5-4.5 3 3 2-2L19 18" />
+    </svg>
+  )
+}
+
+/** 相机 */
+export function CameraIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <path d="M4 7h3l1.5-2h7L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2z" />
+      <circle cx="12" cy="13" r="4" />
+    </svg>
+  )
+}
+
 /** 表情贴纸 · 折角小贴纸 */
 export function StickerIcon({ className }: P) {
   return (

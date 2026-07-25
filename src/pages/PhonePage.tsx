@@ -21,7 +21,7 @@ import { saveImgRef, resolveImgRef } from '@/lib/imgRef'
 import { buildPhoneApiPayload } from '@/lib/phoneApiMessages'
 import { idbSet } from '@/lib/idb'
 import Avatar from '@/components/ui/Avatar'
-import { StickerIcon } from '@/components/ui/icons'
+import { CameraIcon, ImageIcon, StickerIcon } from '@/components/ui/icons'
 
 function newId() {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `pm-${Date.now()}-${Math.random()}`
@@ -36,6 +36,8 @@ function hexToRgba(hex: string, a: number): string {
 }
 const ME_COLOR_DEFAULT = '#d98caa'
 const TA_COLOR_DEFAULT = '#86868c'
+/** 等用户把一轮话说完再回；每条消息仍然立刻以独立气泡显示。 */
+const REPLY_DEBOUNCE_MS = 2600
 /** 按气泡底色亮度自动选字色：浅底用深字、深底用白字（避免浅粉上白字发虚） */
 function textOn(hex: string): 'text-white' | 'text-ink' {
   let h = (hex || '').replace('#', '')
@@ -149,7 +151,9 @@ export default function PhonePage() {
   const [err, setErr] = useState('')
   const [pendingImage, setPendingImage] = useState('')
   const [lightbox, setLightbox] = useState('')
+  const [attachOpen, setAttachOpen] = useState(false)
   const [stickerOpen, setStickerOpen] = useState(false)
+  const [replyQueued, setReplyQueued] = useState(false)
   const [stickerImageVersion, setStickerImageVersion] = useState(0)
   const [nowTs, setNowTs] = useState(Date.now())
   const [memToast, setMemToast] = useState('')
@@ -168,9 +172,13 @@ export default function PhonePage() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const avatarRef = useRef<HTMLInputElement>(null)
   const picRef = useRef<HTMLInputElement>(null)
+  const cameraRef = useRef<HTMLInputElement>(null)
   const stickerFileRef = useRef<HTMLInputElement>(null)
   const bgFileRef = useRef<HTMLInputElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const queuedImageIdsRef = useRef(new Set<string>())
+  const queuedSessionIdRef = useRef('')
   const isTouch =
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
@@ -179,6 +187,23 @@ export default function PhonePage() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
+
+  useEffect(
+    () => () => {
+      if (replyTimerRef.current) clearTimeout(replyTimerRef.current)
+    },
+    [],
+  )
+
+  // 切换会话时不把上一页排队中的回复错误写进新会话。
+  useEffect(() => {
+    if (!queuedSessionIdRef.current || queuedSessionIdRef.current === activeId) return
+    if (replyTimerRef.current) clearTimeout(replyTimerRef.current)
+    replyTimerRef.current = null
+    queuedImageIdsRef.current.clear()
+    queuedSessionIdRef.current = ''
+    setReplyQueued(false)
+  }, [activeId])
 
   // 旧版本曾生成只有 `idb:` 目录、没有图片本体的空贴纸。按用户要求一次性
   // 清掉全部上传图片贴纸，保留内置 emoji；之后重新上传会走可靠的等待落盘流程。
@@ -251,7 +276,45 @@ export default function PhonePage() {
   const mmss = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
+  function sessionMessages(sessionId: string): PhoneMsg[] {
+    return usePhoneStore.getState().sessions.find((session) => session.id === sessionId)?.messages ?? []
+  }
+
+  function cancelQueuedReply() {
+    if (replyTimerRef.current) clearTimeout(replyTimerRef.current)
+    replyTimerRef.current = null
+    queuedImageIdsRef.current.clear()
+    queuedSessionIdRef.current = ''
+    setReplyQueued(false)
+  }
+
+  function queueReply(sessionId: string, imageIds: readonly string[] = []) {
+    if (replyTimerRef.current) clearTimeout(replyTimerRef.current)
+    if (queuedSessionIdRef.current && queuedSessionIdRef.current !== sessionId) {
+      queuedImageIdsRef.current.clear()
+    }
+    queuedSessionIdRef.current = sessionId
+    imageIds.forEach((id) => queuedImageIdsRef.current.add(id))
+    setReplyQueued(true)
+    replyTimerRef.current = setTimeout(() => {
+      replyTimerRef.current = null
+      const activeSessionId = usePhoneStore.getState().activeId
+      if (activeSessionId !== sessionId) {
+        queuedImageIdsRef.current.clear()
+        queuedSessionIdRef.current = ''
+        setReplyQueued(false)
+        return
+      }
+      const activeImageIds = [...queuedImageIdsRef.current]
+      queuedImageIdsRef.current.clear()
+      queuedSessionIdRef.current = ''
+      setReplyQueued(false)
+      void respond(sessionMessages(sessionId), activeImageIds)
+    }, REPLY_DEBOUNCE_MS)
+  }
+
   function completeTask(id: string) {
+    cancelQueuedReply()
     const updated = messages.map((m) =>
       m.id === id && m.task
         ? { ...m, task: { ...m.task, status: 'done' as const, doneAt: Date.now() } }
@@ -261,6 +324,7 @@ export default function PhonePage() {
     if (connected && !sending) void respond(updated)
   }
   function cancelTask(id: string) {
+    cancelQueuedReply()
     const updated = messages.map((m) =>
       m.id === id && m.task ? { ...m, task: { ...m.task, status: 'cancelled' as const } } : m,
     )
@@ -302,9 +366,10 @@ export default function PhonePage() {
       setErr((e as Error).message)
     }
   }
-  async function sendSticker(s: Sticker) {
+  function sendSticker(s: Sticker) {
     if (sending) return
     setStickerOpen(false)
+    setAttachOpen(false)
     const mine: PhoneMsg = {
       id: newId(),
       role: 'me',
@@ -312,12 +377,13 @@ export default function PhonePage() {
       at: now(),
       sticker: { emoji: s.emoji, img: s.img, name: s.name },
     }
-    const history = [...messages, mine]
+    const history = [...sessionMessages(activeId), mine]
     setMessages(history)
-    if (connected) await respond(history)
+    if (connected) queueReply(activeId)
   }
   async function retryFailedMessage(id: string) {
     if (sending) return
+    cancelQueuedReply()
     const failedAt = messages.findIndex((m) => m.id === id)
     if (failedAt < 0) return
     const history = messages
@@ -325,8 +391,19 @@ export default function PhonePage() {
       .filter((m) => !m.failed && !(m.role === 'ta' && m.text.trim().startsWith('（没发出去：')))
     const lastMine = [...history].reverse().find((m) => m.role === 'me')
     if (!lastMine) return
+    let previousReplyAt = -1
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].role === 'ta') {
+        previousReplyAt = i
+        break
+      }
+    }
+    const activeImageIds = history
+      .slice(previousReplyAt + 1)
+      .filter((m) => m.role === 'me' && m.image)
+      .map((m) => m.id)
     setMessages(history)
-    await respond(history, lastMine.image ? lastMine.id : undefined)
+    await respond(history, activeImageIds)
   }
   async function pickBg(file: File) {
     setErr('')
@@ -368,11 +445,13 @@ export default function PhonePage() {
       // 图片本体进 IndexedDB，消息里只存引用（别撑爆 localStorage）
       ...(imageRef ? { image: imageRef } : {}),
     }
-    const history = [...messages, mine]
+    const history = [...sessionMessages(activeId), mine]
     setMessages(history)
     if (text) autoTitle(text)
     setDraft('')
     setPendingImage('')
+    setAttachOpen(false)
+    setStickerOpen(false)
     if (!connected) {
       setMessages((p) => [
         ...p,
@@ -380,7 +459,7 @@ export default function PhonePage() {
       ])
       return
     }
-    await respond(history, imageRef ? mid : undefined)
+    queueReply(activeId, imageRef ? [mid] : [])
   }
 
   /** 自动沉淀记忆：让模型判断有没有值得长期记住的，写进共用记忆库（高门槛 / 或用户明确要求时必存） */
@@ -436,13 +515,13 @@ export default function PhonePage() {
     }
   }
 
-  async function respond(history: PhoneMsg[], activeImageId?: string) {
+  async function respond(history: PhoneMsg[], activeImageIds: readonly string[] = []) {
     setSending(true)
     setErr('')
     try {
       const { messages: apiMsgs, hasActiveImage } = await buildPhoneApiPayload(
         history,
-        activeImageId,
+        activeImageIds,
         resolveImgRef,
       )
 
@@ -663,7 +742,9 @@ export default function PhonePage() {
         </button>
         <div className="min-w-0 flex-1" onClick={editName}>
           <div className="headline truncate text-lg not-italic font-semibold leading-tight text-ink">{name}</div>
-          <div className="mt-0.5 truncate text-[11px] text-muted">{persona.signature || '点这里写个性签名'}</div>
+          <div className="mt-0.5 truncate text-[11px] text-muted">
+            {sending ? '正在输入…' : replyQueued ? '等你说完…' : persona.signature || '点这里写个性签名'}
+          </div>
         </div>
         <div className="relative flex flex-none items-center gap-2">
           {/* 模型：小手机可单独选渠道（不填跟随主聊天） */}
@@ -821,7 +902,10 @@ export default function PhonePage() {
                   type="button"
                   onClick={() => {
                     setMenuOpen(false)
-                    if (window.confirm('清空和 TA 的聊天记录？')) clear()
+                    if (window.confirm('清空和 TA 的聊天记录？')) {
+                      cancelQueuedReply()
+                      clear()
+                    }
                   }}
                   className="block w-full rounded-xl px-3 py-2 text-left text-red-500 hover:bg-white/40"
                 >
@@ -1072,6 +1156,18 @@ export default function PhonePage() {
           }}
         />
         <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            e.target.value = ''
+            if (f) pickImage(f)
+          }}
+        />
+        <input
           ref={stickerFileRef}
           type="file"
           accept="image/*"
@@ -1082,6 +1178,59 @@ export default function PhonePage() {
             if (f) addStickerImage(f)
           }}
         />
+        {/* ＋ 附件入口：照片、拍照和表情统一收在这里 */}
+        {attachOpen && (
+          <>
+            <div className="fixed inset-0 z-10" onClick={() => setAttachOpen(false)} />
+            <div
+              className="absolute left-3 z-40 w-64 max-w-[calc(100%-1.5rem)] overflow-hidden rounded-3xl border border-black/10 p-2 shadow-2xl"
+              style={{
+                bottom: 'calc(env(safe-area-inset-bottom) + 4.75rem)',
+                background: 'rgba(255, 255, 255, 0.96)',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setAttachOpen(false)
+                  picRef.current?.click()
+                }}
+                className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-[15px] text-ink hover:bg-black/[0.04]"
+              >
+                <span className="flex h-7 w-7 items-center justify-center" aria-hidden>
+                  <ImageIcon className="h-5 w-5" />
+                </span>
+                照片图库
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAttachOpen(false)
+                  cameraRef.current?.click()
+                }}
+                className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-[15px] text-ink hover:bg-black/[0.04]"
+              >
+                <span className="flex h-7 w-7 items-center justify-center" aria-hidden>
+                  <CameraIcon className="h-5 w-5" />
+                </span>
+                拍照
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAttachOpen(false)
+                  setStickerOpen(true)
+                }}
+                className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-[15px] text-ink hover:bg-black/[0.04]"
+              >
+                <span className="flex h-7 w-7 items-center justify-center" aria-hidden>
+                  <StickerIcon className="h-5 w-5" />
+                </span>
+                表情贴纸
+              </button>
+            </div>
+          </>
+        )}
         {/* 表情贴纸面板 */}
         {stickerOpen && (
           <>
@@ -1131,20 +1280,15 @@ export default function PhonePage() {
         <div className="glass-strong flex items-end gap-1 rounded-3xl py-1 pl-2 pr-1.5">
           <button
             type="button"
-            onClick={() => picRef.current?.click()}
-            aria-label="发图片"
+            onClick={() => {
+              setStickerOpen(false)
+              setAttachOpen((open) => !open)
+            }}
+            aria-label="打开附件"
+            aria-expanded={attachOpen}
             className="mb-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full text-xl text-muted hover:bg-white/40 hover:text-ink"
           >
             ＋
-          </button>
-          <button
-            type="button"
-            onClick={() => setStickerOpen((o) => !o)}
-            aria-label="打开表情包"
-            title="表情包"
-            className="mb-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-full text-ink hover:bg-white/40"
-          >
-            <StickerIcon className="h-5 w-5" />
           </button>
           <textarea
             ref={inputRef}
@@ -1152,6 +1296,8 @@ export default function PhonePage() {
             rows={1}
             onChange={(e) => setDraft(e.target.value)}
             onFocus={() => {
+              setAttachOpen(false)
+              setStickerOpen(false)
               setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight }), 300)
             }}
             onKeyDown={(e) => {
@@ -1194,6 +1340,7 @@ export default function PhonePage() {
               <button
                 type="button"
                 onClick={() => {
+                  cancelQueuedReply()
                   createSession()
                   setDrawerOpen(false)
                 }}
@@ -1209,6 +1356,7 @@ export default function PhonePage() {
                   <div
                     key={s.id}
                     onClick={() => {
+                      cancelQueuedReply()
                       switchSession(s.id)
                       setDrawerOpen(false)
                     }}
@@ -1234,7 +1382,10 @@ export default function PhonePage() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        if (window.confirm(`删除对话「${s.title}」？`)) removeSession(s.id)
+                        if (window.confirm(`删除对话「${s.title}」？`)) {
+                          if (s.id === activeId) cancelQueuedReply()
+                          removeSession(s.id)
+                        }
                       }}
                       aria-label="删除"
                       className="text-[12px] text-muted hover:text-accent"
