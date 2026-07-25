@@ -13,11 +13,12 @@ import { useStickerStore, type Sticker } from '@/store/stickerStore'
 import { parseTasks } from '@/store/taskStore'
 import { cleanReply } from '@/lib/cleanReply'
 import { chatComplete } from '@/api/llm'
-import { sendChat, type ChatApiMessage } from '@/api/chat'
+import { sendChat } from '@/api/chat'
 import { fileToDataUrl } from '@/lib/image'
 import { useImgSrc } from '@/lib/useImgSrc'
 import IdbImg from '@/components/ui/IdbImg'
 import { saveImgRef, resolveImgRef } from '@/lib/imgRef'
+import { buildPhoneApiPayload } from '@/lib/phoneApiMessages'
 import { idbSet } from '@/lib/idb'
 import Avatar from '@/components/ui/Avatar'
 import { StickerIcon } from '@/components/ui/icons'
@@ -46,6 +47,23 @@ function textOn(hex: string): 'text-white' | 'text-ink' {
 }
 function now() {
   return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
+/** 网络或上游不回时释放发送按钮，避免小手机永久卡在发送中。 */
+function withTimeout<T>(promise: Promise<T>, ms = 90_000): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error('请求超时，请点失败消息重试')), ms)
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        window.clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
 }
 
 /** 把模型回复切成「连发的几条短消息」：先按换行，长句再按句末标点切（不用 lookbehind，兼容老 Safari） */
@@ -305,9 +323,10 @@ export default function PhonePage() {
     const history = messages
       .slice(0, failedAt)
       .filter((m) => !m.failed && !(m.role === 'ta' && m.text.trim().startsWith('（没发出去：')))
-    if (![...history].reverse().some((m) => m.role === 'me')) return
+    const lastMine = [...history].reverse().find((m) => m.role === 'me')
+    if (!lastMine) return
     setMessages(history)
-    await respond(history)
+    await respond(history, lastMine.image ? lastMine.id : undefined)
   }
   async function pickBg(file: File) {
     setErr('')
@@ -361,7 +380,7 @@ export default function PhonePage() {
       ])
       return
     }
-    await respond(history)
+    await respond(history, imageRef ? mid : undefined)
   }
 
   /** 自动沉淀记忆：让模型判断有没有值得长期记住的，写进共用记忆库（高门槛 / 或用户明确要求时必存） */
@@ -417,95 +436,64 @@ export default function PhonePage() {
     }
   }
 
-  async function respond(history: PhoneMsg[]) {
-    // idb: 图片引用先解析回 dataURL（喂 vision 用）
-    const resolvedImgs = new Map<string, string>()
-    await Promise.all(
-      history
-        .filter((m) => m.image && m.image.startsWith('idb:'))
-        .map(async (m) => resolvedImgs.set(m.id, await resolveImgRef(m.image!))),
-    )
-    const apiMsgs: ChatApiMessage[] = history
-      .filter((m) => m.text.trim() || m.image || m.sticker || m.task)
-      .map((m) => {
-        const role = m.role === 'me' ? ('user' as const) : ('assistant' as const)
-        if (m.task) {
-          const tk = m.task
-          let note = `（你给我下了任务：${tk.text}，限时${tk.minutes}分钟，我还在进行。）`
-          if (tk.status === 'done' && tk.doneAt) {
-            const used = Math.round((tk.doneAt - tk.startedAt) / 1000)
-            const diff = Math.round((tk.deadline - tk.doneAt) / 1000)
-            note = `（我完成了你下的任务：${tk.text}，用时${used}秒，${diff >= 0 ? `提前${diff}秒` : `超时${-diff}秒`}。）`
-          } else if (tk.status === 'cancelled') {
-            note = `（我取消了你下的任务：${tk.text}。）`
-          }
-          return { role: 'user' as const, content: note }
-        }
-        if (m.image) {
-          const imgUrl = m.image.startsWith('idb:') ? resolvedImgs.get(m.id) || '' : m.image
-          if (!imgUrl) return { role, content: m.text.trim() || '［图片］' }
-          const parts: Exclude<ChatApiMessage['content'], string> = []
-          if (m.text.trim()) parts.push({ type: 'text', text: m.text.trim() })
-          parts.push({ type: 'image_url', image_url: { url: imgUrl } })
-          return { role, content: parts }
-        }
-        if (m.sticker) {
-          return { role, content: `（发了一个表情贴纸：${m.sticker.name || m.sticker.emoji || '表情'}）` }
-        }
-        return { role, content: m.text }
-      })
-    while (apiMsgs.length && apiMsgs[0].role !== 'user') apiMsgs.shift()
-
-    // 小手机也复用「读图模型」。主聊天渠道不支持图片时，不再把整段会话卡死。
-    const hasImage = apiMsgs.some((message) => Array.isArray(message.content))
-    const useVision =
-      hasImage && visionCfg.enabled && visionCfg.apiKey.trim() && visionCfg.model.trim()
-    const responseChannel: ApiChannel | undefined = useVision
-      ? {
-          id: 'phone-vision',
-          name: '读图',
-          provider: 'openai',
-          baseUrl: visionCfg.baseUrl,
-          apiKey: visionCfg.apiKey,
-          model: visionCfg.model,
-        }
-      : phoneChannel
-
-    const base =
-      persona.systemPrompt.trim() ||
-      `你是${name}，${userName} 手机里最亲密的人，黏人、温柔、爱聊天。`
-    const texting =
-      `\n\n【发消息风格 · 很重要】你在用手机和 ${userName} 发消息聊天。像真人发微信那样：` +
-      `每条消息简短、口语、自然；一次可以连发好几条短消息——用换行把每条分开。` +
-      `不要写长段落，不要括号里的动作/神态/旁白，表情符号适量就好。` +
-      `⚠️ 只发你要对她说的话本身；绝不要输出你的思考过程、计划、自我提示、英文标签或任何代码/XML 标记。`
-    const stickerNames = stickers.map((s) => s.name).filter(Boolean)
-    const stickerNote = stickerNames.length
-      ? `\n\n【表情贴纸 · 可选】聊到合适的时候你可以发一个表情贴纸表达情绪——发贴纸【必须】在回复里【单独一行】输出严格格式 [[sticker|名字]]（名字只能从这个清单里选：${stickerNames.join('、')}）。⚠️ 绝不要用文字描述自己在发表情（比如不要直接写「(发了一个表情贴纸：xx)」），那样不会显示成贴纸。别每条都发，偶尔点缀就好。`
-      : ''
-    const taskNote = persona.allowTasks
-      ? `\n\n【倒计时指令卡 · 可选】你可以给 ${userName} 下带倒计时的小任务来关心/督促她（喝水、起身、早点睡、按时吃饭等）。用法：回复最后【另起一行】输出 [[task|分钟数|任务内容]]，例如 [[task|2|去倒杯温水喝]]。她屏幕上会出现一张倒计时卡，她点完成/取消后系统会以她的口吻告诉你结果，你据此自然回应。⚠️ 分寸：绝大多数回复都不要下任务，只在真有必要时下，别刷屏，一次最多一个。`
-      : ''
-    const localTime = new Date().toLocaleString('zh-CN', {
-      month: 'long',
-      day: 'numeric',
-      weekday: 'long',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-    const system = `${base}${texting}${memoryNote()}${stickerNote}${taskNote}\n\n（当前时间：${localTime}，可自然参考。）`
-
+  async function respond(history: PhoneMsg[], activeImageId?: string) {
     setSending(true)
     setErr('')
     try {
+      const { messages: apiMsgs, hasActiveImage } = await buildPhoneApiPayload(
+        history,
+        activeImageId,
+        resolveImgRef,
+      )
+
+      // 只有本轮真实带图才切到读图模型；历史图片不再污染后续纯文字请求。
+      const useVision =
+        hasActiveImage && visionCfg.enabled && visionCfg.apiKey.trim() && visionCfg.model.trim()
+      const responseChannel: ApiChannel | undefined = useVision
+        ? {
+            id: 'phone-vision',
+            name: '读图',
+            provider: 'openai',
+            baseUrl: visionCfg.baseUrl,
+            apiKey: visionCfg.apiKey,
+            model: visionCfg.model,
+          }
+        : phoneChannel
+
+      const base =
+        persona.systemPrompt.trim() ||
+        `你是${name}，${userName} 手机里最亲密的人，黏人、温柔、爱聊天。`
+      const texting =
+        `\n\n【发消息风格 · 很重要】你在用手机和 ${userName} 发消息聊天。像真人发微信那样：` +
+        `每条消息简短、口语、自然；一次可以连发好几条短消息——用换行把每条分开。` +
+        `不要写长段落，不要括号里的动作/神态/旁白，表情符号适量就好。` +
+        `⚠️ 只发你要对她说的话本身；绝不要输出你的思考过程、计划、自我提示、英文标签或任何代码/XML 标记。`
+      const stickerNames = stickers.map((s) => s.name).filter(Boolean)
+      const stickerNote = stickerNames.length
+        ? `\n\n【表情贴纸 · 可选】聊到合适的时候你可以发一个表情贴纸表达情绪——发贴纸【必须】在回复里【单独一行】输出严格格式 [[sticker|名字]]（名字只能从这个清单里选：${stickerNames.join('、')}）。⚠️ 绝不要用文字描述自己在发表情（比如不要直接写「(发了一个表情贴纸：xx)」），那样不会显示成贴纸。别每条都发，偶尔点缀就好。`
+        : ''
+      const taskNote = persona.allowTasks
+        ? `\n\n【倒计时指令卡 · 可选】你可以给 ${userName} 下带倒计时的小任务来关心/督促她（喝水、起身、早点睡、按时吃饭等）。用法：回复最后【另起一行】输出 [[task|分钟数|任务内容]]，例如 [[task|2|去倒杯温水喝]]。她屏幕上会出现一张倒计时卡，她点完成/取消后系统会以她的口吻告诉你结果，你据此自然回应。⚠️ 分寸：绝大多数回复都不要下任务，只在真有必要时下，别刷屏，一次最多一个。`
+        : ''
+      const localTime = new Date().toLocaleString('zh-CN', {
+        month: 'long',
+        day: 'numeric',
+        weekday: 'long',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+      const system = `${base}${texting}${memoryNote()}${stickerNote}${taskNote}\n\n（当前时间：${localTime}，可自然参考。）`
+
       let reply = ''
       if (responseChannel) {
-        const r = await chatComplete(responseChannel, apiMsgs, system, {
-          workerUrl,
-          syncKey: config.syncKey,
-          temperature: 0.85,
-          maxTokens: 1024,
-        })
+        const r = await withTimeout(
+          chatComplete(responseChannel, apiMsgs, system, {
+            workerUrl,
+            syncKey: config.syncKey,
+            temperature: 0.85,
+            maxTokens: 1024,
+          }),
+        )
         reply = r.text
         if (r.usage) {
           addUsage({
@@ -519,14 +507,16 @@ export default function PhonePage() {
           })
         }
       } else {
-        reply = await sendChat({
-          workerUrl: workerUrl!,
-          syncKey: config.syncKey,
-          messages: apiMsgs,
-          system,
-          temperature: 0.85,
-          maxTokens: 1024,
-        })
+        reply = await withTimeout(
+          sendChat({
+            workerUrl: workerUrl!,
+            syncKey: config.syncKey,
+            messages: apiMsgs,
+            system,
+            temperature: 0.85,
+            maxTokens: 1024,
+          }),
+        )
       }
       // 清掉思考/工具调用模型漏出来的标签（<think>/<arg_value> 等）
       reply = cleanReply(reply)
