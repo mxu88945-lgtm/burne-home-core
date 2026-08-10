@@ -17,6 +17,32 @@ export type MemorySource =
   | 'notion' // 从 Notion 同步而来
   | 'import' // 从备份导入
 
+/** 记忆可见范围。global 会在所有场景可用，其余范围只在对应入口召回。 */
+export type MemoryScope = 'global' | 'chat' | 'phone' | 'reading' | 'drama'
+
+/** 记忆在召回链路中的层级。由条目的 kind / starred 推导，不破坏旧数据。 */
+export type MemoryLayer = 'core' | 'long' | 'recent'
+
+export interface MemoryDiagnosticItem {
+  id: string
+  title: string
+  layer: MemoryLayer
+  score: number
+  reason: string
+  chars: number
+}
+
+/** 只记录召回元数据，不记录对话正文，便于诊断而不扩大隐私面。 */
+export interface MemoryDiagnostic {
+  id: string
+  at: string
+  scope: MemoryScope
+  queryPreview: string
+  used: MemoryDiagnosticItem[]
+  skipped: Array<MemoryDiagnosticItem & { reason: string }>
+  totalChars: number
+}
+
 /** 单条记忆 */
 export interface MemoryItem {
   id: string
@@ -45,11 +71,25 @@ export interface MemoryItem {
   deletedAt?: string
   /** Notion 页面 ID（同步后回填，用于双向更新） */
   notionPageId?: string
+  /** 作用域：未填写的旧条目按 global 处理。 */
+  scope?: MemoryScope
+  /** 记忆主要描述的对象，供后续编辑器/冲突处理使用。 */
+  subject?: 'user' | 'companion' | 'relationship' | 'project' | 'world'
+  /** 短期状态的自动过期时间。 */
+  expiresAt?: string
+  /** 新事实取代旧事实时建立的可追溯关系。 */
+  supersedesId?: string
+  supersededById?: string
+  /** 可选的原始消息来源 ID，不把原文复制进记忆库。 */
+  sourceMessageIds?: string[]
+  /** 召回统计，仅作诊断，不参与内容语义。 */
+  lastUsedAt?: string
+  useCount?: number
 }
 
 /** 新建记忆时的输入（id / 时间戳由系统生成） */
 export type NewMemoryInput = Pick<MemoryItem, 'title' | 'content'> &
-  Partial<Pick<MemoryItem, 'kind' | 'source' | 'starred' | 'tags' | 'windowId'>>
+  Partial<Pick<MemoryItem, 'kind' | 'source' | 'starred' | 'tags' | 'windowId' | 'scope' | 'subject' | 'expiresAt' | 'supersedesId' | 'sourceMessageIds'>>
 
 /** 记忆摘要（摘要区展示用，可由系统聚合生成） */
 export interface MemorySummary {

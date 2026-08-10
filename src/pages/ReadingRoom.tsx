@@ -6,6 +6,7 @@ import { useSyncStore } from '@/store/syncStore'
 import { usePersonaStore } from '@/store/personaStore'
 import { useProfileStore } from '@/store/profileStore'
 import { useMemoryStore } from '@/store/memoryStore'
+import { recallMemories } from '@/lib/memoryRecall'
 import { chatComplete } from '@/api/llm'
 import type { ChatApiMessage } from '@/api/chat'
 import { readAsText } from '@/lib/file'
@@ -105,22 +106,23 @@ export default function ReadingRoom() {
   }
 
   // 注入长期记忆，让一起读书时 TA 也「记得」你们的事（概述 + 标星 + 最近 15，省 token）
-  function memInject() {
+  function memInject(query: string) {
     const m = useMemoryStore.getState()
-    const starred = m.memories.filter((x) => x.starred)
-    const recent = m.memories.filter((x) => !x.starred).slice(0, 15)
-    const picked = [...starred, ...recent]
-    const lines = picked.map((x) => `· ${x.title ? `${x.title}：` : ''}${x.content}`).join('\n')
-    if (!m.overview.trim() && !lines) return ''
-    let s = `\n\n[关于${nameA}和你们的长期记忆——当作你真实记得的事，自然运用，别生硬复述或暴露这是设定]`
-    if (m.overview.trim()) s += `\n（概述）${m.overview.trim()}`
-    if (lines) s += `\n${lines}`
-    return s
+    const result = recallMemories({
+      query,
+      scope: 'reading',
+      memories: m.memories,
+      overview: m.overview,
+      maxChars: 1800,
+      maxItems: 10,
+    })
+    m.recordDiagnostic(result.diagnostic)
+    return result.text
   }
 
-  function buildSys(idx: number) {
+  function buildSys(idx: number, query = '') {
     return (
-      `${persona.systemPrompt}${memInject()}${recap()}\n\n` +
+      `${persona.systemPrompt}${memInject(query)}${recap()}\n\n` +
       `[一起看书 · 聊天风格（仅本场景，务必遵守）]\n` +
       `你正在和${nameA}一起读《${activeBook!.title}》，现在读到第 ${idx + 1}/${total} 页。\n` +
       `这里是像微信聊天一样的即时消息：请只用简短、口语化的短句，直接说出你对这页的看法 / 感受 / 吐槽。\n` +
@@ -153,7 +155,7 @@ export default function ReadingRoom() {
       const history: ChatApiMessage[] = [...messages, mine]
         .slice(-8)
         .map((m) => ({ role: m.role === 'me' ? 'user' : 'assistant', content: m.text }))
-      const r = await chatComplete(activeChannel, history, buildSys(cur), {
+      const r = await chatComplete(activeChannel, history, buildSys(cur, text), {
         temperature: persona.temperature,
         maxTokens: Math.min(persona.maxTokens, 1500),
         workerUrl: config.workerUrl?.trim(),

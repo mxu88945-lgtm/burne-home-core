@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { MemoryItem } from '@/types/memory'
 import { useMemoryStore } from '@/store/memoryStore'
 import { useApiStore, type ApiChannel } from '@/store/apiStore'
@@ -119,6 +120,9 @@ export default function MemoryLibrary() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link to="/memory-diagnostics" className="text-[12px] text-accent hover:underline">
+            本轮诊断
+          </Link>
           {summary.total > 0 && (
             <div className="relative">
               <button

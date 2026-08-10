@@ -28,6 +28,7 @@ export const STORAGE_KEYS = {
   drama: `${NS}:drama`,
   chatprefs: `${NS}:chatprefs`,
   memoryOverview: `${NS}:memory-overview`,
+  memoryDiagnostics: `${NS}:memory-diagnostics`,
   reading: `${NS}:reading`,
   period: `${NS}:period`,
   readingApi: `${NS}:reading-api`,

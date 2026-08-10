@@ -2,6 +2,7 @@ import { createHashRouter } from 'react-router-dom'
 import AppLayout from '@/components/layout/AppLayout'
 import Home from '@/pages/Home'
 import MemoryLibrary from '@/pages/MemoryLibrary'
+import MemoryDiagnostics from '@/pages/MemoryDiagnostics'
 import Chat from '@/pages/Chat'
 import PhonePage from '@/pages/PhonePage'
 import ReadingRoom from '@/pages/ReadingRoom'
@@ -34,6 +35,7 @@ export const router = createHashRouter([
     children: [
       { index: true, element: <Home /> },
       { path: 'memories', element: <MemoryLibrary /> },
+      { path: 'memory-diagnostics', element: <MemoryDiagnostics /> },
       { path: 'chat', element: <Chat /> },
       { path: 'phone', element: <PhonePage /> },
       { path: 'reading', element: <ReadingRoom /> },

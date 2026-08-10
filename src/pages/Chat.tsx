@@ -19,6 +19,7 @@ import { generateImage } from '@/api/imagegen'
 import { useVisionStore } from '@/store/visionStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { useMemoryStore } from '@/store/memoryStore'
+import { recallMemories } from '@/lib/memoryRecall'
 import { useMemoryModelStore } from '@/store/memoryModelStore'
 import { useSttStore } from '@/store/sttStore'
 import { transcribe } from '@/api/stt'
@@ -132,6 +133,7 @@ export default function Chat() {
   const removeMemory = useMemoryStore((s) => s.removeMemory)
   const updateMemory = useMemoryStore((s) => s.updateMemory)
   const memoriesRef = useMemoryStore((s) => s.memories)
+  const recordMemoryDiagnostic = useMemoryStore((s) => s.recordDiagnostic)
   const memoryModelCfg = useMemoryModelStore((s) => s.config)
   const sttCfg = useSttStore((s) => s.config)
   // 自动记忆降频计数：每隔几轮才跑一次记忆维护（force 时立即跑），省 token
@@ -864,7 +866,25 @@ export default function Chat() {
             ...(content && content !== m.content ? { content } : {}),
           }
           if (!Object.keys(patch).length) continue
-          updateMemory(m.id, patch)
+          // 内容发生变化时保留旧条目的来源链，把新事实作为替代条目写入，
+          // 召回器会自动跳过旧版本，避免两条互相冲突的记忆同时生效。
+          if (content && content !== m.content) {
+            const replacement = addMemory({
+              title: title || m.title,
+              content,
+              kind: kind ?? m.kind,
+              source: 'auto',
+              starred: false,
+              tags: m.tags,
+              windowId: m.windowId,
+              scope: m.scope,
+              subject: m.subject,
+              supersedesId: m.id,
+            })
+            updateMemory(m.id, { supersededById: replacement.id })
+          } else {
+            updateMemory(m.id, patch)
+          }
           changed++
         }
       }
@@ -978,24 +998,18 @@ export default function Chat() {
       const note = periodChatNote(periodState.days, profile.nameA || '她', periodState.periodLen)
       if (note) system += `\n\n${note}`
     }
-    // 注入长期记忆：核心标星始终优先；长期记忆多带、短期少带，避免旧长期被新琐事挤走。
+    // 五层记忆召回：核心优先，长期/近期按当前消息相关性有界注入；本轮使用记录只保存元数据。
     {
       const memState = useMemoryStore.getState()
-      const byRecent = (a: (typeof memState.memories)[number], b: (typeof memState.memories)[number]) =>
-        b.updatedAt.localeCompare(a.updatedAt)
-      const starred = memState.memories.filter((m) => m.starred).sort(byRecent)
-      const long = memState.memories.filter((m) => !m.starred && m.kind === 'long').sort(byRecent).slice(0, 20)
-      const short = memState.memories.filter((m) => !m.starred && m.kind === 'short').sort(byRecent).slice(0, 6)
-      const picked = [...starred, ...long, ...short]
-      const lines = picked
-        .map((m) => `· [${m.starred ? '核心' : m.kind === 'long' ? '长期' : '近期'}] ${m.title ? `${m.title}：` : ''}${m.content}`)
-        .join('\n')
-      if (memState.overview.trim() || lines) {
-        system +=
-          `\n\n【关于${profile.nameA || '她'}和你们的长期记忆——请当作你真实记得的事，自然运用，不要生硬复述、不要暴露这是设定；若与她当前说法冲突，以她当前明确表达为准】`
-        if (memState.overview.trim()) system += `\n（概述）${memState.overview.trim()}`
-        if (lines) system += `\n${lines}`
-      }
+      const query = [...history].reverse().find((m) => m.role === 'me')?.text ?? ''
+      const memoryContext = recallMemories({
+        query,
+        scope: 'chat',
+        memories: memState.memories,
+        overview: memState.overview,
+      })
+      recordMemoryDiagnostic(memoryContext.diagnostic)
+      if (memoryContext.text) system += memoryContext.text
     }
     if (allowTasks) {
       system +=

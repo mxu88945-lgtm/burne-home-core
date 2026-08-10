@@ -7,6 +7,7 @@
 
 import { create } from 'zustand'
 import type {
+  MemoryDiagnostic,
   MemoryItem,
   MemorySummary,
   NewMemoryInput,
@@ -18,6 +19,8 @@ interface MemoryState {
   memories: MemoryItem[]
   /** 记忆摘要概述（AI 生成或手写，单独持久化） */
   overview: string
+  /** 最近几轮召回的元数据，用于诊断页；不保存消息正文。 */
+  diagnostics: MemoryDiagnostic[]
   addMemory: (input: NewMemoryInput) => MemoryItem
   updateMemory: (id: string, patch: Partial<MemoryItem>) => void
   removeMemory: (id: string) => void
@@ -25,6 +28,8 @@ interface MemoryState {
   /** 整体替换（恢复备份用） */
   replaceAll: (memories: MemoryItem[]) => void
   setOverview: (text: string) => void
+  recordDiagnostic: (diagnostic: MemoryDiagnostic) => void
+  clearDiagnostics: () => void
   getSummary: () => MemorySummary
 }
 
@@ -35,6 +40,8 @@ function newId(): string {
 function persist(memories: MemoryItem[]) {
   writeJSON(STORAGE_KEYS.memories, memories)
 }
+
+const SHORT_MEMORY_TTL_MS = 3 * 24 * 60 * 60 * 1000
 
 /** 旧分类迁移：core→long，normal/auto→short */
 function migrate(list: MemoryItem[]): MemoryItem[] {
@@ -52,6 +59,7 @@ function migrate(list: MemoryItem[]): MemoryItem[] {
 export const useMemoryStore = create<MemoryState>((set, get) => ({
   memories: migrate(readJSON<MemoryItem[]>(STORAGE_KEYS.memories, [])),
   overview: readJSON<string>(STORAGE_KEYS.memoryOverview, ''),
+  diagnostics: readJSON<MemoryDiagnostic[]>(STORAGE_KEYS.memoryDiagnostics, []),
 
   addMemory: (input) => {
     const now = new Date().toISOString()
@@ -64,6 +72,15 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
       starred: input.starred ?? false,
       tags: input.tags ?? [],
       windowId: input.windowId ?? CURRENT_WINDOW_ID,
+      scope: input.scope ?? 'global',
+      subject: input.subject,
+      expiresAt:
+        input.expiresAt ??
+        (input.kind === 'short'
+          ? new Date(Date.now() + SHORT_MEMORY_TTL_MS).toISOString()
+          : undefined),
+      supersedesId: input.supersedesId,
+      sourceMessageIds: input.sourceMessageIds,
       createdAt: now,
       updatedAt: now,
     }
@@ -104,6 +121,17 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
   setOverview: (text) => {
     writeJSON(STORAGE_KEYS.memoryOverview, text)
     set({ overview: text })
+  },
+
+  recordDiagnostic: (diagnostic) => {
+    const next = [diagnostic, ...get().diagnostics].slice(0, 40)
+    writeJSON(STORAGE_KEYS.memoryDiagnostics, next)
+    set({ diagnostics: next })
+  },
+
+  clearDiagnostics: () => {
+    writeJSON(STORAGE_KEYS.memoryDiagnostics, [])
+    set({ diagnostics: [] })
   },
 
   getSummary: () => {

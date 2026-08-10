@@ -6,6 +6,7 @@ import { useVisionStore } from '@/store/visionStore'
 import { useSyncStore } from '@/store/syncStore'
 import { useUsageStore } from '@/store/usageStore'
 import { useMemoryStore } from '@/store/memoryStore'
+import { recallMemories } from '@/lib/memoryRecall'
 import { useTtsStore } from '@/store/ttsStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import { usePhoneStore, type PhoneMsg } from '@/store/phoneStore'
@@ -94,17 +95,18 @@ function splitBubbles(text: string): string[] {
     .slice(0, 14)
 }
 
-/** 共用记忆库：概述 + 所有标星★ + 最近 15 条，注入到 TA 的 system（与主聊天/读书一致，省 token） */
-function memoryNote(): string {
+/** 手机场景使用有界召回，避免把长期库和近期琐事整包塞进请求。 */
+function memoryNote(query: string): string {
   const mem = useMemoryStore.getState()
-  const starred = mem.memories.filter((m) => m.starred)
-  const recent = mem.memories.filter((m) => !m.starred).slice(0, 15)
-  const picked = [...starred, ...recent]
-  const lines = picked.map((m) => `· ${m.title ? `${m.title}：` : ''}${m.content}`).join('\n')
-  let note = ''
-  if (mem.overview?.trim()) note += `\n\n【你们的记忆概览】\n${mem.overview.trim()}`
-  if (lines) note += `\n\n【长期记忆（请当作你真实记得的事，自然运用，别生硬复述）】\n${lines}`
-  return note.length > 2000 ? note.slice(0, 2000) + '…' : note
+  const result = recallMemories({
+    query,
+    scope: 'phone',
+    memories: mem.memories,
+    overview: mem.overview,
+    maxChars: 2400,
+  })
+  mem.recordDiagnostic(result.diagnostic)
+  return result.text
 }
 
 export default function PhonePage() {
@@ -572,7 +574,8 @@ export default function PhonePage() {
         hour: '2-digit',
         minute: '2-digit',
       })
-      const system = `${base}${texting}${memoryNote()}${stickerNote}${taskNote}\n\n（当前时间：${localTime}，可自然参考。）`
+      const query = [...history].reverse().find((m) => m.role === 'me')?.text ?? ''
+      const system = `${base}${texting}${memoryNote(query)}${stickerNote}${taskNote}\n\n（当前时间：${localTime}，可自然参考。）`
 
       let reply = ''
       if (responseChannel) {
