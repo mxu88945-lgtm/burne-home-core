@@ -41,7 +41,8 @@ function persist(memories: MemoryItem[]) {
   writeJSON(STORAGE_KEYS.memories, memories)
 }
 
-const SHORT_MEMORY_TTL_MS = 3 * 24 * 60 * 60 * 1000
+// 近期状态默认保留两天；旧条目不回写过期时间，避免无提示地改动已有资料。
+const SHORT_MEMORY_TTL_MS = 2 * 24 * 60 * 60 * 1000
 
 /** 旧分类迁移：core→long，normal/auto→short */
 function migrate(list: MemoryItem[]): MemoryItem[] {
