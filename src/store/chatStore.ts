@@ -43,10 +43,21 @@ export interface ChatMsg {
   }
 }
 
+/** Rolling context summary used only when building the next API request. */
+export interface ChatContextSummary {
+  text: string
+  /** The last raw message represented by this summary. */
+  coveredThroughId: string
+  updatedAt: string
+  version: number
+}
+
 export interface ChatSession {
   id: string
   title: string
   messages: ChatMsg[]
+  /** Raw messages remain intact; this is a separate, replaceable API aid. */
+  contextSummary?: ChatContextSummary
   createdAt: string
   updatedAt: string
 }
@@ -88,6 +99,8 @@ interface ChatState {
   sessions: ChatSession[]
   activeId: string
   setMessages: (m: ChatMsg[] | ((prev: ChatMsg[]) => ChatMsg[])) => void
+  setContextSummary: (summary: ChatContextSummary | undefined) => void
+  setSessionContextSummary: (sessionId: string, summary: ChatContextSummary | undefined) => void
   /** 进入空白新对话（不落库，发第一条消息时才真正创建会话） */
   startBlank: () => void
   createSession: () => void
@@ -127,6 +140,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
     })
     persist(next, curId)
     set({ sessions: next, activeId: curId })
+  },
+
+  setContextSummary: (summary) => {
+    const { sessions, activeId } = get()
+    if (!sessions.some((s) => s.id === activeId)) return
+    const next = sessions.map((s) =>
+      s.id === activeId
+        ? { ...s, contextSummary: summary, updatedAt: new Date().toISOString() }
+        : s,
+    )
+    persist(next, activeId)
+    set({ sessions: next })
+  },
+
+  setSessionContextSummary: (sessionId, summary) => {
+    const { sessions, activeId } = get()
+    if (!sessions.some((s) => s.id === sessionId)) return
+    const next = sessions.map((s) =>
+      s.id === sessionId
+        ? { ...s, contextSummary: summary, updatedAt: new Date().toISOString() }
+        : s,
+    )
+    persist(next, activeId)
+    set({ sessions: next })
   },
 
   startBlank: () => {

@@ -10,7 +10,7 @@ import { chatComplete, chatCompleteStream, canStream } from '@/api/llm'
 import { useTtsStore } from '@/store/ttsStore'
 import { useTtsPlayback } from '@/lib/useTtsPlayback'
 import { useAppearanceStore } from '@/store/appearanceStore'
-import { useChatStore, type ChatMsg as Msg } from '@/store/chatStore'
+import { useChatStore, type ChatMsg as Msg, type ChatContextSummary } from '@/store/chatStore'
 import chatCat from '@/assets/themes/chat-cat.jpg'
 import { fileToDataUrl } from '@/lib/image'
 import { isTextFile, readAsDataUrl, readAsText, humanSize } from '@/lib/file'
@@ -34,6 +34,15 @@ import { usePeriodStore } from '@/store/periodStore'
 import { periodChatNote } from '@/lib/period'
 import { parseTasks } from '@/store/taskStore'
 import { useThemeStore } from '@/store/themeStore'
+import {
+  AUTO_COMPACT_KEEP,
+  SUMMARY_VERSION,
+  buildApiHistoryWindow,
+  buildCompactionTranscript,
+  clipSummary,
+  selectCompactionBatch,
+  shouldAutoCompact,
+} from '@/lib/contextCompression'
 import {
   ImageIcon,
   FileIcon,
@@ -161,6 +170,8 @@ export default function Chat() {
   const sessions = useChatStore((s) => s.sessions)
   const activeId = useChatStore((s) => s.activeId)
   const setMessages = useChatStore((s) => s.setMessages)
+  const setContextSummary = useChatStore((s) => s.setContextSummary)
+  const setSessionContextSummary = useChatStore((s) => s.setSessionContextSummary)
   const createSession = useChatStore((s) => s.createSession)
   const switchSession = useChatStore((s) => s.switchSession)
   const removeSession = useChatStore((s) => s.removeSession)
@@ -383,6 +394,9 @@ export default function Chat() {
     if (idx < 0) return
     const history = messages.slice(0, idx)
     setMessages(history)
+    // The edited/regenerated branch may invalidate the covered-through marker.
+    // Rebuild continuity from the surviving raw transcript when it is needed.
+    setContextSummary(undefined)
     if (connected) await respond(history)
   }
 
@@ -401,15 +415,81 @@ export default function Chat() {
     const edited: Msg = { ...messages[idx], text }
     const history = [...messages.slice(0, idx), edited]
     setMessages(history)
+    setContextSummary(undefined)
     if (connected) await respond(history)
   }
 
-  /** 压缩长对话：把较早的消息总结成「前情摘要」，只保留最近几条，省 token */
+  const SUMMARY_SYSTEM =
+    '你是长期对话的连续性档案助手，只输出摘要正文，不要寒暄或解释。' +
+    '请按以下五节组织：人物与关系；长期重要线索；已发生的关键事件；当前情境；待解决的悬念/下一步。' +
+    '只保留原文有证据的事实，不要编造；保留关系、称呼、边界、约定和未完成事项。' +
+    '如果新内容修正旧内容，以新内容为准。摘要要让角色能自然接上对话，控制在 900～1600 字。'
+
+  /**
+   * Create/update a rolling summary without deleting any visible raw messages.
+   * The summary is deliberately stored on the session rather than as a fake
+   * chat bubble, so exports and local history remain faithful to the transcript.
+   */
+  async function compactContext(history: Msg[], force = false): Promise<ChatContextSummary | undefined> {
+    if (!activeChannel && !workerUrl) return undefined
+    const store = useChatStore.getState()
+    const session = store.sessions.find((s) => s.id === store.activeId)
+    const sessionId = session?.id
+    if (!sessionId) return undefined
+    const previous = session?.contextSummary
+    if (!force && !shouldAutoCompact(history)) return previous
+
+    const batch = selectCompactionBatch(history, previous, AUTO_COMPACT_KEEP)
+    // Automatic summaries are batched too: once the first summary exists, do
+    // not spend a model call on every single new turn.
+    if (batch.length < (force ? 3 : 8)) return previous
+    const transcript = buildCompactionTranscript(batch, previous)
+    const maxTokens = Math.min(Math.max(persona.maxTokens || 0, 1200), 1800)
+    setImgErr('')
+    try {
+      let summary = ''
+      if (activeChannel) {
+        const result = await chatComplete(
+          activeChannel,
+          [{ role: 'user', content: transcript }],
+          SUMMARY_SYSTEM,
+          { workerUrl, syncKey: config.syncKey, maxTokens },
+        )
+        summary = result.text.trim()
+      } else {
+        summary = (
+          await sendChat({
+            workerUrl: workerUrl!,
+            syncKey: config.syncKey,
+            messages: [{ role: 'user', content: transcript }],
+            system: SUMMARY_SYSTEM,
+            maxTokens,
+          })
+        ).trim()
+      }
+      if (!summary) throw new Error('摘要为空')
+      const next: ChatContextSummary = {
+        text: clipSummary(summary),
+        coveredThroughId: batch[batch.length - 1].id,
+        updatedAt: new Date().toISOString(),
+        version: SUMMARY_VERSION,
+      }
+      // Target the original session: the user may have switched rooms while
+      // the summary request was in flight.
+      setSessionContextSummary(sessionId, next)
+      return next
+    } catch (e) {
+      console.warn('[context] rolling summary failed', e)
+      if (force) setImgErr(`压缩失败：${(e as Error).message}`)
+      return previous
+    }
+  }
+
+  /** 压缩长对话：摘要只作为后台连续性档案，旧消息仍留在本地。 */
   async function compress() {
     setPlusOpen(false)
     if (sending || generating) return
-    const keep = 4
-    if (messages.length <= keep + 2) {
+    if (messages.length <= AUTO_COMPACT_KEEP + 2) {
       setImgErr('对话还很短，暂时不用压缩')
       return
     }
@@ -417,50 +497,10 @@ export default function Chat() {
       setImgErr('压缩需要先配置聊天渠道')
       return
     }
-    if (!window.confirm('把较早的对话压缩成一段摘要？（保留最近几条，不可恢复）')) return
-    const head = messages.slice(0, messages.length - keep)
-    const tail = messages.slice(messages.length - keep)
-    const transcript = head
-      .map((m) => {
-        const who = m.role === 'me' ? '用户' : 'AI'
-        const extra = `${m.image ? '［图片］' : ''}${m.file ? `［文件:${m.file.name}］` : ''}`
-        return `${who}：${m.text}${extra}`
-      })
-      .join('\n')
-    const sys = '你是对话摘要助手，只输出摘要正文，不要寒暄。'
-    const ask = `请把下面这段对话压缩成简洁的「前情摘要」，保留关键信息、事实和情感脉络，用第三人称概述，不要遗漏重要细节：\n\n${transcript}`
+    if (!window.confirm(`整理较早对话并保留最近 ${AUTO_COMPACT_KEEP} 条原文？（历史不会删除）`)) return
     setSending(true)
-    setImgErr('')
     try {
-      let summary = ''
-      if (activeChannel) {
-        const r = await chatComplete(activeChannel, [{ role: 'user', content: ask }], sys, {
-          workerUrl,
-          syncKey: config.syncKey,
-          maxTokens: persona.maxTokens,
-        })
-        summary = r.text.trim()
-      } else {
-        summary = (
-          await sendChat({
-            workerUrl: workerUrl!,
-            syncKey: config.syncKey,
-            messages: [{ role: 'user', content: ask }],
-            system: sys,
-            maxTokens: persona.maxTokens,
-          })
-        ).trim()
-      }
-      if (!summary) throw new Error('摘要为空')
-      const summaryMsg: Msg = {
-        id: newId(),
-        role: 'companion',
-        text: `【前情摘要】\n${summary}`,
-        at: now(),
-      }
-      setMessages([summaryMsg, ...tail])
-    } catch (e) {
-      setImgErr(`压缩失败：${(e as Error).message}`)
+      await compactContext(messages, true)
     } finally {
       setSending(false)
     }
@@ -841,14 +881,29 @@ export default function Chat() {
 
   /** 用当前历史调用模型并把回复加入对话（图片按 vision 格式发送） */
   async function respond(history: Msg[]) {
+    setSending(true)
+    // Before every request, try to roll older turns into a continuity file
+    // once the local transcript becomes large. Even if this model call cannot
+    // produce a summary, the bounded window below still protects the request.
+    const rollingSummary = await compactContext(history)
+    const historyWindow = buildApiHistoryWindow(history)
+    const apiHistory = historyWindow.messages
+
     // idb: 图片引用先解析回 dataURL（喂 vision 用）
     const resolvedImgs = new Map<string, string>()
     await Promise.all(
-      history
+      apiHistory
         .filter((m) => m.image && m.image.startsWith('idb:'))
-        .map(async (m) => resolvedImgs.set(m.id, await resolveImgRef(m.image!))),
+        .map(async (m) => {
+          try {
+            resolvedImgs.set(m.id, await resolveImgRef(m.image!))
+          } catch {
+            // A missing local image should degrade to the text/placeholder,
+            // not strand the whole request before its error handler starts.
+          }
+        }),
     )
-    const apiMsgs: ChatApiMessage[] = history
+    const apiMsgs: ChatApiMessage[] = apiHistory
       .filter((m) => m.text.trim() || m.image || m.file || m.task)
       .map((m) => {
         const role = m.role === 'me' ? ('user' as const) : ('assistant' as const)
@@ -913,6 +968,11 @@ export default function Chat() {
       minute: '2-digit',
     })
     let system = `${base}\n\n（当前用户本地时间：${localTime}，回应时可自然参考，不必刻意复述。）`
+    if (rollingSummary?.text.trim()) {
+      system +=
+        `\n\n【较早对话·连续性档案】\n${rollingSummary.text.trim()}\n` +
+        '这是后台连续性资料；当前用户明确说法、最近原文和当前人设优先。不要提及摘要、压缩或上下文窗口。'
+    }
     const periodState = usePeriodStore.getState()
     if (periodState.inject) {
       const note = periodChatNote(periodState.days, profile.nameA || '她', periodState.periodLen)
@@ -950,7 +1010,6 @@ export default function Chat() {
     // 开了思考过程且渠道可流式（OpenAI 兼容直连）→ 走流式：思考链实时流动、思考完自动收起出正文
     const useStream = !!channel && canStream(channel) && persona.reasoning
 
-    setSending(true)
     try {
       // ——— 流式分支：边收思考边显示，思考结束自动收起再流出正文 ———
       if (useStream) {
