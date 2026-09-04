@@ -2,6 +2,8 @@
  * 聊天客户端 —— 调用后端 Worker 的 /chat 中转（AI key 在 Worker，不在前端）。
  */
 
+import { fetchWithinAffordableTokenBudget } from '@/api/tokenBudget'
+
 /** 消息内容：纯文本，或多模态分段（文字 + 图片，OpenAI 兼容 vision 格式） */
 export type ChatContent =
   | string
@@ -66,28 +68,34 @@ export async function sendChat(opts: {
       .trim()
     return { ...message, content: `${text}${text ? '\n' : ''}［发送了一张图片］` }
   })
-  const res = await fetch(`${base}/chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(opts.syncKey ? { 'X-Sync-Key': opts.syncKey } : {}),
-    },
-    body: JSON.stringify({
-      messages,
-      system: normalized.system,
-      ...(opts.provider ? { provider: opts.provider } : {}),
-      ...(opts.model ? { model: opts.model } : {}),
-      ...(opts.baseUrl ? { baseUrl: opts.baseUrl } : {}),
-      ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
-      ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
-      ...(normalized.maxTokens != null ? { maxTokens: normalized.maxTokens } : {}),
+  const res = await fetchWithinAffordableTokenBudget(
+    normalized.maxTokens,
+    (effectiveMaxTokens) => fetch(`${base}/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(opts.syncKey ? { 'X-Sync-Key': opts.syncKey } : {}),
+      },
+      body: JSON.stringify({
+        messages,
+        system: normalized.system,
+        ...(opts.provider ? { provider: opts.provider } : {}),
+        ...(opts.model ? { model: opts.model } : {}),
+        ...(opts.baseUrl ? { baseUrl: opts.baseUrl } : {}),
+        ...(opts.apiKey ? { apiKey: opts.apiKey } : {}),
+        ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
+        maxTokens: effectiveMaxTokens,
+      }),
     }),
-  })
+    async (response) => {
+      const data = (await response.json().catch(() => ({}))) as { error?: string }
+      return data.error || `HTTP ${response.status}`
+    },
+  )
   const data = (await res.json().catch(() => ({}))) as {
     reply?: string
     error?: string
   }
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
   return data.reply ?? ''
 }
 

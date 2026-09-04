@@ -6,6 +6,7 @@
 import { create } from 'zustand'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
+import { isFailedTransportMessage } from '@/lib/chatTransportError'
 
 export interface ChatMsg {
   id: string
@@ -83,12 +84,18 @@ function load(): Persisted {
   if (raw && typeof raw === 'object' && Array.isArray((raw as Persisted).sessions)) {
     const p = raw as Persisted
     const validActive = p.activeId && p.sessions.some((s) => s.id === p.activeId) ? p.activeId : ''
-    return { sessions: p.sessions, activeId: validActive }
+    return {
+      sessions: p.sessions.map((session) => ({
+        ...session,
+        messages: session.messages.filter((message) => !isFailedTransportMessage(message)),
+      })),
+      activeId: validActive,
+    }
   }
   // 旧结构：单会话 ChatMsg[]
   if (Array.isArray(raw) && raw.length) {
     const t = new Date().toISOString()
-    const s: ChatSession = { id: uid('chat'), title: '对话', messages: raw as ChatMsg[], createdAt: t, updatedAt: t }
+    const s: ChatSession = { id: uid('chat'), title: '对话', messages: (raw as ChatMsg[]).filter((message) => !isFailedTransportMessage(message)), createdAt: t, updatedAt: t }
     return { sessions: [s], activeId: '' }
   }
   // 全新：无任何会话，从空白开始（不预先生成空会话）

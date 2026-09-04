@@ -1199,7 +1199,8 @@ export default function Chat() {
                 // 回退也失败，落到下面统一报错
               }
             }
-            patch((m) => ({ ...m, text: `（消息没送到：${msg}）`, reasoning: undefined }))
+            setMessages((prev) => prev.filter((m) => m.id !== replyId))
+            showMemToast(`发送失败：${msg}`)
             setOpenReasoning((prev) => {
               const n = new Set(prev)
               n.delete(replyId)
@@ -1346,10 +1347,7 @@ export default function Chat() {
         void extractMemories([...history, { id: 'tmp', role: 'companion', text: reply, at: '' }], force)
       }
     } catch (e) {
-      setMessages((prev) => [
-        ...prev,
-        { id: newId(), role: 'companion', text: `（消息没送到：${(e as Error).message}）`, at: now() },
-      ])
+      showMemToast(`发送失败：${(e as Error).message}`)
     } finally {
       setSending(false)
     }

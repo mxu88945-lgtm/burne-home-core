@@ -7,9 +7,19 @@
 
 import type { ApiChannel } from '@/store/apiStore'
 import { sendChat, fetchModelsViaWorker, type ChatApiMessage } from '@/api/chat'
+import { fetchWithinAffordableTokenBudget } from '@/api/tokenBudget'
 
 function trim(u: string): string {
   return u.replace(/\/+$/, '')
+}
+
+async function providerError(response: Response): Promise<string> {
+  const data = (await response.json().catch(() => ({}))) as {
+    error?: { message?: string } | string
+    message?: string
+  }
+  if (typeof data.error === 'string') return data.error
+  return data.error?.message || data.message || `HTTP ${response.status}`
 }
 
 /** 把（OpenAI 兼容的）消息内容转成 Anthropic Messages API 的格式（含图片 block） */
@@ -163,27 +173,28 @@ export async function chatCompleteStream(
     opts.webSearch && isOpenRouter && !/:online$/.test(ch.model) ? `${ch.model}:online` : ch.model
   const full = system ? [{ role: 'system' as const, content: system }, ...messages] : messages
 
-  const res = await fetch(`${trim(ch.baseUrl)}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${ch.apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: full,
-      max_tokens: maxTokens,
-      stream: true,
-      ...(isOpenRouter ? { stream_options: { include_usage: true } } : {}),
-      ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
-      ...(opts.reasoning ? { reasoning: { effort: 'medium' } } : {}),
-      ...(isOpenRouter ? { usage: { include: true } } : {}),
+  const res = await fetchWithinAffordableTokenBudget(
+    maxTokens,
+    (effectiveMaxTokens) => fetch(`${trim(ch.baseUrl)}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${ch.apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: full,
+        max_tokens: effectiveMaxTokens,
+        stream: true,
+        ...(isOpenRouter ? { stream_options: { include_usage: true } } : {}),
+        ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
+        ...(opts.reasoning ? { reasoning: { effort: 'medium' } } : {}),
+        ...(isOpenRouter ? { usage: { include: true } } : {}),
+      }),
     }),
-  })
-  if (!res.ok || !res.body) {
-    const data = (await res.json().catch(() => ({}))) as { error?: { message?: string } }
-    throw new Error(data.error?.message || `HTTP ${res.status}`)
-  }
+    providerError,
+  )
+  if (!res.body) throw new Error('接口没有返回可读取的回复')
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
@@ -284,32 +295,35 @@ export async function chatComplete(
 
   // 浏览器直连
   if (ch.provider === 'anthropic') {
-    const res = await fetch(`${trim(ch.baseUrl)}/v1/messages`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': ch.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: ch.model,
-        max_tokens: maxTokens,
-        // 开思考时 anthropic 要求不传 temperature
-        ...(opts.reasoning ? {} : opts.temperature != null ? { temperature: opts.temperature } : {}),
-        ...(opts.reasoning
-          ? { thinking: { type: 'enabled', budget_tokens: Math.max(1024, Math.floor(maxTokens / 2)) } }
-          : {}),
-        system,
-        messages: toAnthropic(messages),
+    const res = await fetchWithinAffordableTokenBudget(
+      maxTokens,
+      (effectiveMaxTokens) => fetch(`${trim(ch.baseUrl)}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': ch.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: ch.model,
+          max_tokens: effectiveMaxTokens,
+          // 开思考时 anthropic 要求不传 temperature
+          ...(opts.reasoning ? {} : opts.temperature != null ? { temperature: opts.temperature } : {}),
+          ...(opts.reasoning
+            ? { thinking: { type: 'enabled', budget_tokens: Math.max(1024, Math.floor(effectiveMaxTokens / 2)) } }
+            : {}),
+          system,
+          messages: toAnthropic(messages),
+        }),
       }),
-    })
+      providerError,
+    )
     const data = (await res.json().catch(() => ({}))) as {
       content?: { type?: string; text?: string; thinking?: string }[]
       usage?: { input_tokens?: number; output_tokens?: number }
       error?: { message?: string }
     }
-    if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`)
     const text = Array.isArray(data.content)
       ? data.content.map((c) => c.text || '').join('')
       : ''
@@ -339,23 +353,27 @@ export async function chatComplete(
   const full = system
     ? [{ role: 'system' as const, content: system }, ...messages]
     : messages
-  const res = await fetch(`${trim(ch.baseUrl)}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${ch.apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: full,
-      max_tokens: maxTokens,
-      ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
-      // 思考过程（OpenRouter 等支持）
-      ...(opts.reasoning ? { reasoning: { effort: 'medium' } } : {}),
-      // OpenRouter：让响应带上真实花费
-      ...(isOpenRouter ? { usage: { include: true } } : {}),
+  const res = await fetchWithinAffordableTokenBudget(
+    maxTokens,
+    (effectiveMaxTokens) => fetch(`${trim(ch.baseUrl)}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${ch.apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: full,
+        max_tokens: effectiveMaxTokens,
+        ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
+        // 思考过程（OpenRouter 等支持）
+        ...(opts.reasoning ? { reasoning: { effort: 'medium' } } : {}),
+        // OpenRouter：让响应带上真实花费
+        ...(isOpenRouter ? { usage: { include: true } } : {}),
+      }),
     }),
-  })
+    providerError,
+  )
   const data = (await res.json().catch(() => ({}))) as {
     choices?: { message?: { content?: string; reasoning?: string } }[]
     usage?: {
@@ -366,7 +384,6 @@ export async function chatComplete(
     }
     error?: { message?: string }
   }
-  if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`)
   const u = data.usage
   const usage: UsageInfo | undefined = u
     ? {
