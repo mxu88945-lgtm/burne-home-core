@@ -15,7 +15,7 @@ import type { DramaScene } from '@/store/dramaStore'
 const SEPARATOR = '\n\n--------------------\n\n'
 
 /** 名字里不能有换行；正文里刚好有一整行横线时，挪开一点免得被当成分隔线。 */
-const cleanName = (name: string) => name.replace(/\s+/g, ' ').trim() || '旁白'
+const cleanName = (name: string) => { const n = name.replace(/\s+/g, ' ').trim(); return /[\p{L}\p{N}]/u.test(n) ? n : '旁白' }
 const cleanText = (text: string) => text.replace(/\r\n?/g, '\n').replace(/^\s*-{10,}\s*$/gm, (line) => `—${line.trim()}`).trim()
 
 export function buildDramaTxt(scene: DramaScene, exportedAt = new Date(), range?: { start: number; end: number }): string {
