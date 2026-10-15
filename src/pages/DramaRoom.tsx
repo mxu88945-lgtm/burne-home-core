@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { downloadDramaTxt } from '@/lib/dramaExport'
 import { useDramaStore, dramaMsgId, type DramaChar, type DramaMsg, type LoreEntry } from '@/store/dramaStore'
 import { useApiStore, type ApiChannel } from '@/store/apiStore'
 import { useMemoryModelStore } from '@/store/memoryModelStore'
@@ -1209,6 +1210,17 @@ export default function DramaRoom() {
                       className="block w-full py-3 text-center text-[15px] text-ink active:bg-black/5"
                     >
                       改名
+                    </button>
+                    <div className="mx-4 border-t border-line/50" />
+                    <button
+                      onClick={() => {
+                        if (!ms.messages.length) window.alert('这个剧场还没有对话')
+                        else downloadDramaTxt(ms)
+                        close()
+                      }}
+                      className="block w-full py-3 text-center text-[15px] text-ink active:bg-black/5"
+                    >
+                      导出 TXT（可导入惟境）
                     </button>
                     <div className="mx-4 border-t border-line/50" />
                     <button
