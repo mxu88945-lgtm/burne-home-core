@@ -18,11 +18,15 @@ const SEPARATOR = '\n\n--------------------\n\n'
 const cleanName = (name: string) => name.replace(/\s+/g, ' ').trim() || '旁白'
 const cleanText = (text: string) => text.replace(/\r\n?/g, '\n').replace(/^\s*-{10,}\s*$/gm, (line) => `—${line.trim()}`).trim()
 
-export function buildDramaTxt(scene: DramaScene, exportedAt = new Date()): string {
+export function buildDramaTxt(scene: DramaScene, exportedAt = new Date(), range?: { start: number; end: number }): string {
   const me = scene.chars.find((c) => c.isMe)
   const userName = cleanName(me?.name || '我')
   const nameOf = (who: string) => cleanName(scene.chars.find((c) => c.id === who)?.name || '旁白')
-  const messages = scene.messages
+  const total = scene.messages.length
+  const start = range ? Math.min(total, Math.max(1, Math.min(range.start, range.end))) : 1
+  const end = range ? Math.min(total, Math.max(1, Math.max(range.start, range.end))) : total
+  const partial = Boolean(range) && (start > 1 || end < total)
+  const messages = scene.messages.slice(start - 1, end)
     .map((m) => {
       const text = cleanText(m.text || '') || (m.image ? '【图片】' : '')
       return text ? { author: m.who === me?.id ? userName : nameOf(m.who), text } : null
@@ -33,16 +37,16 @@ export function buildDramaTxt(scene: DramaScene, exportedAt = new Date()): strin
     ...messages.filter((m) => m.author !== userName).map((m) => m.author),
   ])].filter((name) => name !== userName)
   const title = cleanName(scene.title || '戏剧')
-  const header = `${title}\n角色：${actors.join('、') || '旁白'}\n用户：${userName}\n导出时间：${exportedAt.toLocaleString()}`
+  const header = `${title}\n角色：${actors.join('、') || '旁白'}\n用户：${userName}${partial ? `\n范围：第 ${start}–${end} 条（共 ${total} 条）` : ''}\n导出时间：${exportedAt.toLocaleString()}`
   return `${header}\n\n${messages.map((m) => `${m.author}\n${m.text}`).join(SEPARATOR)}\n`
 }
 
-export function downloadDramaTxt(scene: DramaScene): void {
-  const blob = new Blob([buildDramaTxt(scene)], { type: 'text/plain;charset=utf-8' })
+export function downloadDramaTxt(scene: DramaScene, range?: { start: number; end: number }): void {
+  const blob = new Blob([buildDramaTxt(scene, new Date(), range)], { type: 'text/plain;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${(scene.title || '戏剧').replace(/[\\/:*?"<>|]/g, '_')}.txt`
+  a.download = `${(scene.title || '戏剧').replace(/[\\/:*?"<>|]/g, '_')}${range ? `_${Math.min(range.start, range.end)}-${Math.max(range.start, range.end)}` : ''}.txt`
   document.body.appendChild(a)
   a.click()
   a.remove()

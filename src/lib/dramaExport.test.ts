@@ -31,3 +31,11 @@ describe('drama TXT export (惟境格式)', () => {
     expect(blocks[4]).toBe('旁白\n门响了。')
   })
 })
+
+describe('drama TXT export range', () => {
+  it('exports only the chosen messages', () => {
+    const txt = buildDramaTxt(scene, new Date(2026, 9, 15), { start: 2, end: 3 })
+    expect(txt).toContain('范围：第 2–3 条（共 5 条）')
+    expect(txt.split(/\n\s*\n-{10,}\n\s*\n/)).toHaveLength(2)
+  })
+})

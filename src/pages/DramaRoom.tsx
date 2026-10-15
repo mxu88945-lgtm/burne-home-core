@@ -117,6 +117,9 @@ export default function DramaRoom() {
     }
     setStreamText('')
   }
+  const [exportOpen, setExportOpen] = useState(false)
+  const [expFrom, setExpFrom] = useState(1)
+  const [expTo, setExpTo] = useState(1)
   const [menuSceneId, setMenuSceneId] = useState('') // 会话列表 ⋮ 菜单打开的剧场
   const [loreEdit, setLoreEdit] = useState<LoreEntry | 'new' | null>(null) // 世界书条目编辑器
   const dramaBgRef = useRef<HTMLInputElement>(null) // ⚙ 里就地换背景图
@@ -1719,6 +1722,34 @@ export default function DramaRoom() {
                 </>
               )
             })()}
+
+            {/* 导出 TXT（惟境对话格式，可整份或按条数范围） */}
+            <button onClick={() => { setExportOpen((o) => !o); setExpFrom(1); setExpTo(sc.messages.length) }} className="flex w-full items-center justify-between rounded-xl px-2.5 py-2.5 text-left hover:bg-white/40">
+              <span className="text-sm text-ink">导出 TXT</span>
+              <span className="flex items-center gap-1.5 text-[12px] text-muted">可导入惟境<span>{exportOpen ? '▴' : '›'}</span></span>
+            </button>
+            {exportOpen && (
+              <div className="space-y-2 px-2.5 pb-2">
+                {sc.messages.length === 0 ? (
+                  <p className="text-[11px] text-muted">这个剧场还没有对话。</p>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-[12px] text-muted">
+                      第
+                      <input type="number" min={1} max={sc.messages.length} value={expFrom} onChange={(e) => setExpFrom(Math.max(1, Number(e.target.value) || 1))} className="w-16 rounded-lg bg-white/60 px-2 py-1.5 text-center text-[16px] text-ink" />
+                      到
+                      <input type="number" min={1} max={sc.messages.length} value={expTo} onChange={(e) => setExpTo(Math.max(1, Number(e.target.value) || 1))} className="w-16 rounded-lg bg-white/60 px-2 py-1.5 text-center text-[16px] text-ink" />
+                      条，共 {sc.messages.length} 条
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => downloadDramaTxt(sc)} className="flex-1 rounded-full bg-white/60 px-3 py-2 text-[13px] text-ink">导出整份</button>
+                      <button onClick={() => downloadDramaTxt(sc, { start: expFrom, end: expTo })} className="btn-primary flex-1 rounded-full px-3 py-2 text-[13px]">导出第 {Math.min(expFrom, expTo)}–{Math.min(sc.messages.length, Math.max(expFrom, expTo))} 条</button>
+                    </div>
+                    <p className="text-[10px] leading-relaxed text-muted">「这是我」的卡会成为惟境里的用户；图片写成【图片】。在惟境用「导入对话 TXT」打开。</p>
+                  </>
+                )}
+              </div>
+            )}
           </div>)}
           </div>
         </div>
