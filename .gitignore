@@ -20,6 +20,7 @@ secrets.json
 # --- 本地备份导出文件（可能含个人记忆内容）---
 backups/
 *.memory-backup.json
+*.burne-archive.ndjson
 
 # --- 编辑器 / 系统 ---
 .vscode/*
