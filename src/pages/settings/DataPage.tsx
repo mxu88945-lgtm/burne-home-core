@@ -125,8 +125,11 @@ export default function DataPage() {
 
       <div className="glass space-y-3 rounded-2xl p-4">
         <p className="text-[11px] leading-relaxed text-muted">
-          把<b className="text-ink">全部本地数据</b>——记忆库、<b className="text-ink">历史对话（所有会话）</b>、设置、人设、渠道、外观、用量等——导出成一个文件，换设备时再导入恢复。导出的
+          把<b className="text-ink">日常本地数据</b>——记忆库、<b className="text-ink">历史对话（所有会话）</b>、设置、人设、渠道、外观、用量等——导出成一个文件，换设备时再导入恢复。导出的
           .json 存在你自己设备上。
+        </p>
+        <p className="text-[11px] leading-relaxed text-muted">
+          独立的“旧日原文档案”不塞进这份整包备份；请保留原始 ChatGPT 导出和档案包，换设备后重新导入。
         </p>
         <p className="text-[11px] leading-relaxed text-muted">
           恢复时会用备份<b className="text-ink">覆盖</b>当前全部数据并刷新。聊天里的图片/文件较多时备份体积会偏大，属正常。
@@ -266,7 +269,7 @@ export default function DataPage() {
                 return (
                   <div className="mt-1 rounded-xl bg-black/5 p-3">
                     <div className="flex justify-between text-[12px] text-ink">
-                      <span>大仓库（戏剧/角色卡/图片/歌曲/书）</span>
+                      <span>大仓库（旧日档案/戏剧/图片/书）</span>
                       <b>
                         {usedMb < 1024 ? `${usedMb.toFixed(0)} MB` : `${(usedMb / 1024).toFixed(2)} GB`} /{' '}
                         {quotaMb < 1024 ? `${quotaMb.toFixed(0)} MB` : `${(quotaMb / 1024).toFixed(1)} GB`}
