@@ -51,10 +51,12 @@ export function resolveStandaloneViewport({
 /**
  * Translate WebKit's keyboard reading into the actual App shell frame.
  *
- * On iOS the keyboard shrinks/pans the visual viewport without shrinking the
- * layout viewport. Mirror that viewport with explicit `top` + `height` on the
- * fixed shell. Do not position it with transform: iOS can misplace transformed
- * fixed elements during keyboard interaction.
+ * On the affected iPhone PWA, visualViewport.height already ends at the
+ * keyboard toolbar while offsetTop reports the same page pan separately.
+ * Keep the fixed shell at zero and use only the shrunken visual height:
+ * applying offsetTop again double-counts the pan and puts the composer under
+ * the keyboard accessory bar. We also deliberately avoid transforms because
+ * transformed fixed elements are unstable during iOS keyboard interaction.
  */
 export function resolveStandaloneFrame(input: StandaloneViewportInput): StandaloneFrameResult {
   const geometry = resolveStandaloneViewport(input)
@@ -67,9 +69,5 @@ export function resolveStandaloneFrame(input: StandaloneViewportInput): Standalo
       : geometry.appHeight - geometry.keyboardInset
     : geometry.appHeight
 
-  const frameOffset = geometry.keyboardOpen && geometry.readingSane
-    ? Math.max(0, input.offsetTop ?? 0)
-    : 0
-
-  return { ...geometry, frameHeight, frameOffset }
+  return { ...geometry, frameHeight, frameOffset: 0 }
 }

@@ -32,7 +32,7 @@ describe('iPhone standalone viewport geometry', () => {
     expect(result.keyboardInset).toBe(0)
   })
 
-  it('mirrors visualViewport with an explicit top and height', () => {
+  it('uses visualViewport height without double-applying its page-pan offset', () => {
     const result = resolveStandaloneFrame({
       fullHeight: 852,
       visualHeight: 477,
@@ -43,7 +43,7 @@ describe('iPhone standalone viewport geometry', () => {
     expect(result.keyboardOpen).toBe(true)
     expect(result.readingSane).toBe(true)
     expect(result.frameHeight).toBe(477)
-    expect(result.frameOffset).toBe(68)
+    expect(result.frameOffset).toBe(0)
   })
 
   it('keeps the last sane keyboard boundary when WebKit briefly collapses the viewport', () => {
