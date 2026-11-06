@@ -200,9 +200,9 @@ body {
   overscroll-behavior: none;
 }
 
+/* 不再 position:fixed：fixed 的 body 让 scrollTo(0,0) 拉不回 iOS 键盘弹出时的整页平移
+   （顶栏被推出屏幕、输入框压在键盘后）。与惟境一致，只锁高度和溢出。 */
 html[data-standalone='true'] body {
-  position: fixed;
-  inset: 0;
   width: 100%;
   height: var(--app-height, 100%);
 }

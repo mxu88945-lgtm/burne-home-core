@@ -26,8 +26,12 @@ if (isStandalone) document.documentElement.dataset.standalone = 'true'
 //   刘海与 Home Indicator。100dvh/visualViewport 在部分 WebKit 版本只覆盖安全区。
 let lastKeyboardInset = 0
 
+let vvEvents = 0
+let vvMinH = Infinity
 function syncViewport() {
   const vv = window.visualViewport
+  vvEvents++
+  if (vv) vvMinH = Math.min(vvMinH, vv.height)
   const root = document.documentElement
   let h = vv ? vv.height : window.innerHeight
   let top = vv ? vv.offsetTop : 0
@@ -52,9 +56,12 @@ function syncViewport() {
       // （vv.offsetTop）一起下移。之前用「整屏 − inset」+ scrollTo(0,0)：body 是 fixed，
       // scrollTo 拉不回平移，键盘上方的 ^ ˅ ✓ 工具条又不算进 inset，结果顶栏被推出屏幕、
       // 输入框下半截压在工具条下面。
+      // 2026-11-06 改用惟境在她 iPhone 上验证过的做法：App 高度 = vv.height，不做位移，
+      // 并把 iOS 的页面平移 scrollTo(0,0) 拉回（body 不再 fixed，scrollTo 才有效）。
       if (geometry.keyboardOpen && geometry.readingSane && vv) {
         h = vv.height
-        top = Math.max(0, vv.offsetTop)
+        top = 0
+        if (window.scrollY || vv.offsetTop) window.scrollTo(0, 0)
       } else {
         h = geometry.keyboardOpen ? geometry.appHeight - geometry.keyboardInset : geometry.appHeight
         top = 0
@@ -117,7 +124,7 @@ function writeKbDebug() {
     .map((e) => r(e?.scrollTop))
     .join('/')
   el.textContent =
-    `kb ${root.hasAttribute('data-keyboard') ? 1 : 0} sa ${isStandalone ? 1 : 0} vv ${r(vv?.height)}+${r(vv?.offsetTop)} inner ${window.innerHeight} scr ${screen.height} sy ${r(window.scrollY)}\n` +
+    `#${vvEvents} min ${r(vvMinH)} kb ${root.hasAttribute('data-keyboard') ? 1 : 0} sa ${isStandalone ? 1 : 0} vv ${r(vv?.height)}+${r(vv?.offsetTop)} inner ${window.innerHeight} scr ${screen.height} sy ${r(window.scrollY)}\n` +
     `app ${root.style.getPropertyValue('--app-height')} off ${root.style.getPropertyValue('--app-offset')} kb ${root.style.getPropertyValue('--keyboard-inset')}\n` +
     `shell ${r(shell?.getBoundingClientRect().top)}..${r(shell?.getBoundingClientRect().bottom)} comp ${r(comp?.getBoundingClientRect().top)}..${r(comp?.getBoundingClientRect().bottom)} st ${st}`
 }
