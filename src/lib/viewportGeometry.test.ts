@@ -46,6 +46,21 @@ describe('iPhone standalone viewport geometry', () => {
     expect(result.frameOffset).toBe(0)
   })
 
+  it('still detects the keyboard when iOS pans by almost the same amount it shrinks', () => {
+    const result = resolveStandaloneFrame({
+      fullHeight: 956,
+      visualHeight: 520,
+      offsetTop: 374,
+    })
+
+    // 520 + 374 = 894 used to be mistaken for a closed keyboard because the
+    // remaining 62px resembles the standalone status-bar delta.
+    expect(result.keyboardOpen).toBe(true)
+    expect(result.readingSane).toBe(true)
+    expect(result.frameHeight).toBe(520)
+    expect(result.frameOffset).toBe(0)
+  })
+
   it('keeps the last sane keyboard boundary when WebKit briefly collapses the viewport', () => {
     const result = resolveStandaloneFrame({
       fullHeight: 852,

@@ -195,14 +195,13 @@ export default function AppLayout() {
   const isChat = pathname === '/chat' || pathname === '/phone'
 
   return (
-    // 滚动锁：固定壳只跟随可视视口高度。iOS 已经会平移页面，
-    // 这里不能再叠加 visualViewport.offsetTop，否则输入框会掉进键盘工具条。
+    // 滚动锁：固定壳 + 可视视口尺寸/位移，键盘弹出时整体贴住键盘上方
     <div
       id="bw-app-shell"
       className="app-bg flex flex-col overflow-hidden"
       style={{
         position: 'fixed',
-        top: 0,
+        top: 'var(--app-offset, 0px)',
         left: 0,
         right: 0,
         height: 'var(--app-height, 100dvh)',

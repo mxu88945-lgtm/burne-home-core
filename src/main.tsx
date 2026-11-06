@@ -46,14 +46,10 @@ function syncViewport() {
         offsetTop: vv?.offsetTop,
         lastKeyboardInset,
       })
-      // 键盘打开时直接把整座 App 收到键盘上沿（惟境/顾祁砚验证过的做法），
-      // 不再靠底部 padding 垫高：iOS 会同时平移页面，两者叠加时输入框被键盘压住。
-      // 键盘打开且读数可信：App 直接贴合可视视口——高度 = vv.height，并随 iOS 的页面平移
-      // （vv.offsetTop）一起下移。之前用「整屏 − inset」+ scrollTo(0,0)：body 是 fixed，
-      // scrollTo 拉不回平移，键盘上方的 ^ ˅ ✓ 工具条又不算进 inset，结果顶栏被推出屏幕、
-      // 输入框下半截压在工具条下面。
-      // 2026-11-06 改用惟境在她 iPhone 上验证过的做法：App 高度 = vv.height，不做位移，
-      // 并把 iOS 的页面平移 scrollTo(0,0) 拉回（body 不再 fixed，scrollTo 才有效）。
+      // 键盘打开时直接把整座 App 收到 visualViewport.height，不靠三个页面各自
+      // 加 padding。iOS 同时给出的 offsetTop 只是页面平移，不能参与“键盘是否打开”
+      // 或可见高度计算：例如 956px 屏幕会报 height=520、offsetTop=374，二者相加
+      // 会把真实键盘误判成 62px 的状态栏差，导致主聊/剧场/小手机一起被工具栏盖住。
       if (geometry.keyboardOpen && geometry.readingSane && vv) {
         h = geometry.frameHeight
         // visualViewport.height 已经停在键盘工具条上沿；offsetTop 是同一次

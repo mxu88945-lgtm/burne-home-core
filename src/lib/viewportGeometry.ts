@@ -27,15 +27,20 @@ export interface StandaloneFrameResult extends StandaloneViewportResult {
 export function resolveStandaloneViewport({
   fullHeight,
   visualHeight,
-  offsetTop = 0,
+  offsetTop: _offsetTop = 0,
   lastKeyboardInset = 0,
 }: StandaloneViewportInput): StandaloneViewportResult {
   const height = Number.isFinite(visualHeight) ? Math.max(0, visualHeight!) : fullHeight
-  const visibleBottom = height + Math.max(0, offsetTop)
-  const rawInset = Math.max(0, fullHeight - visibleBottom)
+  // `offsetTop` is a *pan inside the layout viewport*, not extra visible
+  // height.  Recent iOS standalone builds commonly report values such as
+  // height=520 + offsetTop=374 on a 956px screen.  Adding them makes the
+  // keyboard look like a harmless 62px status-bar gap, so the app keeps its
+  // full 956px shell and every composer ends up under the keyboard toolbar.
+  // Detect the keyboard from the shrunken visual height alone.
+  const rawInset = Math.max(0, fullHeight - height)
   const keyboardOpen = rawInset > 120
   const minSaneVisible = Math.max(280, fullHeight * 0.42)
-  const readingSane = !keyboardOpen || visibleBottom >= minSaneVisible
+  const readingSane = !keyboardOpen || height >= minSaneVisible
 
   let keyboardInset = 0
   if (keyboardOpen) {

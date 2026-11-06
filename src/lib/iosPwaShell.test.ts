@@ -26,9 +26,8 @@ describe('iPhone PWA full-screen shell', () => {
   it('sizes the fixed App shell without a transform during keyboard interaction', () => {
     const layout = readFileSync(new URL('src/components/layout/AppLayout.tsx', rootUrl), 'utf8')
 
-    expect(layout).toContain('top: 0')
+    expect(layout).toContain("top: 'var(--app-offset, 0px)'")
     expect(layout).toContain("height: 'var(--app-height, 100dvh)'")
-    expect(layout).not.toContain("top: 'var(--app-offset")
     expect(layout).not.toContain("transform: 'translateY(var(--app-offset")
   })
 })
