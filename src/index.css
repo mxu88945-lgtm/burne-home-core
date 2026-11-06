@@ -529,17 +529,24 @@ html[data-standalone='true'][data-keyboard] .bw-chat-shell {
   -webkit-backdrop-filter: none !important;
   backdrop-filter: none !important;
   background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
   isolation: isolate;
+  /* 底部多留一截给渐隐，再用负外边距抵掉，消息位置不变。 */
+  padding-bottom: 1.5rem !important;
+  margin-bottom: -1rem;
 }
+/* 顾祁砚式顶部磨砂：上浓下淡，整块用遮罩渐隐到透明，没有硬边、圆角和阴影。 */
 .bw-chat-header::before {
   content: '';
   position: absolute;
   inset: 0;
   z-index: -1;
-  border-radius: inherit;
   background: var(--bar);
-  -webkit-backdrop-filter: blur(16px) saturate(1.3);
-  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 52%, rgba(0,0,0,.55) 74%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 52%, rgba(0,0,0,.55) 74%, transparent 100%);
 }
 
 .bw-chat-messages .bw-chat-quote {
