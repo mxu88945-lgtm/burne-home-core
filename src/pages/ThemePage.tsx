@@ -6,8 +6,8 @@ export default function ThemePage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Link to="/settings" className="glass rounded-full px-3 py-1.5 text-xs text-ink">
+      <div className="sticky top-[max(0.5rem,env(safe-area-inset-top))] z-20 flex items-center gap-2">
+        <Link to="/settings" className="glass-strong rounded-full px-3.5 py-2 text-xs text-ink shadow">
           ← 设置
         </Link>
       </div>

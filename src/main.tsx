@@ -45,7 +45,10 @@ function syncViewport() {
         offsetTop: vv?.offsetTop,
         lastKeyboardInset,
       })
-      h = geometry.appHeight
+      // 键盘打开时直接把整座 App 收到键盘上沿（惟境/顾祁砚验证过的做法），
+      // 不再靠底部 padding 垫高：iOS 会同时平移页面，两者叠加时输入框被键盘压住。
+      h = geometry.keyboardOpen ? geometry.appHeight - geometry.keyboardInset : geometry.appHeight
+      if (geometry.keyboardOpen && (window.scrollY || (vv?.offsetTop ?? 0) > 0)) window.scrollTo(0, 0)
       lastKeyboardInset = geometry.keyboardInset
       root.toggleAttribute('data-keyboard', geometry.keyboardOpen)
       root.style.setProperty('--keyboard-inset', `${geometry.keyboardInset}px`)

@@ -321,7 +321,8 @@ html[data-standalone='true'] body {
   padding-bottom: max(.5rem, env(safe-area-inset-bottom));
 }
 html[data-standalone='true'][data-keyboard] .bw-chat-shell {
-  padding-bottom: calc(var(--keyboard-inset, 0px) + .5rem);
+  /* 高度已在 main.tsx 收到键盘上沿，这里只留一点呼吸空间，不再加键盘高度。 */
+  padding-bottom: .5rem;
 }
 .bw-rich-line { display: block; margin-bottom: .86em; }
 .bw-rich-line:last-child { margin-bottom: 0; }
