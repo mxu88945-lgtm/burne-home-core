@@ -26,6 +26,7 @@ import { useSttStore } from '@/store/sttStore'
 import { transcribe } from '@/api/stt'
 import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
+import ModelConfigSheet from '@/components/chat/ModelConfigSheet'
 import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, ArrowUpIcon, MicIcon, PhoneIcon } from '@/components/ui/icons'
 import { renderRichText, stripLinks } from '@/lib/richText'
 import { cleanReply } from '@/lib/cleanReply'
@@ -1139,6 +1140,7 @@ export default function Chat() {
                 temperature: persona.temperature,
                 maxTokens: persona.maxTokens,
                 reasoning: persona.reasoning,
+                reasoningEffort: persona.reasoningEffort,
                 webSearch,
               },
               {
@@ -1221,6 +1223,7 @@ export default function Chat() {
                   temperature: persona.temperature,
                   maxTokens: persona.maxTokens,
                   reasoning: persona.reasoning,
+                reasoningEffort: persona.reasoningEffort,
                   webSearch,
                 })
                 if (r.usage) {
@@ -1318,6 +1321,7 @@ export default function Chat() {
               temperature: persona.temperature,
               maxTokens: persona.maxTokens,
               reasoning: persona.reasoning,
+                reasoningEffort: persona.reasoningEffort,
               webSearch,
             })
             reply = r.text
@@ -1422,7 +1426,7 @@ export default function Chat() {
     }
   }
 
-  const modelLabel = activeChannel?.model || config.chatModel || (connected ? '默认' : '未连接')
+  const modelLabel = activeChannel?.displayName?.trim() || activeChannel?.model || config.chatModel || (connected ? '默认' : '未连接')
 
   return (
     <div className="bw-chat-shell relative isolate flex h-full flex-col overflow-hidden">
@@ -2068,22 +2072,7 @@ export default function Chat() {
                 >
                   {modelLabel}
                 </button>
-                {modelOpen && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={() => setModelOpen(false)} />
-                    <div className="glass-strong absolute bottom-full left-0 z-20 mb-2 w-60 max-w-[72vw] rounded-2xl p-3 text-left shadow-lg">
-                      <div className="text-[10px] text-muted">当前模型</div>
-                      <div className="mt-1 break-all text-[12px] text-ink">{modelLabel}</div>
-                      <Link
-                        to="/settings/api"
-                        onClick={() => setModelOpen(false)}
-                        className="mt-2 block text-[11px] text-accent"
-                      >
-                        在 API 设置里切换 →
-                      </Link>
-                    </div>
-                  </>
-                )}
+                {modelOpen && <ModelConfigSheet onClose={() => setModelOpen(false)} />}
               </div>
               <div className="flex-1" />
               {/* 话筒：浅色圆底（开了语音输入才显示） */}

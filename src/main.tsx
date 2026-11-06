@@ -47,16 +47,25 @@ function syncViewport() {
       })
       // 键盘打开时直接把整座 App 收到键盘上沿（惟境/顾祁砚验证过的做法），
       // 不再靠底部 padding 垫高：iOS 会同时平移页面，两者叠加时输入框被键盘压住。
-      h = geometry.keyboardOpen ? geometry.appHeight - geometry.keyboardInset : geometry.appHeight
-      if (geometry.keyboardOpen && (window.scrollY || (vv?.offsetTop ?? 0) > 0)) window.scrollTo(0, 0)
+      // 键盘打开且读数可信：App 直接贴合可视视口——高度 = vv.height，并随 iOS 的页面平移
+      // （vv.offsetTop）一起下移。之前用「整屏 − inset」+ scrollTo(0,0)：body 是 fixed，
+      // scrollTo 拉不回平移，键盘上方的 ^ ˅ ✓ 工具条又不算进 inset，结果顶栏被推出屏幕、
+      // 输入框下半截压在工具条下面。
+      if (geometry.keyboardOpen && geometry.readingSane && vv) {
+        h = vv.height
+        top = Math.max(0, vv.offsetTop)
+      } else {
+        h = geometry.keyboardOpen ? geometry.appHeight - geometry.keyboardInset : geometry.appHeight
+        top = 0
+      }
       lastKeyboardInset = geometry.keyboardInset
       root.toggleAttribute('data-keyboard', geometry.keyboardOpen)
       root.style.setProperty('--keyboard-inset', `${geometry.keyboardInset}px`)
     } else {
       root.removeAttribute('data-keyboard')
       root.style.setProperty('--keyboard-inset', '0px')
+      top = 0
     }
-    top = 0
   }
 
   root.style.setProperty('--app-height', `${Math.round(h)}px`)
@@ -67,6 +76,11 @@ window.visualViewport?.addEventListener('resize', syncViewport)
 window.visualViewport?.addEventListener('scroll', syncViewport)
 window.addEventListener('resize', syncViewport)
 window.addEventListener('orientationchange', syncViewport)
+// iOS 聚焦输入框后会再滚一次页面，但不一定再发 visualViewport 事件：补测几次。
+document.addEventListener('focusin', () => {
+  for (const ms of [60, 250, 500]) window.setTimeout(syncViewport, ms)
+})
+document.addEventListener('focusout', () => window.setTimeout(syncViewport, 250))
 
 // ⚠️ 本机存储写满（iOS 每站约 5MB）时大声警告——静默丢数据是最不可原谅的 bug
 let lastStorageWarn = 0

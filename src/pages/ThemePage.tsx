@@ -6,15 +6,25 @@ export default function ThemePage() {
 
   return (
     <div className="space-y-4">
-      <div className="sticky top-[max(0.5rem,env(safe-area-inset-top))] z-20 flex items-center gap-2">
-        <Link to="/settings" className="glass-strong rounded-full px-3.5 py-2 text-xs text-ink shadow">
-          ← 设置
-        </Link>
+      {/* 整条顶栏吸顶：横跨全宽、盖住刘海，滚动时「← 设置」和标题一起固定。
+          负边距抵消 main 的左右/顶部内边距，再用同样的内边距把内容放回原位。 */}
+      <div
+        className="sticky top-0 z-20 -mx-5 px-5 pb-3"
+        style={{
+          marginTop: 'calc(-1 * max(0.75rem, env(safe-area-inset-top)))',
+          paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+          background: 'linear-gradient(var(--card-strong), var(--card-strong)), var(--bg-to)',
+          borderBottom: '1px solid var(--card-border)',
+        }}
+      >
+        <div className="relative flex h-10 items-center justify-center">
+          <Link to="/settings" className="absolute left-0 flex h-10 items-center pr-3 text-sm text-ink">
+            ← 设置
+          </Link>
+          <h2 className="text-[17px] font-semibold text-ink">主题</h2>
+        </div>
       </div>
-      <div className="px-1">
-        <h2 className="headline text-2xl text-ink">主题</h2>
-        <p className="mt-1 text-sm text-muted">毛玻璃透视 · 高级感雾系配色</p>
-      </div>
+      <p className="px-1 text-sm text-muted">毛玻璃透视 · 高级感雾系配色</p>
 
       <div className="space-y-3">
         {THEMES.map((t) => {

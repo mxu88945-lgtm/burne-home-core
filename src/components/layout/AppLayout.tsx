@@ -197,6 +197,7 @@ export default function AppLayout() {
   return (
     // 滚动锁：固定壳 + 可视视口尺寸/位移，键盘弹出时整体贴住键盘上方
     <div
+      id="bw-app-shell"
       className="app-bg flex flex-col overflow-hidden"
       style={{
         position: 'fixed',

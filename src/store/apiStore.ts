@@ -21,6 +21,8 @@ export interface ApiChannel {
   model: string
   /** 经自己的 Worker 中转（解决跨域 / 不想浏览器直连时）*/
   viaWorker?: boolean
+  /** 聊天输入框里模型胶囊的显示名称；留空显示模型名 */
+  displayName?: string
 }
 
 function newId() {

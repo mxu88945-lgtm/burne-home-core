@@ -96,6 +96,8 @@ export interface ChatOptions {
   maxTokens?: number
   /** 让模型输出思考过程（reasoning / thinking） */
   reasoning?: boolean
+  /** 思考强度，默认 medium */
+  reasoningEffort?: 'low' | 'medium' | 'high'
   /** 联网查询（OpenRouter：model:online） */
   webSearch?: boolean
 }
@@ -188,7 +190,7 @@ export async function chatCompleteStream(
         stream: true,
         ...(isOpenRouter ? { stream_options: { include_usage: true } } : {}),
         ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
-        ...(opts.reasoning ? { reasoning: { effort: 'medium' } } : {}),
+        ...(opts.reasoning ? { reasoning: { effort: opts.reasoningEffort || 'medium' } } : {}),
         ...(isOpenRouter ? { usage: { include: true } } : {}),
       }),
     }),
@@ -311,7 +313,7 @@ export async function chatComplete(
           // 开思考时 anthropic 要求不传 temperature
           ...(opts.reasoning ? {} : opts.temperature != null ? { temperature: opts.temperature } : {}),
           ...(opts.reasoning
-            ? { thinking: { type: 'enabled', budget_tokens: Math.max(1024, Math.floor(effectiveMaxTokens / 2)) } }
+            ? { thinking: { type: 'enabled', budget_tokens: Math.max(1024, Math.floor(effectiveMaxTokens * (opts.reasoningEffort === 'low' ? 0.25 : opts.reasoningEffort === 'high' ? 0.75 : 0.5))) } }
             : {}),
           system,
           messages: toAnthropic(messages),
