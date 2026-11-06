@@ -79,8 +79,10 @@ export function renderRichText(text: string): ReactNode {
     const narration =
       (/^[（(].+[）)]$/.test(trimmed) || /^\*[^*].*\*$/.test(trimmed))
     const display = narration && /^\*.*\*$/.test(trimmed) ? trimmed.slice(1, -1) : rawLine
+    // 整行就是一句对白时，按顾祁砚的做法排成独立的对白卡；夹在叙述里的对白仍是行内高亮。
+    const quoteLine = !narration && /^(“[^”\n]+”|「[^」\n]+」|『[^』\n]+』)$/.test(trimmed)
     return (
-      <span key={`line-${index}`} className={`bw-rich-line${narration ? ' bw-chat-narration' : ''}`}>
+      <span key={`line-${index}`} className={`bw-rich-line${narration ? ' bw-chat-narration' : ''}${quoteLine ? ' bw-quote-line' : ''}`}>
         {renderInline(display, `line-${index}`)}
       </span>
     )

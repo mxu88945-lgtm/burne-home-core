@@ -503,6 +503,71 @@ html[data-standalone='true'][data-keyboard] .bw-chat-shell {
 [data-theme='vinyl'] .bw-shell-message .bw-message-bubble { border: 0 !important; border-top: 3px double #c8d9df !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; color: #315868 !important; }
 [data-theme='vinyl'] .bw-chat-quote { background: linear-gradient(110deg,rgba(65,105,120,.14),rgba(217,139,82,.18)); color: #315868; }
 
+/* v-fix 2026-11-06：主聊天消息区清晰度 + 对白排版
+   1) iOS 会把 backdrop-filter 层里的文字低分辨率合成，气泡里的字就发糊（顾祁砚 v338 同一个坑）。
+      消息区里一律不做背景模糊，改用更实的底色；顶栏把模糊放到 ::before，文字不进模糊层。
+   2) 行内对白不再用 inline-block 胶囊：一折行就变成椭圆。整行对白排成独立对白卡，夹在叙述里的对白只做行内高亮。 */
+.bw-chat-messages, .bw-chat-messages * {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.bw-chat-messages .glass { background: var(--card-strong); }
+[data-theme='frostbubble'] .bw-chat-messages .bw-message-bubble { background: rgba(255,255,255,.82) !important; }
+[data-theme='frostbubble'] .bw-chat-messages .bw-message-me .bw-message-bubble { background: rgba(235,231,245,.9) !important; }
+[data-theme='liquidglass'] .bw-chat-messages .bw-message-bubble { background: rgba(255,253,248,.84) !important; }
+[data-theme='liquidglass'] .bw-chat-messages .bw-message-me .bw-message-bubble { background: rgba(228,221,207,.9) !important; }
+[data-theme='amberglow'] .bw-chat-messages .glass { background: rgba(74,51,36,.9); }
+
+.bw-chat-header {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  background: transparent !important;
+  isolation: isolate;
+}
+.bw-chat-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--bar);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  backdrop-filter: blur(16px) saturate(1.3);
+}
+
+.bw-chat-messages .bw-chat-quote {
+  display: inline !important;
+  margin: 0 !important;
+  padding: .06em .22em !important;
+  border: 0 !important;
+  border-radius: .4em !important;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.bw-rich-line.bw-quote-line {
+  margin: .2em 0 .86em;
+  padding: .72em 1em;
+  border: 1px solid var(--card-border);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--card-strong));
+}
+.bw-chat-messages .bw-quote-line > .bw-chat-quote {
+  padding: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  text-decoration: none !important;
+}
+[data-theme='mobile'] .bw-quote-line { background: #ececf0; border-color: #dcdce2; }
+[data-theme='mobile'] .bw-shell-message .bw-message-bubble { background: rgba(255,255,255,.9) !important; }
+[data-theme='mistnote'] .bw-quote-line { background: #e6eef2; border-color: #cbd7de; color: #3e5b6b; }
+[data-theme='letter'] .bw-quote-line { background: #edf2f4; border-color: #d0d8dc; border-radius: 16px 16px 16px 4px; color: #4d6676; }
+[data-theme='paper'] .bw-quote-line { background: transparent; border: 0; border-left: 3px solid rgba(97,126,145,.4); border-radius: 0; padding: .1em .9em; color: #526d7d; }
+[data-theme='academy'] .bw-quote-line { background: rgba(225,197,104,.16); border: 0; border-left: 3px solid #9d343d; border-radius: 2px 14px 14px 2px; color: #792d35; }
+[data-theme='scrapbook'] .bw-quote-line { background: #f6e4e0; border: 1px dashed rgba(151,72,71,.35); border-radius: 6px; color: #7c3038; }
+[data-theme='nightglow'] .bw-quote-line { background: rgba(168,56,60,.07); border-color: rgba(168,56,60,.18); color: #8d2d31; }
+[data-theme='vinyl'] .bw-quote-line { background: linear-gradient(110deg,rgba(65,105,120,.1),rgba(217,139,82,.12)); border-color: #c8d9df; color: #315868; }
+[data-theme='claude'] .bw-quote-line { background: #f0efeb; border-color: #e3e2dc; }
+
 /* 输入中的三点动画 */
 @keyframes bw-typing {
   0%,

@@ -14,6 +14,14 @@ describe('rich chat text semantics', () => {
     expect(html).toContain('欢迎回家。')
   })
 
+  it('turns a line that is only dialogue into its own quote card, but keeps mixed lines inline', () => {
+    const html = renderToStaticMarkup(
+      <div>{renderRichText('“你胆子肥了？”\n“周惟惟。”我低笑了一声')}</div>,
+    )
+    expect(html.match(/bw-quote-line/g)?.length).toBe(1)
+    expect(html).toContain('我低笑了一声')
+  })
+
   it('keeps links clickable inside formatted paragraphs', () => {
     const html = renderToStaticMarkup(
       <div>{renderRichText('资料：[OpenAI](https://openai.com)')}</div>,
