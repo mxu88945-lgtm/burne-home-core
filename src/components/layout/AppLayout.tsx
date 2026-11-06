@@ -201,11 +201,10 @@ export default function AppLayout() {
       className="app-bg flex flex-col overflow-hidden"
       style={{
         position: 'fixed',
-        top: 0,
+        top: 'var(--app-offset, 0px)',
         left: 0,
         right: 0,
         height: 'var(--app-height, 100dvh)',
-        transform: 'translateY(var(--app-offset, 0px))',
         '--aurora-wallpaper': `url(${plushBg})`,
       } as CSSProperties}
     >

@@ -56,8 +56,8 @@ function syncViewport() {
       // 并把 iOS 的页面平移 scrollTo(0,0) 拉回（body 不再 fixed，scrollTo 才有效）。
       if (geometry.keyboardOpen && geometry.readingSane && vv) {
         h = geometry.frameHeight
-        // visualViewport.height 已经停在键盘工具栏上沿；offsetTop 是同一次页面平移，
-        // 不能再作为 fixed 壳的 translateY，否则 composer 会被重复往下推。
+        // 用 fixed 壳的显式 top + height 镜像 visualViewport；AppLayout 不再用 transform，
+        // 避开 iOS 键盘交互时 transformed fixed element 的错位。
         top = geometry.frameOffset
         if (window.scrollY || vv.offsetTop) window.scrollTo(0, 0)
       } else {
