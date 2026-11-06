@@ -12,16 +12,21 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#f4f1ec" />
     <script>
-      // 首帧前预热：只恢复当前仍存在的主题。旧版 liquid/aurora 统一迁到 plush，
-      // 避免冷启动先把 iPhone 刘海涂成旧版深绿色再闪回奶白。
+      // 首帧前预热：恢复当前主题并同步刘海颜色。旧版 liquid/aurora 统一迁到 plush。
       (function () {
         try {
           var raw = localStorage.getItem('burne-home-core:theme')
           var id = raw ? JSON.parse(raw).id : 'plush'
           if (id === 'aurora' || id === 'liquid') id = 'plush'
-          if (['sage', 'plush', 'ink'].indexOf(id) < 0) id = 'plush'
+          var themes = ['sage','plush','ink','claude','white','frostbubble','amberglow','liquidglass','paper','scrapbook','academy','mobile','letter','mistnote','nightglow','vinyl']
+          if (themes.indexOf(id) < 0) id = 'plush'
           document.documentElement.dataset.theme = id
-          var bar = { sage: '#f4f1ec', plush: '#f4f1ec', ink: '#f4f1ec' }[id]
+          var bar = {
+            sage:'#f4f1ec',plush:'#f4f1ec',ink:'#f4f1ec',claude:'#f8f8f6',white:'#ffffff',
+            frostbubble:'#fbfbfd',amberglow:'#3a271b',liquidglass:'#faf8f2',paper:'#edf2f5',
+            scrapbook:'#faf8f4',academy:'#fafaf6',mobile:'#fafafc',letter:'#f3f1ed',
+            mistnote:'#f3f6f7',nightglow:'#f6f1ee',vinyl:'#ffffff'
+          }[id]
           var m = document.querySelector('meta[name="theme-color"]')
           if (m) m.setAttribute('content', bar)
         } catch (e) {}

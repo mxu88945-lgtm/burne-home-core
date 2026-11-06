@@ -1407,7 +1407,7 @@ export default function Chat() {
           style={{
             backdropFilter: 'blur(18px)',
             WebkitBackdropFilter: 'blur(18px)',
-            background: 'rgba(255, 255, 255, 0.3)',
+            background: 'var(--chat-veil, rgba(255, 255, 255, 0.3))',
           }}
         />
       )}
@@ -1442,7 +1442,7 @@ export default function Chat() {
           </button>
         </div>
       ) : (
-        <div className="glass-bar sticky top-0 z-20 flex items-center gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <div className="bw-chat-header glass-bar sticky top-0 z-20 flex items-center gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <button
               type="button"
@@ -1463,7 +1463,7 @@ export default function Chat() {
       )}
 
       {/* 消息列表 */}
-      <div className="space-y-4 px-4 pb-2 pt-3">
+      <div className="bw-chat-messages space-y-4 px-4 pb-2 pt-3">
         {messages.map((m) => {
           const me = m.role === 'me'
           const picked = selectMode && selected.has(m.id)
@@ -1520,6 +1520,8 @@ export default function Chat() {
               key={m.id}
               onClick={selectMode ? () => toggleSelect(m.id) : undefined}
               className={[
+                'bw-message',
+                me ? 'bw-message-me' : 'bw-message-companion',
                 flat ? 'flex flex-col' : 'flex items-start gap-2',
                 !flat && me ? 'flex-row-reverse' : '',
                 selectMode ? 'cursor-pointer rounded-2xl p-1' : '',
@@ -1537,8 +1539,8 @@ export default function Chat() {
               <div
                 className={
                   flat
-                    ? `flex w-full min-w-0 flex-col ${me ? 'items-end' : ''}`
-                    : `flex min-w-0 max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`
+                    ? `bw-message-body flex w-full min-w-0 flex-col ${me ? 'items-end' : ''}`
+                    : `bw-message-body flex min-w-0 max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`
                 }
               >
                 {flat && (
@@ -1606,6 +1608,7 @@ export default function Chat() {
                   (m.text || (!me && (m.reasoning || streamingIds.has(m.id)))) && (
                     <div
                       className={[
+                        'bw-message-bubble',
                         'max-w-full overflow-hidden text-sm leading-relaxed [overflow-wrap:anywhere]',
                         m.image || m.file ? 'mt-1' : '',
                         flat
@@ -1827,7 +1830,7 @@ export default function Chat() {
 
       {/* 输入栏 + 模型条（钉在底部，不滚） */}
       {!selectMode && (
-      <div className="relative z-10 flex-none px-4 pt-2">
+      <div className="bw-composer-dock relative z-10 flex-none px-4 pt-2">
         {ttsError && (
           <div className="mb-1 px-2 text-center text-[11px] text-red-500">
             朗读失败：{ttsError}
@@ -1953,7 +1956,7 @@ export default function Chat() {
             </>
           )}
           {/* 上面输入、下面 ＋ 和模型 pill、右侧发送 */}
-          <div className="glass-strong flex flex-col gap-1.5 rounded-3xl px-3 py-2">
+          <div className="bw-chat-composer glass-strong flex flex-col gap-1.5 rounded-3xl px-3 py-2">
             <textarea
               ref={inputRef}
               value={draft}

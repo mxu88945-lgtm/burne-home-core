@@ -73,6 +73,103 @@
   --bar: rgba(255, 255, 255, 0.2);
 }
 
+/* 从顾祁砚主聊天移植的主题。只复用视觉语言，不共享它的状态或数据。 */
+[data-theme='claude'] {
+  --bg-to: #f8f8f6; --bg-mesh: linear-gradient(180deg,#f8f8f6,#f3f3f0);
+  --top-fade: linear-gradient(180deg,#f8f8f6 0%,rgba(248,248,246,0) 16%);
+  --text: #292826; --text-soft: #88877f; --label: #a19f97; --accent: #d97757; --accent-2: #e5a18a;
+  --card: rgba(238,238,236,.76); --card-strong: rgba(248,248,246,.9); --card-border: rgba(222,221,216,.85);
+  --shadow: rgba(80,76,66,.08); --on-accent: #fff; --bar: rgba(248,248,246,.72);
+}
+[data-theme='white'] {
+  --bg-to: #fff; --bg-mesh: linear-gradient(180deg,#fff,#f7f7f7);
+  --top-fade: linear-gradient(180deg,#fff 0%,rgba(255,255,255,0) 16%);
+  --text: #111; --text-soft: #777; --label: #999; --accent: #5d63e6; --accent-2: #8a8eef;
+  --card: rgba(255,255,255,.72); --card-strong: rgba(255,255,255,.9); --card-border: rgba(234,234,234,.9);
+  --shadow: rgba(30,30,40,.07); --on-accent: #fff; --bar: rgba(255,255,255,.76);
+}
+[data-theme='frostbubble'] {
+  --bg-to: #e8ebf2;
+  --bg-mesh: radial-gradient(circle at 12% 10%,rgba(255,255,255,.97),transparent 34%),radial-gradient(circle at 88% 20%,rgba(226,221,242,.66),transparent 38%),radial-gradient(circle at 20% 88%,rgba(217,225,235,.62),transparent 40%),linear-gradient(155deg,#fbfbfd,#f0eef7 52%,#e8ebf2);
+  --top-fade: linear-gradient(180deg,#fbfbfd 0%,rgba(251,251,253,0) 16%);
+  --text: #2e2d33; --text-soft: #6d6a78; --label: #9a96a8; --accent: #8d83b5; --accent-2: #b0a7ce;
+  --card: rgba(255,255,255,.34); --card-strong: rgba(255,255,255,.54); --card-border: rgba(255,255,255,.72);
+  --shadow: rgba(80,72,110,.14); --on-accent: #fff; --bar: rgba(255,255,255,.3);
+}
+[data-theme='amberglow'] {
+  color-scheme: dark; --bg-to: #241810;
+  --chat-veil: rgba(36,24,16,.1);
+  --bg-mesh: radial-gradient(circle at 30% 18%,rgba(214,150,92,.55),transparent 42%),radial-gradient(circle at 78% 70%,rgba(150,92,52,.45),transparent 46%),linear-gradient(165deg,#5a3c28,#3a271b 55%,#241810);
+  --top-fade: linear-gradient(180deg,#3a271b 0%,rgba(58,39,27,0) 18%);
+  --text: #f6e7d4; --text-soft: #d9b48c; --label: #c49465; --accent: #e8a35a; --accent-2: #f0bb7e;
+  --card: rgba(74,51,36,.58); --card-strong: rgba(74,51,36,.76); --card-border: rgba(232,163,90,.26);
+  --shadow: rgba(18,10,6,.32); --on-accent: #241810; --bar: rgba(58,39,27,.54);
+}
+[data-theme='liquidglass'] {
+  --bg-to: #d8d0c2;
+  --bg-mesh: radial-gradient(circle at 13% 12%,rgba(255,255,255,.96),transparent 30%),radial-gradient(circle at 88% 74%,rgba(177,168,149,.28),transparent 38%),linear-gradient(155deg,#fbfaf5,#eee9de 52%,#d8d0c2);
+  --top-fade: linear-gradient(180deg,#faf8f2 0%,rgba(250,248,242,0) 16%);
+  --text: #34352f; --text-soft: #77776e; --label: #969587; --accent: #737766; --accent-2: #9fa38f;
+  --card: rgba(255,253,248,.32); --card-strong: rgba(255,253,248,.54); --card-border: rgba(255,255,255,.64);
+  --shadow: rgba(80,74,60,.14); --on-accent: #fff; --bar: rgba(255,253,248,.3);
+}
+[data-theme='paper'] {
+  --bg-to: #edf2f5; --bg-mesh: linear-gradient(165deg,#f8fafb,#edf2f5 58%,#dfe9ef);
+  --top-fade: linear-gradient(180deg,#edf2f5 0%,rgba(237,242,245,0) 16%);
+  --text: #3e4c57; --text-soft: #7b8992; --label: #91a3ae; --accent: #617e91; --accent-2: #91a9b8;
+  --card: rgba(252,252,249,.76); --card-strong: rgba(252,252,249,.92); --card-border: rgba(206,220,229,.9);
+  --shadow: rgba(71,93,108,.12); --on-accent: #fff; --bar: rgba(244,247,249,.72);
+}
+[data-theme='scrapbook'] {
+  --bg-to: #faf8f4; --bg-mesh: radial-gradient(circle at 10% 12%,#fffaf5,transparent 38%),linear-gradient(150deg,#faf8f4,#f4e8e1);
+  --top-fade: linear-gradient(180deg,#faf8f4 0%,rgba(250,248,244,0) 16%);
+  --text: #503b37; --text-soft: #967b73; --label: #b79389; --accent: #974847; --accent-2: #c87b77;
+  --card: rgba(255,251,244,.74); --card-strong: rgba(255,251,244,.92); --card-border: rgba(215,170,162,.78);
+  --shadow: rgba(101,68,55,.13); --on-accent: #fff; --bar: rgba(255,250,245,.72);
+}
+[data-theme='academy'] {
+  --bg-to: #f5ede0; --bg-mesh: repeating-linear-gradient(0deg,transparent 0 31px,rgba(157,52,61,.055) 32px),linear-gradient(155deg,#fafaf6,#f5ede0);
+  --top-fade: linear-gradient(180deg,#fafaf6 0%,rgba(250,250,246,0) 16%);
+  --text: #272a29; --text-soft: #6d716b; --label: #939385; --accent: #9d343d; --accent-2: #bd6d67;
+  --card: rgba(255,255,250,.72); --card-strong: rgba(255,255,250,.91); --card-border: rgba(222,217,202,.9);
+  --shadow: rgba(75,62,44,.1); --on-accent: #fff; --bar: rgba(255,255,250,.72);
+}
+[data-theme='mobile'] {
+  --bg-to: #fafafc; --bg-mesh: linear-gradient(180deg,#fff,#f8fbfc 55%,#f1f1f4);
+  --top-fade: linear-gradient(180deg,#fafafc 0%,rgba(250,250,252,0) 16%);
+  --text: #242429; --text-soft: #797982; --label: #9999a3; --accent: #777781; --accent-2: #9999a3;
+  --card: rgba(255,255,255,.72); --card-strong: rgba(255,255,255,.94); --card-border: rgba(232,232,237,.92);
+  --shadow: rgba(41,41,54,.08); --on-accent: #fff; --bar: rgba(250,250,252,.78);
+}
+[data-theme='letter'] {
+  --bg-to: #e5eaed; --bg-mesh: linear-gradient(155deg,#f8f7f3,#f3f1ed 56%,#e5eaed);
+  --top-fade: linear-gradient(180deg,#f3f1ed 0%,rgba(243,241,237,0) 16%);
+  --text: #34383d; --text-soft: #7a7f84; --label: #979da2; --accent: #6f8290; --accent-2: #9aabb6;
+  --card: rgba(250,249,246,.7); --card-strong: rgba(250,249,246,.9); --card-border: rgba(217,221,224,.88);
+  --shadow: rgba(60,72,80,.1); --on-accent: #fff; --bar: rgba(248,247,243,.72);
+}
+[data-theme='mistnote'] {
+  --bg-to: #dfe8ed; --bg-mesh: linear-gradient(155deg,#f7f9fa,#eef3f5 54%,#dfe8ed);
+  --top-fade: linear-gradient(180deg,#f3f6f7 0%,rgba(243,246,247,0) 16%);
+  --text: #35424b; --text-soft: #74828b; --label: #8c9ca6; --accent: #647d8d; --accent-2: #91a6b2;
+  --card: rgba(251,252,252,.7); --card-strong: rgba(251,252,252,.91); --card-border: rgba(203,215,222,.9);
+  --shadow: rgba(59,80,92,.11); --on-accent: #fff; --bar: rgba(247,249,250,.7);
+}
+[data-theme='nightglow'] {
+  --bg-to: #f6f1ee; --bg-mesh: radial-gradient(38% 32% at 22% 28%,rgba(240,190,170,.42),transparent 70%),radial-gradient(34% 30% at 78% 42%,rgba(236,198,204,.34),transparent 70%),radial-gradient(40% 34% at 46% 82%,rgba(255,205,170,.38),transparent 72%),linear-gradient(160deg,#faf7f4,#f6f1ee);
+  --top-fade: linear-gradient(180deg,#f6f1ee 0%,rgba(246,241,238,0) 16%);
+  --text: #2b2522; --text-soft: #7a6e68; --label: #9b8980; --accent: #a8383c; --accent-2: #c96f67;
+  --card: rgba(255,252,250,.64); --card-strong: rgba(255,252,250,.88); --card-border: rgba(232,223,216,.9);
+  --shadow: rgba(122,80,64,.11); --on-accent: #fff; --bar: rgba(250,247,244,.68);
+}
+[data-theme='vinyl'] {
+  --bg-to: #eaf1f5; --bg-mesh: radial-gradient(circle at 84% 16%,rgba(217,139,82,.18),transparent 32%),linear-gradient(155deg,#fff,#f8fbfc 58%,#eaf1f5);
+  --top-fade: linear-gradient(180deg,#fff 0%,rgba(255,255,255,0) 16%);
+  --text: #315868; --text-soft: #7b98a4; --label: #90aab4; --accent: #416978; --accent-2: #d98b52;
+  --card: rgba(255,255,255,.68); --card-strong: rgba(255,255,255,.9); --card-border: rgba(200,217,223,.9);
+  --shadow: rgba(49,88,104,.1); --on-accent: #fff; --bar: rgba(248,251,252,.72);
+}
+
 :root {
   color-scheme: light;
 }
@@ -218,6 +315,76 @@ html[data-standalone='true'] body {
     filter: brightness(0.96);
   }
 }
+
+/* 顾祁砚主题在伯恩主聊里的排版适配。语义类只属于主聊天，不影响首页、剧场或小手机。 */
+[data-theme='claude'] .bw-message-companion .bw-message-bubble {
+  background: transparent !important; border-color: transparent !important; box-shadow: none !important;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; padding-inline: .25rem !important;
+}
+[data-theme='claude'] .bw-message-me .bw-message-bubble { background: #eeeeec !important; color: #292826 !important; box-shadow: none !important; }
+[data-theme='claude'] .bw-chat-messages { max-width: 760px; margin-inline: auto; }
+
+[data-theme='white'] .bw-chat-composer { background: rgba(255,255,255,.94) !important; box-shadow: 0 8px 24px rgba(20,20,30,.06) !important; }
+[data-theme='white'] .bw-message-companion .bw-message-bubble { box-shadow: 0 7px 22px rgba(20,20,30,.05); }
+
+[data-theme='frostbubble'] .bw-message-bubble,
+[data-theme='frostbubble'] .bw-chat-composer {
+  background: rgba(255,255,255,.4) !important; border: 1px solid rgba(255,255,255,.72) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(1.35) !important; backdrop-filter: blur(22px) saturate(1.35) !important;
+}
+[data-theme='frostbubble'] .bw-message-me .bw-message-bubble { background: rgba(235,231,245,.68) !important; color: #2e2d33 !important; }
+
+[data-theme='amberglow'] .bw-message-bubble,
+[data-theme='amberglow'] .bw-chat-composer { border-color: rgba(232,163,90,.25) !important; }
+[data-theme='amberglow'] .bw-message-me .bw-message-bubble { background: rgba(106,74,48,.88) !important; color: #f6e7d4 !important; }
+[data-theme='amberglow'] .bw-chat-composer button.bg-neutral-800 { background: #e8a35a !important; color: #241810 !important; }
+
+[data-theme='liquidglass'] .bw-message-bubble,
+[data-theme='liquidglass'] .bw-chat-composer {
+  background: color-mix(in srgb, #fffdf8 42%, transparent) !important;
+  border: 1px solid rgba(255,255,255,.66) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.55) !important; backdrop-filter: blur(24px) saturate(1.55) !important;
+  box-shadow: 0 12px 32px rgba(80,74,60,.12), inset 0 1px 0 rgba(255,255,255,.7) !important;
+}
+[data-theme='liquidglass'] .bw-message-me .bw-message-bubble { background: rgba(228,221,207,.62) !important; color: #34352f !important; }
+
+[data-theme='paper'] .bw-chat-messages { padding-inline: 12px; }
+[data-theme='paper'] .bw-message { width: 100%; padding: 20px 18px; border: 1px solid #cedce5; background: rgba(252,252,249,.88); box-shadow: 0 10px 25px rgba(71,93,108,.08); }
+[data-theme='paper'] .bw-message-body { width: 100% !important; max-width: 100% !important; align-items: stretch !important; }
+[data-theme='paper'] .bw-message-bubble { width: 100%; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: repeating-linear-gradient(to bottom,transparent 0 calc(1.95em - 1px),rgba(111,140,159,.12) calc(1.95em - 1px) 1.95em) !important; color: #3e4c57 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; line-height: 1.95 !important; }
+[data-theme='paper'] .bw-message > :first-child:not(.bw-message-body) { display: none; }
+
+[data-theme='scrapbook'] .bw-message { position: relative; width: 100%; padding: 18px; border: 3px double rgba(151,72,71,.34); border-radius: 4px; background: rgba(255,251,244,.86); box-shadow: 0 12px 28px rgba(101,68,55,.1); }
+[data-theme='scrapbook'] .bw-message-body { width: 100% !important; max-width: 100% !important; }
+[data-theme='scrapbook'] .bw-message-companion .bw-message-bubble { background: transparent !important; border: 0 !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+[data-theme='scrapbook'] .bw-message-me .bw-message-bubble { background: #8c2935 !important; color: #fffaf5 !important; }
+
+[data-theme='academy'] .bw-chat-messages,
+[data-theme='academy'] .bw-message-bubble { font-family: 'Songti SC','STSong','Noto Serif SC',serif; }
+[data-theme='academy'] .bw-message-companion .bw-message-bubble { background: rgba(255,255,246,.82) !important; border-left: 3px solid #9d343d !important; border-radius: 3px 18px 18px 3px !important; }
+[data-theme='academy'] .bw-message-me .bw-message-bubble { background: #f1e8dc !important; color: #272a29 !important; }
+
+[data-theme='mobile'] .bw-message-bubble { border-radius: 21px !important; box-shadow: 0 8px 24px rgba(41,41,54,.07) !important; }
+[data-theme='mobile'] .bw-message-me .bw-message-bubble { background: linear-gradient(120deg,#f2f2f5,#e5e5ea) !important; color: #242429 !important; }
+[data-theme='mobile'] .bw-chat-composer { background: rgba(255,255,255,.94) !important; }
+
+[data-theme='letter'] .bw-message-companion .bw-message-bubble { border-radius: 5px 22px 22px 22px !important; background: rgba(250,249,246,.82) !important; }
+[data-theme='letter'] .bw-message-me .bw-message-bubble { border-radius: 22px 5px 22px 22px !important; background: rgba(231,236,239,.9) !important; color: #34383d !important; }
+
+[data-theme='mistnote'] .bw-message { width: 100%; }
+[data-theme='mistnote'] .bw-message-body { max-width: 100% !important; }
+[data-theme='mistnote'] .bw-message-companion .bw-message-bubble { width: 100%; padding: 18px 17px !important; border: 1px solid #d2dde2 !important; border-radius: 24px !important; background: rgba(251,252,252,.9) !important; box-shadow: 0 13px 30px rgba(59,80,92,.08) !important; line-height: 2 !important; }
+[data-theme='mistnote'] .bw-message-me .bw-message-bubble { background: linear-gradient(135deg,#e5edf1,#d7e3e9) !important; color: #35424b !important; }
+
+[data-theme='nightglow'] .bw-chat-messages,
+[data-theme='nightglow'] .bw-message-bubble { font-family: 'Songti SC','STSong','Noto Serif SC',serif; }
+[data-theme='nightglow'] .bw-message { padding-bottom: 20px; border-bottom: 1px solid rgba(168,56,60,.14); }
+[data-theme='nightglow'] .bw-message-companion .bw-message-bubble { background: transparent !important; border: 0 !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; line-height: 2 !important; }
+[data-theme='nightglow'] .bw-message-me .bw-message-bubble { background: rgba(239,231,225,.9) !important; color: #2b2522 !important; }
+
+[data-theme='vinyl'] .bw-message-companion .bw-message-bubble { border-left: 3px solid #d98b52 !important; background: rgba(255,255,255,.84) !important; }
+[data-theme='vinyl'] .bw-message-me .bw-message-bubble { background: #416978 !important; color: white !important; }
+[data-theme='vinyl'] .bw-chat-composer { border-bottom: 3px solid #d98b52 !important; }
 
 /* 输入中的三点动画 */
 @keyframes bw-typing {

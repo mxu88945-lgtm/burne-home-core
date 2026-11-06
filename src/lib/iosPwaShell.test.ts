@@ -9,7 +9,8 @@ describe('iPhone PWA full-screen shell', () => {
 
     expect(html).toContain('viewport-fit=cover')
     expect(html).toContain('apple-mobile-web-app-status-bar-style" content="black-translucent')
-    expect(html).toContain("['sage', 'plush', 'ink']")
+    expect(html).toContain("'frostbubble','amberglow','liquidglass'")
+    expect(html).toContain("'paper','scrapbook','academy','mobile','letter','mistnote','nightglow','vinyl'")
     expect(html).not.toContain("id = 'liquid'")
     expect(html).not.toContain("liquid: '#10241f'")
   })
