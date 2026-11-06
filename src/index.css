@@ -559,6 +559,9 @@ html[data-standalone='true'][data-keyboard] .bw-chat-shell {
   -webkit-box-decoration-break: clone;
 }
 .bw-rich-line.bw-quote-line {
+  /* 对白卡只包住台词本身，短句就是小气泡，长句才铺满一行。 */
+  width: fit-content;
+  max-width: 100%;
   margin: .2em 0 .86em;
   padding: .72em 1em;
   border: 1px solid var(--card-border);
