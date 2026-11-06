@@ -5,21 +5,23 @@
     <link rel="icon" type="image/png" href="/icon-192.png?v=2" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2" />
     <meta name="apple-mobile-web-app-title" content="伯恩主屋" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="description" content="伯恩主屋版 · 长期记忆系统" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="theme-color" content="#10241f" />
+    <!-- 让 iPhone PWA 的画布真正延伸到刘海和 Home Indicator 下方。 -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#f4f1ec" />
     <script>
-      // 首帧前预热：按上次主题设好 data-theme 与 theme-color，避免顶部白闪
+      // 首帧前预热：只恢复当前仍存在的主题。旧版 liquid/aurora 统一迁到 plush，
+      // 避免冷启动先把 iPhone 刘海涂成旧版深绿色再闪回奶白。
       (function () {
         try {
           var raw = localStorage.getItem('burne-home-core:theme')
-          var id = raw ? JSON.parse(raw).id : 'liquid'
-          if (id === 'aurora') id = 'liquid'
-          if (['sage', 'liquid', 'ink'].indexOf(id) < 0) id = 'liquid'
+          var id = raw ? JSON.parse(raw).id : 'plush'
+          if (id === 'aurora' || id === 'liquid') id = 'plush'
+          if (['sage', 'plush', 'ink'].indexOf(id) < 0) id = 'plush'
           document.documentElement.dataset.theme = id
-          var bar = { sage: '#f4f1ec', liquid: '#10241f', ink: '#f4f1ec' }[id]
+          var bar = { sage: '#f4f1ec', plush: '#f4f1ec', ink: '#f4f1ec' }[id]
           var m = document.querySelector('meta[name="theme-color"]')
           if (m) m.setAttribute('content', bar)
         } catch (e) {}

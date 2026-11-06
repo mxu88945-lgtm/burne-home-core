@@ -9,12 +9,39 @@ import { hydrateCharLibStore } from '@/store/charLibStore'
 // 渲染前先应用已保存的主题，避免首屏闪烁
 applyTheme(readStoredTheme())
 
-// 用可视视口驱动 App 尺寸/位移：键盘弹出时整体缩到键盘上方且不被顶飞
+const isIos =
+  /iP(?:hone|ad|od)/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+const isStandalone =
+  (navigator as Navigator & { standalone?: boolean }).standalone === true ||
+  (isIos && window.matchMedia('(display-mode: standalone)').matches)
+
+if (isStandalone) document.documentElement.dataset.standalone = 'true'
+
+// 用可视视口驱动 App 尺寸/位移：
+// - 普通浏览器沿用 visualViewport，键盘弹出时贴在键盘上方；
+// - iPhone 装机版在键盘关闭时用整块物理 CSS 屏幕高度，让主题/壁纸真正画进
+//   刘海与 Home Indicator。100dvh/visualViewport 在部分 WebKit 版本只覆盖安全区。
 function syncViewport() {
   const vv = window.visualViewport
-  const h = vv ? vv.height : window.innerHeight
-  const top = vv ? vv.offsetTop : 0
   const root = document.documentElement
+  let h = vv ? vv.height : window.innerHeight
+  let top = vv ? vv.offsetTop : 0
+
+  if (isStandalone) {
+    const portrait = window.matchMedia('(orientation: portrait)').matches
+    const longSide = Math.max(screen.width, screen.height)
+    const shortSide = Math.min(screen.width, screen.height)
+    const expectedWidth = portrait ? shortSide : longSide
+    const fullHeight = portrait ? longSide : shortSide
+    const isSplitView = Math.abs(window.innerWidth - expectedWidth) > 2
+    const keyboardOpen = !isSplitView && !!vv && vv.height < fullHeight - 120
+
+    root.toggleAttribute('data-keyboard', keyboardOpen)
+    if (!isSplitView && !keyboardOpen) h = fullHeight
+    top = 0
+  }
+
   root.style.setProperty('--app-height', `${Math.round(h)}px`)
   root.style.setProperty('--app-offset', `${Math.round(top)}px`)
 }

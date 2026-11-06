@@ -1371,7 +1371,7 @@ export default function Chat() {
       {chatBg ? (
         <>
           <div
-            className="pointer-events-none absolute -inset-3 z-0 bg-center bg-no-repeat"
+            className="chat-wallpaper-layer pointer-events-none absolute -inset-3 z-0 bg-center bg-no-repeat"
             style={{
               backgroundImage: `url(${chatBg})`,
               backgroundSize: chatBgFit === 'contain' ? 'contain' : 'cover',
@@ -1381,7 +1381,7 @@ export default function Chat() {
           />
           {chatBgDim > 0 && (
             <div
-              className="pointer-events-none absolute inset-0 z-0 bg-black"
+              className="chat-wallpaper-layer pointer-events-none absolute inset-0 z-0 bg-black"
               style={{ opacity: chatBgDim }}
             />
           )}
@@ -1389,11 +1389,11 @@ export default function Chat() {
       ) : theme === 'aurora' ? (
         <>
           <div
-            className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center"
+            className="chat-wallpaper-layer pointer-events-none absolute inset-0 z-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${chatCat})` }}
           />
           <div
-            className="pointer-events-none absolute inset-0 z-0"
+            className="chat-wallpaper-layer pointer-events-none absolute inset-0 z-0"
             style={{
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
@@ -1403,7 +1403,7 @@ export default function Chat() {
         </>
       ) : (
         <div
-          className="pointer-events-none absolute inset-0 z-0"
+          className="chat-wallpaper-layer pointer-events-none absolute inset-0 z-0"
           style={{
             backdropFilter: 'blur(18px)',
             WebkitBackdropFilter: 'blur(18px)',

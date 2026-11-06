@@ -80,12 +80,17 @@
 html,
 body,
 #root {
-  height: 100%;
+  height: var(--app-height, 100%);
 }
 
-/* 根背景跟随主题，安全区/回弹处不露白 */
+/* 根背景跟随主题，安全区/回弹处不露白。iPhone 装机版的根画布使用
+   main.tsx 计算出的整屏高度，保证刘海和 Home Indicator 也由主题接管。 */
 html {
   background-color: var(--bg-to);
+  background-image: var(--bg-mesh);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 body {
@@ -96,6 +101,13 @@ body {
   /* 滚动锁：整页不滚，只让内容区滚 */
   overflow: hidden;
   overscroll-behavior: none;
+}
+
+html[data-standalone='true'] body {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: var(--app-height, 100%);
 }
 
 /* ============================================================
@@ -111,6 +123,20 @@ body {
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+  }
+  /* 让每套主题的整屏底图固定在同一块 PWA 画布上；聊天滚动和键盘开合
+     只移动内容，不再把刘海上方或底部安全区撕出一条纯色。 */
+  html[data-standalone='true'] .app-bg {
+    background-position: center;
+    background-size: cover;
+  }
+
+  /* 主聊天的自定义壁纸也使用外层整屏画布。AppLayout 本身带 transform，
+     因此 fixed 会稳定锚在它的 PWA 画布上，不受消息列表滚动影响。 */
+  html[data-standalone='true'] .chat-wallpaper-layer {
+    position: fixed;
+    /* 留出模糊扩散余量，避免 blur > 0 时四周露出主题底色。 */
+    inset: -24px;
   }
   /* 黛绿：整屏壁纸背景（顶部同样叠主题顶色；再叠一层很淡的白保证可读）。 */
   [data-theme='sage'] .app-bg {
