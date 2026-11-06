@@ -83,7 +83,9 @@ function load(): Persisted {
   // 新结构。activeId 为空（''）= 空白新对话，尚未落库
   if (raw && typeof raw === 'object' && Array.isArray((raw as Persisted).sessions)) {
     const p = raw as Persisted
-    const validActive = p.activeId && p.sessions.some((s) => s.id === p.activeId) ? p.activeId : ''
+    // 打开应用时直接回到最近的会话，不再停在空白页
+    const validActive =
+      p.activeId && p.sessions.some((s) => s.id === p.activeId) ? p.activeId : latestSessionId(p.sessions)
     return {
       sessions: p.sessions.map((session) => ({
         ...session,
@@ -96,7 +98,7 @@ function load(): Persisted {
   if (Array.isArray(raw) && raw.length) {
     const t = new Date().toISOString()
     const s: ChatSession = { id: uid('chat'), title: '对话', messages: (raw as ChatMsg[]).filter((message) => !isFailedTransportMessage(message)), createdAt: t, updatedAt: t }
-    return { sessions: [s], activeId: '' }
+    return { sessions: [s], activeId: s.id }
   }
   // 全新：无任何会话，从空白开始（不预先生成空会话）
   return { sessions: [], activeId: '' }
@@ -110,6 +112,8 @@ interface ChatState {
   setSessionContextSummary: (sessionId: string, summary: ChatContextSummary | undefined) => void
   /** 进入空白新对话（不落库，发第一条消息时才真正创建会话） */
   startBlank: () => void
+  /** 进主聊天：打开最近聊过的会话；一个都没有才是空白 */
+  openLatest: () => void
   createSession: () => void
   switchSession: (id: string) => void
   removeSession: (id: string) => void
@@ -118,6 +122,15 @@ interface ChatState {
   replaceSessions: (sessions: ChatSession[]) => void
   /** 若标题仍是默认，则用首句话自动命名 */
   autoTitle: (text: string) => void
+}
+
+/** 最近更新的会话 id；没有会话返回 ''（空白态） */
+export function latestSessionId(sessions: ChatSession[]): string {
+  let best: ChatSession | undefined
+  for (const s of sessions) {
+    if (!best || (s.updatedAt || s.createdAt || '') > (best.updatedAt || best.createdAt || '')) best = s
+  }
+  return best?.id ?? ''
 }
 
 const init = load()
@@ -173,6 +186,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ sessions: next })
   },
 
+  openLatest: () => {
+    const id = latestSessionId(get().sessions)
+    persist(get().sessions, id)
+    set({ activeId: id })
+  },
+
   startBlank: () => {
     persist(get().sessions, '')
     set({ activeId: '' })
@@ -192,8 +211,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   removeSession: (id) => {
     const sessions = get().sessions.filter((s) => s.id !== id)
-    // 删的是当前会话 → 回到空白态
-    const activeId = get().activeId === id ? '' : get().activeId
+    // 删的是当前会话 → 回到最近的会话（没有了才空白）
+    const activeId = get().activeId === id ? latestSessionId(sessions) : get().activeId
     persist(sessions, activeId)
     set({ sessions, activeId })
   },

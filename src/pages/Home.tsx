@@ -56,7 +56,7 @@ function QuickEntry({
 
 export default function Home() {
   const { profile, setProfile } = useProfileStore()
-  const startBlank = useChatStore((s) => s.startBlank)
+  const openLatest = useChatStore((s) => s.openLatest)
   const hasDrama = useDramaStore((s) => s.scenes.length > 0)
   const periodDays = usePeriodStore((s) => s.days)
   const periodLen = usePeriodStore((s) => s.periodLen)
@@ -186,7 +186,7 @@ export default function Home() {
       {/* 小手机 + 今天聊聊（并排两块） */}
       <section className="grid grid-cols-2 gap-2.5">
         <QuickEntry to="/phone" Icon={PhoneIcon} title="小手机" sub="像发消息一样聊 · 短句" tint="#6aa9f0" />
-        <QuickEntry to="/chat" Icon={ChatIcon} title="今天聊聊" sub="说点什么吧" tint="#f48fb1" onClick={startBlank} />
+        <QuickEntry to="/chat" Icon={ChatIcon} title="今天聊聊" sub="说点什么吧" tint="#f48fb1" onClick={openLatest} />
       </section>
 
       {/* 快捷入口（四个平铺） */}

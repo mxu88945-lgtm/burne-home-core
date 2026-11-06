@@ -361,12 +361,25 @@ export default function Chat() {
   // 选中的消息（保持时间顺序）
   const selectedMsgs = messages.filter((m) => selected.has(m.id))
 
+  // 进入/切换会话时直接落在最新一条（不平滑，避免先看到顶部空白再滑下去）
+  const jumpedForRef = useRef('')
   useEffect(() => {
     // 只滚消息列表本身；scrollIntoView 会连 App 外壳等 overflow:hidden 容器一起滚，顶栏被推走。
     const box = scrollRef.current
+    if (box && jumpedForRef.current !== activeId) {
+      jumpedForRef.current = activeId
+      box.scrollTop = box.scrollHeight
+      requestAnimationFrame(() => {
+        box.scrollTop = box.scrollHeight
+      })
+      setTimeout(() => {
+        box.scrollTop = box.scrollHeight
+      }, 300)
+      return
+    }
     if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' })
     else endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  }, [messages, sending])
+  }, [messages, sending, activeId])
 
   // 有进行中的任务时每秒刷新倒计时；切回前台立刻按本地真实时间同步
   const hasActiveTask = messages.some((m) => m.task?.status === 'active')
