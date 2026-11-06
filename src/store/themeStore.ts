@@ -109,3 +109,60 @@ export const useThemeStore = create<ThemeState>((set) => ({
     set({ theme: id })
   },
 }))
+
+/** 聊天正文字号 / 字重。0 = 跟随主题（参考惟境「字体与文字颜色」）。 */
+export interface ChatFont {
+  size: number
+  weight: number
+}
+const CHAT_FONT_KEY = `${STORAGE_KEYS.theme}:chat-font`
+const DEFAULT_CHAT_FONT: ChatFont = { size: 0, weight: 0 }
+
+export function readStoredChatFont(): ChatFont {
+  const raw = readJSON<Partial<ChatFont>>(CHAT_FONT_KEY, {})
+  const size = Number(raw.size)
+  const weight = Number(raw.weight)
+  return {
+    size: size >= 12 && size <= 24 ? Math.round(size) : 0,
+    weight: weight >= 300 && weight <= 700 ? Math.round(weight / 100) * 100 : 0,
+  }
+}
+
+export function applyChatFont(f: ChatFont) {
+  const root = document.documentElement
+  if (f.size) {
+    root.dataset.chatFs = ''
+    root.style.setProperty('--chat-fs', `${f.size}px`)
+  } else {
+    delete root.dataset.chatFs
+    root.style.removeProperty('--chat-fs')
+  }
+  if (f.weight) {
+    root.dataset.chatFw = ''
+    root.style.setProperty('--chat-fw', String(f.weight))
+  } else {
+    delete root.dataset.chatFw
+    root.style.removeProperty('--chat-fw')
+  }
+}
+
+interface ChatFontState {
+  chatFont: ChatFont
+  setChatFont: (patch: Partial<ChatFont>) => void
+  resetChatFont: () => void
+}
+
+export const useChatFontStore = create<ChatFontState>((set, get) => ({
+  chatFont: readStoredChatFont(),
+  setChatFont: (patch) => {
+    const next = { ...get().chatFont, ...patch }
+    writeJSON(CHAT_FONT_KEY, next)
+    applyChatFont(next)
+    set({ chatFont: next })
+  },
+  resetChatFont: () => {
+    writeJSON(CHAT_FONT_KEY, DEFAULT_CHAT_FONT)
+    applyChatFont(DEFAULT_CHAT_FONT)
+    set({ chatFont: DEFAULT_CHAT_FONT })
+  },
+}))

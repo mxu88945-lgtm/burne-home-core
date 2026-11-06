@@ -712,3 +712,11 @@ html[data-standalone='true'][data-keyboard] .bw-chat-shell {
   border: 1px solid var(--card-border);
   box-shadow: 0 12px 40px var(--shadow);
 }
+
+/* 设置 → 主题 → 聊天文字：用户自定字号/字重时压过各主题的写死值（对白卡、旁白一并跟随）。 */
+html[data-chat-fs] .bw-chat-messages .bw-message-bubble,
+html[data-chat-fs] .bw-chat-messages .bw-message-content { font-size: var(--chat-fs) !important; }
+html[data-chat-fs] .bw-chat-messages .bw-message-content * { font-size: inherit !important; }
+html[data-chat-fw] .bw-chat-messages .bw-message-content,
+html[data-chat-fw] .bw-chat-messages .bw-message-content .bw-rich-line,
+html[data-chat-fw] .bw-chat-messages .bw-message-content .bw-chat-quote { font-weight: var(--chat-fw) !important; }

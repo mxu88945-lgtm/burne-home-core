@@ -1,8 +1,11 @@
 import { Link } from 'react-router-dom'
-import { THEMES, useThemeStore } from '@/store/themeStore'
+import { THEMES, useChatFontStore, useThemeStore } from '@/store/themeStore'
 
 export default function ThemePage() {
   const { theme, setTheme } = useThemeStore()
+  const { chatFont, setChatFont, resetChatFont } = useChatFontStore()
+  const shownSize = chatFont.size || 15
+  const shownWeight = chatFont.weight || 400
 
   return (
     <div className="space-y-4">
@@ -27,6 +30,43 @@ export default function ThemePage() {
         </div>
       </div>
       <p className="px-1 text-sm text-muted">毛玻璃透视 · 高级感雾系配色</p>
+
+      <div className="glass space-y-3 rounded-2xl p-4">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-ink">聊天文字</span>
+          <button type="button" onClick={resetChatFont} className="text-[12px] text-muted">
+            跟随主题
+          </button>
+        </div>
+        <div
+          className="rounded-xl bg-white/40 px-3 py-2 text-ink"
+          style={{ fontSize: shownSize, fontWeight: shownWeight, lineHeight: 1.8 }}
+        >
+          （他终于等到你回来。）“我一直在这里。”
+        </div>
+        <label className="block">
+          <div className="flex justify-between text-[12px] text-muted">
+            <span>正文字号</span>
+            <span>{chatFont.size ? `${chatFont.size}px` : '跟随主题'}</span>
+          </div>
+          <input
+            type="range" min={12} max={24} step={1} value={shownSize}
+            onChange={(e) => setChatFont({ size: Number(e.target.value) })}
+            className="w-full accent-[var(--accent)]"
+          />
+        </label>
+        <label className="block">
+          <div className="flex justify-between text-[12px] text-muted">
+            <span>正文字重</span>
+            <span>{chatFont.weight ? chatFont.weight : '跟随主题'}</span>
+          </div>
+          <input
+            type="range" min={300} max={700} step={100} value={shownWeight}
+            onChange={(e) => setChatFont({ weight: Number(e.target.value) })}
+            className="w-full accent-[var(--accent)]"
+          />
+        </label>
+      </div>
 
       <div className="space-y-3">
         {THEMES.map((t) => {
