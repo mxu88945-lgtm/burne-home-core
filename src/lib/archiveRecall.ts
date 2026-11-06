@@ -67,12 +67,19 @@ function scoreChunk(chunk: ArchiveChunk, query: string, terms: string[]): Archiv
   }
 }
 
-function clipEvidence(text: string, query: string, max = 900): string {
+function clipEvidence(text: string, query: string | string[], max = 900): string {
   const clean = text.trim()
   if (clean.length <= max) return clean
   const normalized = normalizeArchiveText(clean)
-  const target = normalizeArchiveText(query)
-  const hit = target.length >= 2 ? normalized.indexOf(target) : -1
+  const queries = Array.isArray(query) ? query : [query]
+  const targets = queries
+    .flatMap((item) => [normalizeArchiveText(item), ...buildArchiveQueryTerms(item)])
+    .filter((item, index, all) => item.length >= 2 && all.indexOf(item) === index)
+    .sort((a, b) => b.length - a.length)
+  const hit = targets.reduce((best, target) => {
+    const index = normalized.indexOf(target)
+    return index >= 0 && (best < 0 || index < best) ? index : best
+  }, -1)
   if (hit < 0) return `${clean.slice(0, max - 1)}…`
   const start = Math.max(0, hit - Math.floor(max * 0.35))
   const end = Math.min(clean.length, start + max)
@@ -80,7 +87,7 @@ function clipEvidence(text: string, query: string, max = 900): string {
 }
 
 export function buildArchivePrompt(
-  query: string,
+  query: string | string[],
   hits: ArchiveRecallHit[],
   maxChars = 3000,
 ): string {
@@ -92,11 +99,50 @@ export function buildArchivePrompt(
   for (const [index, hit] of hits.entries()) {
     const block =
       `\n[旧日证据 ${index + 1}｜${hit.title}｜${displayDate(hit.startedAt ?? hit.endedAt)}]\n` +
-      `${clipEvidence(hit.text, query)}\n`
+      `${clipEvidence(hit.text, hit.matchedQuery ?? query)}\n`
     if (text.length + block.length > maxChars) break
     text += block
   }
   return text.length > header.length ? text : ''
+}
+
+/**
+ * Combine the direct user query with companion-planned associations. Each
+ * query uses the existing bounded IndexedDB index; results are then deduped so
+ * one old chunk cannot crowd out the rest merely because several queries hit it.
+ */
+export async function recallArchiveQueries(
+  queries: string[],
+  options: ArchiveRecallOptions = {},
+): Promise<ArchiveRecallResult> {
+  const cleanQueries = [...new Map(
+    queries
+      .map((query) => query.replace(/\s+/g, ' ').trim())
+      .filter((query) => query.length >= 2)
+      .map((query) => [normalizeArchiveText(query), query]),
+  ).values()].slice(0, 4)
+  if (!cleanQueries.length) return { query: '', hits: [], prompt: '', candidateCount: 0 }
+
+  const results = await Promise.all(
+    cleanQueries.map((query) => recallArchive(query, { ...options, maxHits: Math.max(4, options.maxHits ?? 0) })),
+  )
+  const unique = new Map<string, ArchiveRecallHit>()
+  results.forEach((result, index) => {
+    result.hits.forEach((hit) => {
+      const candidate = { ...hit, matchedQuery: cleanQueries[index] }
+      const current = unique.get(hit.chunkId)
+      if (!current || candidate.score > current.score) unique.set(hit.chunkId, candidate)
+    })
+  })
+  const hits = [...unique.values()]
+    .sort((a, b) => b.score - a.score || (b.endedAt ?? '').localeCompare(a.endedAt ?? ''))
+    .slice(0, options.maxHits ?? 5)
+  return {
+    query: cleanQueries.join('\n'),
+    hits,
+    prompt: buildArchivePrompt(cleanQueries, hits, options.maxChars ?? 4200),
+    candidateCount: results.reduce((sum, result) => sum + result.candidateCount, 0),
+  }
 }
 
 /**

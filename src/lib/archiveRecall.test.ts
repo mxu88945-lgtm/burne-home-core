@@ -5,6 +5,7 @@ import {
   buildArchivePrompt,
   buildArchiveQuery,
   recallArchive,
+  recallArchiveQueries,
 } from '@/lib/archiveRecall'
 import { buildArchiveTerms, buildArchiveQueryTerms } from '@/lib/archiveTokens'
 import type { ArchiveChunk, ArchiveConversation } from '@/types/archive'
@@ -91,6 +92,21 @@ describe('independent memory archive recall', () => {
     expect(result.hits[0].reasons).toContain('原话完整命中')
     expect(result.prompt).toContain('旧日对话原文档案')
     expect(result.prompt).toContain('当前用户明确说法')
+  })
+
+  it('merges direct and proactive searches without duplicating the same evidence', async () => {
+    const suffix = `planned-${Date.now()}`
+    const { conversation, chunk } = fixture(true, suffix)
+    await putArchiveBatch([conversation], [chunk])
+
+    const result = await recallArchiveQueries([
+      '湖边那把蓝色雨伞',
+      `旧日约定 ${suffix}`,
+      '湖边那把蓝色雨伞',
+    ])
+    expect(result.hits.filter((item) => item.chunkId === chunk.id)).toHaveLength(1)
+    expect(result.prompt).toContain('旧日对话原文档案')
+    expect(result.prompt).toContain('蓝色雨伞')
   })
 
   it('does not inject a conversation that the user has not enabled', async () => {

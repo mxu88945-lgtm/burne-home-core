@@ -139,7 +139,7 @@ export default function MemoryArchive() {
           <div>
             <div className="text-sm text-ink">允许主聊天召回</div>
             <p className="mt-1 text-[11px] leading-relaxed text-muted">
-              只检索下方已启用的会话；你刚说的话永远优先。
+              会结合最近对话与全局记忆主动联想，再检索下方已启用的会话；你刚说的话永远优先。
             </p>
           </div>
           <button

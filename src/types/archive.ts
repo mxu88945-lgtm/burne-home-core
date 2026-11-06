@@ -107,6 +107,8 @@ export interface ArchiveRecallHit {
   messageIds: string[]
   score: number
   reasons: string[]
+  /** 多路主动检索时，记录是哪条联想查询找到的，便于准确截取证据附近原文。 */
+  matchedQuery?: string
 }
 
 export interface ArchiveRecallResult {

@@ -21,7 +21,14 @@ import { useVisionStore } from '@/store/visionStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { useMemoryStore } from '@/store/memoryStore'
 import { recallMemories } from '@/lib/memoryRecall'
-import { buildArchiveQuery, recallArchive } from '@/lib/archiveRecall'
+import { buildArchiveQuery, recallArchiveQueries } from '@/lib/archiveRecall'
+import {
+  buildArchivePlannerPrompt,
+  mergeArchiveQueries,
+  parseArchivePlan,
+  shouldPlanArchive,
+} from '@/lib/archivePlanner'
+import { isArchiveRecallEnabled } from '@/lib/archiveSettings'
 import { useMemoryModelStore } from '@/store/memoryModelStore'
 import { useSttStore } from '@/store/sttStore'
 import { transcribe } from '@/api/stt'
@@ -978,6 +985,78 @@ export default function Chat() {
     }
   }
 
+  /**
+   * Let the companion decide what older shared experience is worth looking up.
+   * This is a small hidden planning call, preferably on the dedicated memory
+   * model. It returns search phrases only—never generated "memories".
+   */
+  async function planArchiveQueries(
+    history: Msg[],
+    memoryContext: string,
+    continuity = '',
+  ): Promise<string[]> {
+    if (!isArchiveRecallEnabled() || !shouldPlanArchive(history)) return []
+    const plannerChannel: ApiChannel | undefined =
+      memoryModelCfg.enabled && memoryModelCfg.apiKey.trim() && memoryModelCfg.model.trim()
+        ? {
+            id: 'memory-recall-planner',
+            name: '记忆检索',
+            provider: 'openai',
+            baseUrl: memoryModelCfg.baseUrl,
+            apiKey: memoryModelCfg.apiKey,
+            model: memoryModelCfg.model,
+          }
+        : activeChannel
+    if (!plannerChannel && !workerUrl) return []
+
+    const ask = buildArchivePlannerPrompt({
+      history,
+      meName: profile.nameA || '惟惟',
+      companionName: name,
+      continuity,
+      memoryContext,
+    })
+    const sys = '你是旧日原话检索规划器。只输出约定的 JSON，不回答用户，不编造回忆。'
+    try {
+      if (plannerChannel) {
+        const result = await withTimeout(
+          chatComplete(plannerChannel, [{ role: 'user', content: ask }], sys, {
+            workerUrl,
+            syncKey: config.syncKey,
+            temperature: 0.15,
+            maxTokens: 220,
+          }),
+          8000,
+        )
+        if (result.usage) {
+          addUsage({
+            at: new Date().toISOString(),
+            provider: plannerChannel.provider,
+            model: result.usage.model,
+            promptTokens: result.usage.promptTokens,
+            completionTokens: result.usage.completionTokens,
+            totalTokens: result.usage.totalTokens,
+            cost: result.usage.cost,
+          })
+        }
+        return parseArchivePlan(result.text)
+      }
+      const text = await withTimeout(
+        sendChat({
+          workerUrl: workerUrl!,
+          syncKey: config.syncKey,
+          messages: [{ role: 'user', content: ask }],
+          system: sys,
+          maxTokens: 220,
+        }),
+        8000,
+      )
+      return parseArchivePlan(text)
+    } catch {
+      return []
+    }
+  }
+
   /** 用当前历史调用模型并把回复加入对话（图片按 vision 格式发送） */
   async function respond(history: Msg[]) {
     setSending(true)
@@ -1078,28 +1157,20 @@ export default function Chat() {
       const note = periodChatNote(periodState.days, profile.nameA || '她', periodState.periodLen)
       if (note) system += `\n\n${note}`
     }
-    // 独立旧日档案：只检索用户原话构造的查询，按证据有界注入；档案失败不阻断正常聊天。
-    try {
-      const archiveQuery = buildArchiveQuery(history)
-      const archiveContext = await recallArchive(archiveQuery)
-      if (archiveContext.prompt) system += archiveContext.prompt
-    } catch {
-      // IndexedDB 被系统临时拒绝或尚未导入时，继续使用现有上下文和结构化记忆。
-    }
-    // 五层记忆召回：核心优先，长期/近期按当前消息相关性有界注入；本轮使用记录只保存元数据。
-    {
-      const memState = useMemoryStore.getState()
-      const query = [...history].reverse().find((m) => m.role === 'me')?.text ?? ''
-      const memoryContext = recallMemories({
-        query,
-        scope: 'chat',
-        memories: memState.memories,
-        overview: memState.overview,
-      })
-      recordMemoryDiagnostic(memoryContext.diagnostic)
-      if (memoryContext.text) system += memoryContext.text
-    }
-    // 跨窗口全局回忆：其他聊天窗口 + 本窗口滑出上下文的更早原话，按用户最近原话找回（不额外请求模型）
+    // 先召回结构化全局记忆：除了直接注入，也给旧文规划器提供安全、已知的联想线索。
+    const memState = useMemoryStore.getState()
+    const currentQuery = [...history].reverse().find((m) => m.role === 'me')?.text ?? ''
+    const memoryContext = recallMemories({
+      query: currentQuery,
+      scope: 'chat',
+      memories: memState.memories,
+      overview: memState.overview,
+    })
+    recordMemoryDiagnostic(memoryContext.diagnostic)
+
+    // 顾屿搬来的跨窗口全局回忆也先算出来：它既会照常注入最终请求，
+    // 也能成为主动翻旧文时的联想桥梁，而不是两套召回各搜各的。
+    let crossRecallText = ''
     if (useChatPrefsStore.getState().crossRecall) {
       try {
         const st = useChatStore.getState()
@@ -1107,19 +1178,40 @@ export default function Chat() {
         const sessionsForRecall = st.sessions.map((s) =>
           s.id === st.activeId ? { ...s, messages: history } : s,
         )
-        const cross = recallCrossSessions({
+        crossRecallText = recallCrossSessions({
           sessions: sessionsForRecall,
           activeId: st.activeId,
           inContextIds: new Set(apiHistory.map((m) => m.id)),
           userQueries,
           meName: profile.nameA || '我',
           aiName: name,
-        })
-        if (cross.text) system += cross.text
+        }).text
       } catch {
         // 回忆失败不影响正常聊天
       }
     }
+
+    // 独立旧日档案：保留用户原话直搜，再让伯恩依据最近双方对话/全局记忆主动规划联想查询。
+    // 规划器只产出搜索词；真正注入的仍然只能是 IndexedDB 里可核对的旧日原文。
+    try {
+      const directQuery = buildArchiveQuery(history)
+      const planned = await planArchiveQueries(
+        history,
+        [memoryContext.text, crossRecallText].filter(Boolean).join('\n\n'),
+        rollingSummary?.text ?? '',
+      )
+      const archiveContext = await recallArchiveQueries(
+        mergeArchiveQueries(directQuery, planned),
+        { maxHits: 5, maxChars: 4200 },
+      )
+      if (archiveContext.prompt) system += archiveContext.prompt
+    } catch {
+      // IndexedDB 被系统临时拒绝或尚未导入时，继续使用现有上下文和结构化记忆。
+    }
+    // 五层记忆召回：核心优先，长期/近期按当前消息相关性有界注入；本轮使用记录只保存元数据。
+    if (memoryContext.text) system += memoryContext.text
+    // 跨窗口全局回忆：其他聊天窗口 + 本窗口滑出上下文的更早原话，按用户最近原话找回（不额外请求模型）
+    if (crossRecallText) system += crossRecallText
     if (allowTasks) {
       system +=
         `\n\n【任务提醒功能 · 请理解并善用】\n` +
