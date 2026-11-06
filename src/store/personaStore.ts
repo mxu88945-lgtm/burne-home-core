@@ -20,8 +20,8 @@ export interface Persona {
   maxTokens: number
   /** 显示思考过程（reasoning / thinking） */
   reasoning?: boolean
-  /** 思考强度（开思考时生效），默认 medium */
-  reasoningEffort?: 'low' | 'medium' | 'high'
+  /** 思考强度（开思考时生效）：auto=交给模型自己定，默认 auto */
+  reasoningEffort?: 'auto' | 'low' | 'medium' | 'high'
 }
 
 const DEFAULT_PERSONA: Persona = {

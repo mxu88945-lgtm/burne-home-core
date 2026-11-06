@@ -8,8 +8,8 @@ import { listModels } from '@/api/llm'
 /** 每条渠道拉过的模型列表缓存在内存里，反复打开面板不重复请求。 */
 const modelCache: Record<string, string[]> = {}
 
-type Effort = 'off' | 'low' | 'medium' | 'high'
-const EFFORT_LABEL: Record<Effort, string> = { off: '关闭', low: '低', medium: '自动', high: '高' }
+type Effort = 'off' | 'auto' | 'low' | 'medium' | 'high'
+const EFFORT_LABEL: Record<Effort, string> = { off: '关闭', auto: '自动', low: '低', medium: '中', high: '高' }
 
 /**
  * 聊天输入框模型胶囊点开的「配置」底部面板（仿顾祁砚）：
@@ -55,7 +55,7 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channel?.id])
 
-  const effort: Effort = persona.reasoning ? persona.reasoningEffort || 'medium' : 'off'
+  const effort: Effort = persona.reasoning ? persona.reasoningEffort || 'auto' : 'off'
   function setEffort(v: Effort) {
     if (v === 'off') setPersona({ reasoning: false })
     else setPersona({ reasoning: true, reasoningEffort: v })
@@ -175,7 +175,7 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
             style={{ background: 'var(--card)', border: '1px solid var(--card-border)' }}
             onClick={() => {
               updateChannel(channel.id, { displayName: '' })
-              setPersona({ reasoning: false, reasoningEffort: 'medium' })
+              setPersona({ reasoning: false, reasoningEffort: 'auto' })
               setManual(false)
             }}
           >

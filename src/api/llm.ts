@@ -89,6 +89,23 @@ export async function listVisionModels(baseUrl: string, apiKey: string): Promise
   return vis.length ? vis : all.map((m) => m.id).filter(Boolean)
 }
 
+export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high'
+
+/**
+ * OpenAI 兼容接口的思考参数。
+ * - 自动：只开思考、不指定深度，由模型/服务商按默认决定；
+ * - 低/中/高：OpenRouter 用 reasoning.effort；其他（官方 / 中转）再附上官方字段
+ *   reasoning_effort，两种写法都带上，哪个被认就生效哪个。
+ */
+export function openaiReasoningFields(opts: ChatOptions, isOpenRouter: boolean): Record<string, unknown> {
+  if (!opts.reasoning) return {}
+  const effort = opts.reasoningEffort || 'auto'
+  if (effort === 'auto') return { reasoning: { enabled: true } }
+  return isOpenRouter
+    ? { reasoning: { effort } }
+    : { reasoning: { effort }, reasoning_effort: effort }
+}
+
 export interface ChatOptions {
   workerUrl?: string
   syncKey?: string
@@ -97,7 +114,7 @@ export interface ChatOptions {
   /** 让模型输出思考过程（reasoning / thinking） */
   reasoning?: boolean
   /** 思考强度，默认 medium */
-  reasoningEffort?: 'low' | 'medium' | 'high'
+  reasoningEffort?: ReasoningEffort
   /** 联网查询（OpenRouter：model:online） */
   webSearch?: boolean
 }
@@ -190,7 +207,7 @@ export async function chatCompleteStream(
         stream: true,
         ...(isOpenRouter ? { stream_options: { include_usage: true } } : {}),
         ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
-        ...(opts.reasoning ? { reasoning: { effort: opts.reasoningEffort || 'medium' } } : {}),
+        ...openaiReasoningFields(opts, isOpenRouter),
         ...(isOpenRouter ? { usage: { include: true } } : {}),
       }),
     }),
@@ -368,8 +385,8 @@ export async function chatComplete(
         messages: full,
         max_tokens: effectiveMaxTokens,
         ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
-        // 思考过程（OpenRouter 等支持）
-        ...(opts.reasoning ? { reasoning: { effort: 'medium' } } : {}),
+        // 思考过程：自动 / 低中高（OpenRouter 写法 + 官方 reasoning_effort）
+        ...openaiReasoningFields(opts, isOpenRouter),
         // OpenRouter：让响应带上真实花费
         ...(isOpenRouter ? { usage: { include: true } } : {}),
       }),
@@ -377,7 +394,7 @@ export async function chatComplete(
     providerError,
   )
   const data = (await res.json().catch(() => ({}))) as {
-    choices?: { message?: { content?: string; reasoning?: string } }[]
+    choices?: { message?: { content?: string; reasoning?: string; reasoning_content?: string } }[]
     usage?: {
       prompt_tokens?: number
       completion_tokens?: number
@@ -399,6 +416,7 @@ export async function chatComplete(
   return {
     text: data.choices?.[0]?.message?.content || '',
     usage,
-    reasoning: data.choices?.[0]?.message?.reasoning?.trim() || undefined,
+    reasoning:
+      (data.choices?.[0]?.message?.reasoning ?? data.choices?.[0]?.message?.reasoning_content)?.trim() || undefined,
   }
 }
