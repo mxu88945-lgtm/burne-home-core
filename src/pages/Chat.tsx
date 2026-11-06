@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useProfileStore } from '@/store/profileStore'
 import { usePersonaStore, buildPersonaExtras } from '@/store/personaStore'
+import { recallCrossSessions } from '@/lib/crossSessionRecall'
 import { useSyncStore } from '@/store/syncStore'
 import { useApiStore } from '@/store/apiStore'
 import { useUsageStore } from '@/store/usageStore'
@@ -1097,6 +1098,27 @@ export default function Chat() {
       })
       recordMemoryDiagnostic(memoryContext.diagnostic)
       if (memoryContext.text) system += memoryContext.text
+    }
+    // 跨窗口全局回忆：其他聊天窗口 + 本窗口滑出上下文的更早原话，按用户最近原话找回（不额外请求模型）
+    if (useChatPrefsStore.getState().crossRecall) {
+      try {
+        const st = useChatStore.getState()
+        const userQueries = history.filter((m) => m.role === 'me').slice(-2).map((m) => m.text || '')
+        const sessionsForRecall = st.sessions.map((s) =>
+          s.id === st.activeId ? { ...s, messages: history } : s,
+        )
+        const cross = recallCrossSessions({
+          sessions: sessionsForRecall,
+          activeId: st.activeId,
+          inContextIds: new Set(apiHistory.map((m) => m.id)),
+          userQueries,
+          meName: profile.nameA || '我',
+          aiName: name,
+        })
+        if (cross.text) system += cross.text
+      } catch {
+        // 回忆失败不影响正常聊天
+      }
     }
     if (allowTasks) {
       system +=

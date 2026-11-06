@@ -19,6 +19,8 @@ export default function Persona() {
   const toggleShowLinks = useChatPrefsStore((s) => s.toggleShowLinks)
   const allowTasks = useChatPrefsStore((s) => s.allowTasks)
   const toggleAllowTasks = useChatPrefsStore((s) => s.toggleAllowTasks)
+  const crossRecall = useChatPrefsStore((s) => s.crossRecall)
+  const toggleCrossRecall = useChatPrefsStore((s) => s.toggleCrossRecall)
   const [promptOpen, setPromptOpen] = useState(false)
   const [openPresetId, setOpenPresetId] = useState('')
   const presets = persona.presets ?? []
@@ -304,6 +306,20 @@ export default function Persona() {
             type="checkbox"
             checked={allowTasks}
             onChange={toggleAllowTasks}
+            className="h-5 w-5 accent-accent"
+          />
+        </label>
+        <label className="flex items-center justify-between">
+          <span className="text-sm text-ink">
+            跨窗口回忆
+            <span className="block text-[11px] text-muted">
+              从其他聊天窗口和更早的聊天原话里找回相关内容，能接上「之前说过的事」，认得「11月3号」「昨天」（默认开）
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={crossRecall}
+            onChange={toggleCrossRecall}
             className="h-5 w-5 accent-accent"
           />
         </label>

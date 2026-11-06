@@ -19,6 +19,8 @@ interface ChatPrefs {
   showLinks: boolean
   /** 允许 TA 给我下带倒计时的小任务/提醒 */
   allowTasks: boolean
+  /** 跨窗口回忆：从其他聊天窗口和更早的原话里找回相关内容（默认开） */
+  crossRecall: boolean
 }
 
 const DEFAULT: ChatPrefs = {
@@ -27,6 +29,7 @@ const DEFAULT: ChatPrefs = {
   chatStyle: 'bubble',
   showLinks: false,
   allowTasks: false,
+  crossRecall: true,
 }
 
 interface ChatPrefsState extends ChatPrefs {
@@ -35,6 +38,7 @@ interface ChatPrefsState extends ChatPrefs {
   setChatStyle: (s: ChatStyle) => void
   toggleShowLinks: () => void
   toggleAllowTasks: () => void
+  toggleCrossRecall: () => void
 }
 
 const init = { ...DEFAULT, ...readJSON<Partial<ChatPrefs>>(STORAGE_KEYS.chatprefs, {}) }
@@ -45,6 +49,12 @@ export const useChatPrefsStore = create<ChatPrefsState>((set, get) => ({
   chatStyle: init.chatStyle,
   showLinks: init.showLinks,
   allowTasks: init.allowTasks,
+  crossRecall: init.crossRecall,
+  toggleCrossRecall: () => {
+    const crossRecall = !get().crossRecall
+    writeJSON(STORAGE_KEYS.chatprefs, { ...pick(get()), crossRecall })
+    set({ crossRecall })
+  },
   toggleWebSearch: () => {
     const webSearch = !get().webSearch
     writeJSON(STORAGE_KEYS.chatprefs, { ...pick(get()), webSearch })
@@ -78,5 +88,6 @@ function pick(s: ChatPrefsState): ChatPrefs {
     chatStyle: s.chatStyle,
     showLinks: s.showLinks,
     allowTasks: s.allowTasks,
+    crossRecall: s.crossRecall,
   }
 }

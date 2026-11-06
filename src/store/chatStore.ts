@@ -13,6 +13,8 @@ export interface ChatMsg {
   role: 'me' | 'companion'
   text: string
   at: string
+  /** 创建时间戳 ms（2026-11-06 起新消息才有；跨窗口回忆用它认日期） */
+  ts?: number
   /** 图片（压缩后的 dataURL，只存本地） */
   image?: string
   /** 这条 AI 回复消耗的总 token（有就显示） */
@@ -155,7 +157,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
     const next = curSessions.map((s) => {
       if (s.id !== curId) return s
-      const messages = typeof m === 'function' ? m(s.messages) : m
+      const raw = typeof m === 'function' ? m(s.messages) : m
+      // 新出现的消息补创建时间戳（旧消息不回填，免得日期被写错）
+      const known = new Set(s.messages.map((x) => x.id))
+      const stamp = Date.now()
+      const messages = raw.map((x) => (x.ts || known.has(x.id) ? x : { ...x, ts: stamp }))
       return { ...s, messages, updatedAt: new Date().toISOString() }
     })
     persist(next, curId)
