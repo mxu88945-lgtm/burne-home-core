@@ -5,7 +5,7 @@ import './index.css'
 import { applyChatFont, applyTheme, readStoredChatFont, readStoredTheme } from '@/store/themeStore'
 import { hydrateDramaStore } from '@/store/dramaStore'
 import { hydrateCharLibStore } from '@/store/charLibStore'
-import { resolveStandaloneViewport } from '@/lib/viewportGeometry'
+import { resolveStandaloneFrame } from '@/lib/viewportGeometry'
 
 // 渲染前先应用已保存的主题，避免首屏闪烁
 applyTheme(readStoredTheme())
@@ -26,15 +26,6 @@ if (isStandalone) document.documentElement.dataset.standalone = 'true'
 //   刘海与 Home Indicator。100dvh/visualViewport 在部分 WebKit 版本只覆盖安全区。
 let lastKeyboardInset = 0
 
-/** 壳在「不加位移」时的顶边（相对布局视口），算出要下移多少才能贴住可视视口顶 */
-function followVisualViewport(vv: VisualViewport): number {
-  const shell = document.getElementById('bw-app-shell')
-  if (!shell) return Math.max(0, vv.offsetTop)
-  const current = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-offset')) || 0
-  const baseTop = shell.getBoundingClientRect().top - current
-  return Math.max(0, vv.offsetTop - baseTop)
-}
-
 function syncViewport() {
   const vv = window.visualViewport
   const root = document.documentElement
@@ -49,7 +40,7 @@ function syncViewport() {
     const fullHeight = portrait ? longSide : shortSide
     const isSplitView = Math.abs(window.innerWidth - expectedWidth) > 2
     if (!isSplitView) {
-      const geometry = resolveStandaloneViewport({
+      const geometry = resolveStandaloneFrame({
         fullHeight,
         visualHeight: vv?.height,
         offsetTop: vv?.offsetTop,
@@ -64,15 +55,14 @@ function syncViewport() {
       // 2026-11-06 改用惟境在她 iPhone 上验证过的做法：App 高度 = vv.height，不做位移，
       // 并把 iOS 的页面平移 scrollTo(0,0) 拉回（body 不再 fixed，scrollTo 才有效）。
       if (geometry.keyboardOpen && geometry.readingSane && vv) {
-        h = vv.height
+        h = geometry.frameHeight
+        // visualViewport.height 已经停在键盘工具栏上沿；offsetTop 是同一次页面平移，
+        // 不能再作为 fixed 壳的 translateY，否则 composer 会被重复往下推。
+        top = geometry.frameOffset
         if (window.scrollY || vv.offsetTop) window.scrollTo(0, 0)
-        // 2026-11-06 22:05：她 iPhone 上 scrollTo 有时拉不回平移（顶栏消失、输入框下半截
-        // 压在键盘工具条下）。兜底：量 App 壳实际位置，直接把它挪进可视视口——
-        // 壳顶 = 可视视口顶（vv.offsetTop），高 = vv.height。拉回成功时 offsetTop=0，等于不挪。
-        top = followVisualViewport(vv)
       } else {
-        h = geometry.keyboardOpen ? geometry.appHeight - geometry.keyboardInset : geometry.appHeight
-        top = 0
+        h = geometry.frameHeight
+        top = geometry.frameOffset
       }
       lastKeyboardInset = geometry.keyboardInset
       root.toggleAttribute('data-keyboard', geometry.keyboardOpen)

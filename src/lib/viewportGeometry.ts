@@ -12,6 +12,11 @@ export interface StandaloneViewportResult {
   readingSane: boolean
 }
 
+export interface StandaloneFrameResult extends StandaloneViewportResult {
+  frameHeight: number
+  frameOffset: number
+}
+
 /**
  * iOS 装机版偶尔会在流式回复/输入法切换后报告一个只有一百多像素高的
  * visualViewport。那不是实际键盘边界，不能拿它去压缩整座 App 壳。
@@ -41,4 +46,28 @@ export function resolveStandaloneViewport({
 
   keyboardInset = Math.min(keyboardInset, Math.round(fullHeight * 0.58))
   return { appHeight: fullHeight, keyboardInset, keyboardOpen, readingSane }
+}
+
+/**
+ * Translate WebKit's keyboard reading into the actual App shell frame.
+ *
+ * On the affected iPhone PWA, visualViewport.height already ends at the
+ * keyboard toolbar while offsetTop reports the page pan separately. Moving a
+ * fixed shell down by offsetTop therefore counts the pan twice and leaves the
+ * lower half of the composer behind the keyboard. Keep the shell at zero and
+ * use only the shrunken visual height; scrollTo/resetContainerScroll handle
+ * the page pan itself.
+ */
+export function resolveStandaloneFrame(input: StandaloneViewportInput): StandaloneFrameResult {
+  const geometry = resolveStandaloneViewport(input)
+  const visualHeight = Number.isFinite(input.visualHeight)
+    ? Math.max(0, input.visualHeight!)
+    : geometry.appHeight
+  const frameHeight = geometry.keyboardOpen
+    ? geometry.readingSane
+      ? visualHeight
+      : geometry.appHeight - geometry.keyboardInset
+    : geometry.appHeight
+
+  return { ...geometry, frameHeight, frameOffset: 0 }
 }
