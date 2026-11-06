@@ -26,6 +26,15 @@ if (isStandalone) document.documentElement.dataset.standalone = 'true'
 //   刘海与 Home Indicator。100dvh/visualViewport 在部分 WebKit 版本只覆盖安全区。
 let lastKeyboardInset = 0
 
+/** 壳在「不加位移」时的顶边（相对布局视口），算出要下移多少才能贴住可视视口顶 */
+function followVisualViewport(vv: VisualViewport): number {
+  const shell = document.getElementById('bw-app-shell')
+  if (!shell) return Math.max(0, vv.offsetTop)
+  const current = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--app-offset')) || 0
+  const baseTop = shell.getBoundingClientRect().top - current
+  return Math.max(0, vv.offsetTop - baseTop)
+}
+
 function syncViewport() {
   const vv = window.visualViewport
   const root = document.documentElement
@@ -56,8 +65,11 @@ function syncViewport() {
       // 并把 iOS 的页面平移 scrollTo(0,0) 拉回（body 不再 fixed，scrollTo 才有效）。
       if (geometry.keyboardOpen && geometry.readingSane && vv) {
         h = vv.height
-        top = 0
         if (window.scrollY || vv.offsetTop) window.scrollTo(0, 0)
+        // 2026-11-06 22:05：她 iPhone 上 scrollTo 有时拉不回平移（顶栏消失、输入框下半截
+        // 压在键盘工具条下）。兜底：量 App 壳实际位置，直接把它挪进可视视口——
+        // 壳顶 = 可视视口顶（vv.offsetTop），高 = vv.height。拉回成功时 offsetTop=0，等于不挪。
+        top = followVisualViewport(vv)
       } else {
         h = geometry.keyboardOpen ? geometry.appHeight - geometry.keyboardInset : geometry.appHeight
         top = 0
