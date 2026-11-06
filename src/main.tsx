@@ -5,6 +5,7 @@ import './index.css'
 import { applyTheme, readStoredTheme } from '@/store/themeStore'
 import { hydrateDramaStore } from '@/store/dramaStore'
 import { hydrateCharLibStore } from '@/store/charLibStore'
+import { resolveStandaloneViewport } from '@/lib/viewportGeometry'
 
 // 渲染前先应用已保存的主题，避免首屏闪烁
 applyTheme(readStoredTheme())
@@ -22,6 +23,8 @@ if (isStandalone) document.documentElement.dataset.standalone = 'true'
 // - 普通浏览器沿用 visualViewport，键盘弹出时贴在键盘上方；
 // - iPhone 装机版在键盘关闭时用整块物理 CSS 屏幕高度，让主题/壁纸真正画进
 //   刘海与 Home Indicator。100dvh/visualViewport 在部分 WebKit 版本只覆盖安全区。
+let lastKeyboardInset = 0
+
 function syncViewport() {
   const vv = window.visualViewport
   const root = document.documentElement
@@ -35,10 +38,21 @@ function syncViewport() {
     const expectedWidth = portrait ? shortSide : longSide
     const fullHeight = portrait ? longSide : shortSide
     const isSplitView = Math.abs(window.innerWidth - expectedWidth) > 2
-    const keyboardOpen = !isSplitView && !!vv && vv.height < fullHeight - 120
-
-    root.toggleAttribute('data-keyboard', keyboardOpen)
-    if (!isSplitView && !keyboardOpen) h = fullHeight
+    if (!isSplitView) {
+      const geometry = resolveStandaloneViewport({
+        fullHeight,
+        visualHeight: vv?.height,
+        offsetTop: vv?.offsetTop,
+        lastKeyboardInset,
+      })
+      h = geometry.appHeight
+      lastKeyboardInset = geometry.keyboardInset
+      root.toggleAttribute('data-keyboard', geometry.keyboardOpen)
+      root.style.setProperty('--keyboard-inset', `${geometry.keyboardInset}px`)
+    } else {
+      root.removeAttribute('data-keyboard')
+      root.style.setProperty('--keyboard-inset', '0px')
+    }
     top = 0
   }
 

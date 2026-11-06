@@ -1,0 +1,24 @@
+import { renderToStaticMarkup } from 'react-dom/server'
+import { describe, expect, it } from 'vitest'
+import { renderRichText } from './richText'
+
+describe('rich chat text semantics', () => {
+  it('marks paragraphs, dialogue and stage narration without changing the words', () => {
+    const html = renderToStaticMarkup(
+      <div>{renderRichText('第一段\n\n“欢迎回家。”\n（把你的手握住）')}</div>,
+    )
+    expect(html).toContain('bw-rich-line')
+    expect(html).toContain('bw-rich-spacer')
+    expect(html).toContain('bw-chat-quote')
+    expect(html).toContain('bw-chat-narration')
+    expect(html).toContain('欢迎回家。')
+  })
+
+  it('keeps links clickable inside formatted paragraphs', () => {
+    const html = renderToStaticMarkup(
+      <div>{renderRichText('资料：[OpenAI](https://openai.com)')}</div>,
+    )
+    expect(html).toContain('href="https://openai.com"')
+    expect(html).toContain('OpenAI')
+  })
+})

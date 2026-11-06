@@ -317,6 +317,25 @@ html[data-standalone='true'] body {
 }
 
 /* 顾祁砚主题在伯恩主聊里的排版适配。语义类只属于主聊天，不影响首页、剧场或小手机。 */
+.bw-chat-shell {
+  padding-bottom: max(.5rem, env(safe-area-inset-bottom));
+}
+html[data-standalone='true'][data-keyboard] .bw-chat-shell {
+  padding-bottom: calc(var(--keyboard-inset, 0px) + .5rem);
+}
+.bw-rich-line { display: block; margin-bottom: .86em; }
+.bw-rich-line:last-child { margin-bottom: 0; }
+.bw-rich-spacer { display: block; height: .62em; }
+.bw-chat-quote {
+  display: inline;
+  padding: .12em .34em;
+  border-radius: .55em;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.bw-chat-narration { color: var(--text-soft); font-style: italic; }
+
 [data-theme='claude'] .bw-message-companion .bw-message-bubble {
   background: transparent !important; border-color: transparent !important; box-shadow: none !important;
   -webkit-backdrop-filter: none !important; backdrop-filter: none !important; padding-inline: .25rem !important;
@@ -385,6 +404,104 @@ html[data-standalone='true'] body {
 [data-theme='vinyl'] .bw-message-companion .bw-message-bubble { border-left: 3px solid #d98b52 !important; background: rgba(255,255,255,.84) !important; }
 [data-theme='vinyl'] .bw-message-me .bw-message-bubble { background: #416978 !important; color: white !important; }
 [data-theme='vinyl'] .bw-chat-composer { border-bottom: 3px solid #d98b52 !important; }
+
+/* 纸页类主题的“壳”：署名封面、头像页签、正文页与原文对白装饰。 */
+.bw-shell-message {
+  display: block !important;
+  width: 100%;
+  position: relative;
+}
+.bw-shell-message .bw-message-body { width: 100%; max-width: 100% !important; align-items: stretch !important; }
+.bw-shell-heading { width: 100%; margin-bottom: 10px; }
+.bw-shell-kicker {
+  margin-bottom: 8px;
+  color: var(--label);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .2em;
+}
+.bw-shell-heading-row { display: flex; align-items: center; gap: 11px; }
+.bw-shell-portrait-wrap { position: relative; flex: 0 0 auto; }
+.bw-shell-portrait {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  border: 3px solid rgba(255,255,255,.86);
+  background: rgba(255,255,255,.6);
+  box-shadow: 0 7px 16px var(--shadow);
+}
+.bw-shell-copy { min-width: 0; flex: 1; }
+.bw-shell-name { overflow: hidden; color: var(--text); font-size: 17px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.bw-shell-subtitle { margin-top: 2px; color: var(--text-soft); font-size: 9px; letter-spacing: .15em; }
+.bw-shell-stamp { color: var(--accent); font-family: Georgia, serif; font-size: 19px; font-weight: 700; }
+.bw-shell-message .bw-message-bubble {
+  width: 100%;
+  max-width: 100%;
+  padding: 18px 17px !important;
+  border-radius: 18px !important;
+  font-family: 'Songti SC','STSong','Noto Serif SC',serif;
+  font-size: 15px !important;
+  line-height: 1.9 !important;
+}
+.bw-shell-message.bw-message-me { width: min(88%, 520px); margin-left: auto; }
+.bw-shell-message.bw-message-me .bw-shell-heading-row { flex-direction: row-reverse; text-align: right; }
+.bw-shell-message.bw-message-me .bw-shell-kicker { text-align: right; }
+.bw-shell-message .bw-message-content { min-width: 0; }
+
+/* 雾蓝纸笺 */
+[data-theme='paper'] .bw-shell-paper {
+  border-radius: 3px 18px 18px 3px;
+  background: rgba(252,252,249,.9);
+}
+[data-theme='paper'] .bw-shell-heading { padding: 0 3px; }
+[data-theme='paper'] .bw-shell-portrait { border-radius: 50%; filter: saturate(.75); }
+[data-theme='paper'] .bw-chat-quote { padding: 0 .12em; border-radius: 0; background: transparent; color: #526d7d; text-decoration: underline; text-decoration-color: rgba(97,126,145,.38); text-decoration-thickness: .14em; text-underline-offset: .18em; }
+
+/* 莓红剪贴簿 */
+[data-theme='scrapbook'] .bw-shell-scrapbook { transform: rotate(-.18deg); }
+[data-theme='scrapbook'] .bw-shell-scrapbook:nth-child(even) { transform: rotate(.2deg); }
+[data-theme='scrapbook'] .bw-shell-portrait-wrap { padding: 6px 6px 18px; background: #fffdf8; box-shadow: 0 5px 14px rgba(96,58,49,.18); transform: rotate(-2deg); }
+[data-theme='scrapbook'] .bw-shell-portrait { width: 50px; height: 50px; border: 0; border-radius: 1px; box-shadow: none; }
+[data-theme='scrapbook'] .bw-shell-message .bw-message-bubble { border: 1px dashed rgba(151,72,71,.32) !important; background: rgba(255,252,246,.72) !important; color: #503b37 !important; }
+[data-theme='scrapbook'] .bw-chat-quote { background: #f0d9d5; color: #7c3038; border-radius: 999px; }
+
+/* 秋日批注 */
+[data-theme='academy'] .bw-shell-academy { padding: 17px; border: 1px solid #ded9ca; border-radius: 2px 20px 20px 2px; background: rgba(255,255,250,.82); box-shadow: 0 10px 26px rgba(93,78,62,.09); }
+[data-theme='academy'] .bw-shell-academy::before { content: ''; position: absolute; inset: 8px auto 8px 7px; width: 2px; background: rgba(157,52,61,.45); }
+[data-theme='academy'] .bw-shell-message .bw-message-bubble { border: 0 !important; border-top: 1px solid #ded9ca !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; }
+[data-theme='academy'] .bw-chat-quote { padding: .08em .2em; border-radius: 2px; background: linear-gradient(transparent 48%, rgba(225,197,104,.42) 48%); color: #792d35; }
+
+/* 白笺通讯 */
+[data-theme='mobile'] .bw-shell-mobile { padding: 14px; border: 1px solid #e8e8ed; border-radius: 28px; background: rgba(255,255,255,.72); box-shadow: 0 10px 30px rgba(41,41,54,.07); }
+[data-theme='mobile'] .bw-shell-kicker { text-align: center; }
+[data-theme='mobile'] .bw-shell-heading-row { justify-content: center; }
+[data-theme='mobile'] .bw-shell-copy { flex: 0 1 auto; }
+[data-theme='mobile'] .bw-shell-message .bw-message-bubble { background: #f2f2f5 !important; border: 0 !important; border-radius: 22px !important; color: #242429 !important; }
+[data-theme='mobile'] .bw-message-me.bw-shell-message .bw-message-bubble { background: #e4e4e9 !important; }
+[data-theme='mobile'] .bw-chat-quote { display: inline-block; margin: .08em 0; padding: .22em .7em; background: rgba(255,255,255,.88); border: 1px solid #dddde3; border-radius: 999px; }
+
+/* 雾白来信 */
+[data-theme='letter'] .bw-shell-letter { padding: 17px 16px 20px; border: 1px solid #d9dde0; border-radius: 4px 23px 23px 23px; background: rgba(250,249,246,.84); box-shadow: 0 14px 30px rgba(76,84,90,.09); }
+[data-theme='letter'] .bw-shell-kicker { padding-bottom: 7px; border-bottom: 1px solid #d9dde0; }
+[data-theme='letter'] .bw-shell-message .bw-message-bubble { border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; color: #34383d !important; }
+[data-theme='letter'] .bw-chat-quote { display: inline-block; padding: .17em .55em; border: 1px solid #d0d8dc; border-radius: 12px 12px 12px 3px; background: #e9eff2; color: #4d6676; }
+
+/* 雾蓝长笺 */
+[data-theme='mistnote'] .bw-shell-mistnote { padding: 16px; border: 1px solid #cbd7de; border-radius: 28px; background: rgba(251,252,252,.86); box-shadow: 0 13px 30px rgba(59,80,92,.08); }
+[data-theme='mistnote'] .bw-shell-message .bw-message-bubble { border: 0 !important; border-top: 1px solid #d2dde2 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; color: #35424b !important; }
+[data-theme='mistnote'] .bw-chat-quote { display: inline-block; padding: .12em .6em; border-radius: 999px; background: #dfe9ee; color: #476677; }
+
+/* 暗夜流光 */
+[data-theme='nightglow'] .bw-shell-nightglow { padding: 17px; border: 1px solid rgba(168,56,60,.2); border-radius: 22px; background: linear-gradient(150deg,rgba(250,247,244,.88),rgba(239,231,225,.82)); box-shadow: 0 14px 34px rgba(87,53,49,.09); }
+[data-theme='nightglow'] .bw-shell-portrait { border-radius: 50%; box-shadow: 0 0 0 4px rgba(168,56,60,.08), 0 8px 18px rgba(63,42,39,.14); }
+[data-theme='nightglow'] .bw-shell-message .bw-message-bubble { border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; color: #2b2522 !important; }
+[data-theme='nightglow'] .bw-chat-quote { background: rgba(168,56,60,.11); color: #8d2d31; }
+
+/* 青橙唱片 */
+[data-theme='vinyl'] .bw-shell-vinyl { padding: 16px; border: 1px solid #c8d9df; border-radius: 5px 24px 24px 5px; background: rgba(255,255,255,.82); box-shadow: 0 13px 30px rgba(49,88,104,.1); }
+[data-theme='vinyl'] .bw-shell-disc { position: absolute; right: -9px; bottom: -7px; z-index: -1; width: 43px; height: 43px; border: 10px solid #315868; border-radius: 50%; background: #d98b52; box-shadow: 0 5px 12px rgba(49,88,104,.2); }
+[data-theme='vinyl'] .bw-shell-message .bw-message-bubble { border: 0 !important; border-top: 3px double #c8d9df !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; color: #315868 !important; }
+[data-theme='vinyl'] .bw-chat-quote { background: linear-gradient(110deg,rgba(65,105,120,.14),rgba(217,139,82,.18)); color: #315868; }
 
 /* 输入中的三点动画 */
 @keyframes bw-typing {

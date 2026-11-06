@@ -35,7 +35,7 @@ import { useImgSrc } from '@/lib/useImgSrc'
 import { usePeriodStore } from '@/store/periodStore'
 import { periodChatNote } from '@/lib/period'
 import { parseTasks } from '@/store/taskStore'
-import { useThemeStore } from '@/store/themeStore'
+import { useThemeStore, type ThemeId } from '@/store/themeStore'
 import {
   AUTO_COMPACT_KEEP,
   SUMMARY_VERSION,
@@ -55,6 +55,66 @@ import {
 
 type PendingFile = NonNullable<Msg['file']>
 const MAX_FILE = 1.5 * 1024 * 1024 // 1.5MB（dataURL 存 localStorage，避免超额）
+
+const SHELL_THEMES = new Set<ThemeId>([
+  'paper', 'scrapbook', 'academy', 'mobile', 'letter', 'mistnote', 'nightglow', 'vinyl',
+])
+
+function ThemeMessageHeading({
+  theme,
+  me,
+  name,
+  avatarImg,
+  avatarEmoji,
+}: {
+  theme: ThemeId
+  me: boolean
+  name: string
+  avatarImg?: string
+  avatarEmoji: string
+}) {
+  const kicker = theme === 'vinyl'
+    ? 'REEL 24 / 33⅓ RPM'
+    : theme === 'letter'
+      ? 'LETTERS · AFTERGLOW'
+      : theme === 'mistnote'
+        ? 'LETTERS · MIST'
+        : theme === 'academy'
+          ? 'AUTUMN ACADEMY'
+          : theme === 'mobile'
+            ? 'PRIVATE LINE'
+            : theme === 'nightglow'
+              ? 'NIGHT LETTER'
+              : theme === 'scrapbook'
+                ? 'OUR SCRAPBOOK'
+                : 'FOG BLUE LETTER'
+
+  return (
+    <div className="bw-shell-heading">
+      <div className="bw-shell-kicker">{kicker}</div>
+      <div className="bw-shell-heading-row">
+        <div className="bw-shell-portrait-wrap">
+          <Avatar
+            img={avatarImg}
+            emoji={avatarEmoji}
+            className="bw-shell-portrait"
+            textCls="text-lg"
+          />
+          {theme === 'vinyl' && <span className="bw-shell-disc" aria-hidden="true" />}
+        </div>
+        <div className="bw-shell-copy">
+          <div className="bw-shell-name">{name}</div>
+          <div className="bw-shell-subtitle">
+            {me ? '我的消息' : theme === 'mobile' ? '他的来信' : 'PRIVATE LETTER'}
+          </div>
+        </div>
+        <div className="bw-shell-stamp" aria-hidden="true">
+          {theme === 'academy' ? (me ? 'B−' : 'A+') : theme === 'mobile' ? '●' : '✦'}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 /** 等页面回到前台再继续（已在前台立即返回）。iOS 切后台会冻结 JS、掐断网络，靠它在回前台后重试 */
 function waitUntilVisible(): Promise<void> {
@@ -1365,7 +1425,7 @@ export default function Chat() {
   const modelLabel = activeChannel?.model || config.chatModel || (connected ? '默认' : '未连接')
 
   return (
-    <div className="relative isolate flex h-full flex-col overflow-hidden pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+    <div className="bw-chat-shell relative isolate flex h-full flex-col overflow-hidden">
       {/* 聊天页背景：① 设了自定义背景图就只显示它(+变暗滑块)，不叠别的层(避免毛玻璃打架糊成灰)；
           ② 否则琉璃(粉)用雾化小猫；③ 其余主题跟随主题背景 + 一层柔白。 */}
       {chatBg ? (
@@ -1466,6 +1526,7 @@ export default function Chat() {
       <div className="bw-chat-messages space-y-4 px-4 pb-2 pt-3">
         {messages.map((m) => {
           const me = m.role === 'me'
+          const shelled = SHELL_THEMES.has(theme)
           const picked = selectMode && selected.has(m.id)
 
           // 任务卡：进行中的在右上角悬浮卡显示；完成/取消后落进对话成记录
@@ -1522,13 +1583,14 @@ export default function Chat() {
               className={[
                 'bw-message',
                 me ? 'bw-message-me' : 'bw-message-companion',
+                shelled ? `bw-shell-message bw-shell-${theme}` : '',
                 flat ? 'flex flex-col' : 'flex items-start gap-2',
                 !flat && me ? 'flex-row-reverse' : '',
                 selectMode ? 'cursor-pointer rounded-2xl p-1' : '',
                 picked ? 'bg-white/25 ring-2 ring-accent' : '',
               ].join(' ')}
             >
-              {!flat && (
+              {!flat && !shelled && (
                 <Avatar
                   img={me ? profile.avatarAImg : profile.avatarBImg}
                   emoji={me ? profile.avatarA : profile.avatarB}
@@ -1538,12 +1600,12 @@ export default function Chat() {
               )}
               <div
                 className={
-                  flat
+                  flat || shelled
                     ? `bw-message-body flex w-full min-w-0 flex-col ${me ? 'items-end' : ''}`
                     : `bw-message-body flex min-w-0 max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`
                 }
               >
-                {flat && (
+                {flat && !shelled && (
                   <div className={`mb-1 flex items-center gap-2 ${me ? 'flex-row-reverse' : ''}`}>
                     <Avatar
                       img={me ? profile.avatarAImg : profile.avatarBImg}
@@ -1555,6 +1617,15 @@ export default function Chat() {
                       {me ? profile.nameA || '我' : name}
                     </span>
                   </div>
+                )}
+                {shelled && (
+                  <ThemeMessageHeading
+                    theme={theme}
+                    me={me}
+                    name={me ? profile.nameA || '我' : name}
+                    avatarImg={me ? profile.avatarAImg : profile.avatarBImg}
+                    avatarEmoji={me ? profile.avatarA : profile.avatarB}
+                  />
                 )}
                 {m.image && (
                   <IdbImg
@@ -1655,7 +1726,7 @@ export default function Chat() {
                           </div>
                         )
                       })()}
-                      {m.text && <div className="whitespace-pre-wrap [overflow-wrap:anywhere]">{renderRichText(showLinks ? m.text : stripLinks(m.text))}</div>}
+                      {m.text && <div className="bw-message-content [overflow-wrap:anywhere]">{renderRichText(showLinks ? m.text : stripLinks(m.text))}</div>}
                     </div>
                   )
                 )}

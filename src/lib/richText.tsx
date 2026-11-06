@@ -10,8 +10,7 @@ function shortUrl(url: string): string {
   }
 }
 
-// 匹配 Markdown 链接 [label](url) 或 裸 http(s) 链接
-const LINK_RE = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s)]+)/g
+const RICH_TOKEN_RE = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s)]+)|“[^”\n]+”|「[^」\n]+」|『[^』\n]+』/g
 
 /**
  * 抹掉文本里的链接（联网引用），并清理残留的空括号/分隔符。
@@ -38,32 +37,52 @@ export function stripLinks(text: string): string {
  * - 裸链接 → 显示「域名 ↗」，点击打开
  * 其余文本原样返回（容器保留 whitespace-pre-wrap 即可换行）。
  */
-export function renderRichText(text: string): ReactNode {
+function renderInline(text: string, keyPrefix: string): ReactNode[] {
   const nodes: ReactNode[] = []
   let last = 0
   let m: RegExpExecArray | null
   let i = 0
-  LINK_RE.lastIndex = 0
-  while ((m = LINK_RE.exec(text)) !== null) {
+  RICH_TOKEN_RE.lastIndex = 0
+  while ((m = RICH_TOKEN_RE.exec(text)) !== null) {
     if (m.index > last) nodes.push(text.slice(last, m.index))
-    const mdLabel = m[1]
-    const mdUrl = m[2]
-    const bareUrl = m[3]
-    const url = mdUrl || bareUrl
-    const label = mdLabel || `${shortUrl(bareUrl)} ↗`
-    nodes.push(
-      <a
-        key={i++}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-accent underline decoration-accent/40 underline-offset-2 [overflow-wrap:anywhere]"
-      >
-        {label}
-      </a>,
-    )
+    if (m[1] || m[3]) {
+      const url = m[2] || m[3]
+      const label = m[1] || `${shortUrl(m[3])} ↗`
+      nodes.push(
+        <a
+          key={`${keyPrefix}-link-${i++}`}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent underline decoration-accent/40 underline-offset-2 [overflow-wrap:anywhere]"
+        >
+          {label}
+        </a>,
+      )
+    } else {
+      nodes.push(<span key={`${keyPrefix}-quote-${i++}`} className="bw-chat-quote">{m[0]}</span>)
+    }
     last = m.index + m[0].length
   }
   if (last < text.length) nodes.push(text.slice(last))
-  return nodes.length ? nodes : text
+  return nodes.length ? nodes : [text]
+}
+
+/**
+ * 除链接外，也给长回复补上稳定的“段落 / 台词 / 动作”语义。主题只负责装饰
+ * 这些语义类，因此切换主题不会改写或迁移任何聊天原文。
+ */
+export function renderRichText(text: string): ReactNode {
+  return text.split('\n').map((rawLine, index) => {
+    if (!rawLine.trim()) return <span key={`space-${index}`} className="bw-rich-spacer" aria-hidden="true" />
+    const trimmed = rawLine.trim()
+    const narration =
+      (/^[（(].+[）)]$/.test(trimmed) || /^\*[^*].*\*$/.test(trimmed))
+    const display = narration && /^\*.*\*$/.test(trimmed) ? trimmed.slice(1, -1) : rawLine
+    return (
+      <span key={`line-${index}`} className={`bw-rich-line${narration ? ' bw-chat-narration' : ''}`}>
+        {renderInline(display, `line-${index}`)}
+      </span>
+    )
+  })
 }
