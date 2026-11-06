@@ -26,12 +26,8 @@ if (isStandalone) document.documentElement.dataset.standalone = 'true'
 //   刘海与 Home Indicator。100dvh/visualViewport 在部分 WebKit 版本只覆盖安全区。
 let lastKeyboardInset = 0
 
-let vvEvents = 0
-let vvMinH = Infinity
 function syncViewport() {
   const vv = window.visualViewport
-  vvEvents++
-  if (vv) vvMinH = Math.min(vvMinH, vv.height)
   const root = document.documentElement
   let h = vv ? vv.height : window.innerHeight
   let top = vv ? vv.offsetTop : 0
@@ -79,7 +75,6 @@ function syncViewport() {
   root.style.setProperty('--app-height', `${Math.round(h)}px`)
   root.style.setProperty('--app-offset', `${Math.round(top)}px`)
   if (root.hasAttribute('data-keyboard')) resetContainerScroll()
-  writeKbDebug()
 }
 
 // iOS 聚焦输入框时会把 overflow:hidden 的外层容器（App 外壳、聊天壳）也滚上去露出光标，
@@ -97,37 +92,6 @@ function resetContainerScroll() {
   for (const el of els) if (el && el.scrollTop) el.scrollTop = 0
 }
 
-// 临时诊断：键盘打开时在屏幕顶部显示一行视口读数，便于真机截图定位（确认修好后删除）。
-function writeKbDebug() {
-  const root = document.documentElement
-  let el = document.getElementById('bw-kb-debug')
-  const ae = document.activeElement
-  const typing = !!ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT')
-  if (!root.hasAttribute('data-keyboard') && !typing) {
-    el?.remove()
-    return
-  }
-  const shell = document.getElementById('bw-app-shell')
-  if (!el || el.parentElement !== shell) {
-    el?.remove()
-    el = document.createElement('div')
-    el.id = 'bw-kb-debug'
-    // 挂在 App 壳里、放在中间偏上：不管 iOS 把页面推到哪里，这一段总在可见区。
-    el.style.cssText =
-      'position:absolute;left:6px;right:6px;top:38%;z-index:99999;font:11px/1.35 ui-monospace,monospace;color:#fff;background:rgba(0,0,0,.72);padding:4px 7px;border-radius:6px;pointer-events:none;white-space:pre-wrap'
-    ;(shell ?? document.body).appendChild(el)
-  }
-  const vv = window.visualViewport
-  const comp = document.querySelector('.bw-chat-composer')
-  const r = (n?: number) => (n == null ? '-' : Math.round(n))
-  const st = [document.documentElement, document.body, shell, shell?.firstElementChild, document.querySelector('.bw-chat-shell'), document.querySelector('.bw-chat-shell')?.parentElement]
-    .map((e) => r(e?.scrollTop))
-    .join('/')
-  el.textContent =
-    `#${vvEvents} min ${r(vvMinH)} kb ${root.hasAttribute('data-keyboard') ? 1 : 0} sa ${isStandalone ? 1 : 0} vv ${r(vv?.height)}+${r(vv?.offsetTop)} inner ${window.innerHeight} scr ${screen.height} sy ${r(window.scrollY)}\n` +
-    `app ${root.style.getPropertyValue('--app-height')} off ${root.style.getPropertyValue('--app-offset')} kb ${root.style.getPropertyValue('--keyboard-inset')}\n` +
-    `shell ${r(shell?.getBoundingClientRect().top)}..${r(shell?.getBoundingClientRect().bottom)} comp ${r(comp?.getBoundingClientRect().top)}..${r(comp?.getBoundingClientRect().bottom)} st ${st}`
-}
 syncViewport()
 window.visualViewport?.addEventListener('resize', syncViewport)
 window.visualViewport?.addEventListener('scroll', syncViewport)
