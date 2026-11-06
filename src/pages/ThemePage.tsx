@@ -9,8 +9,10 @@ export default function ThemePage() {
       {/* 整条顶栏吸顶：横跨全宽、盖住刘海，滚动时「← 设置」和标题一起固定。
           负边距抵消 main 的左右/顶部内边距，再用同样的内边距把内容放回原位。 */}
       <div
-        className="sticky top-0 z-20 -mx-5 px-5 pb-3"
+        className="sticky z-20 -mx-5 px-5 pb-2"
         style={{
+          // WebKit 的 sticky 以 main 的内容区为准（已让出刘海），这里上移同样距离贴到屏幕顶。
+          top: 'calc(-1 * max(0.75rem, env(safe-area-inset-top)))',
           marginTop: 'calc(-1 * max(0.75rem, env(safe-area-inset-top)))',
           paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
           background: 'linear-gradient(var(--card-strong), var(--card-strong)), var(--bg-to)',

@@ -362,7 +362,10 @@ export default function Chat() {
   const selectedMsgs = messages.filter((m) => selected.has(m.id))
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' })
+    // 只滚消息列表本身；scrollIntoView 会连 App 外壳等 overflow:hidden 容器一起滚，顶栏被推走。
+    const box = scrollRef.current
+    if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' })
+    else endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [messages, sending])
 
   // 有进行中的任务时每秒刷新倒计时；切回前台立刻按本地真实时间同步

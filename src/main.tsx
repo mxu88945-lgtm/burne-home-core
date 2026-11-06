@@ -70,6 +70,51 @@ function syncViewport() {
 
   root.style.setProperty('--app-height', `${Math.round(h)}px`)
   root.style.setProperty('--app-offset', `${Math.round(top)}px`)
+  if (root.hasAttribute('data-keyboard')) resetContainerScroll()
+  writeKbDebug()
+}
+
+// iOS 聚焦输入框时会把 overflow:hidden 的外层容器（App 外壳、聊天壳）也滚上去露出光标，
+// 这些容器不会自己滚回来：顶栏被推出屏幕、输入框下半截跑到键盘后面。逐层复位。
+function resetContainerScroll() {
+  const els: (Element | null)[] = [
+    document.documentElement,
+    document.body,
+    document.getElementById('root'),
+    document.getElementById('bw-app-shell'),
+    document.getElementById('bw-app-shell')?.firstElementChild ?? null,
+    document.querySelector('.bw-chat-shell'),
+    document.querySelector('.bw-chat-shell')?.parentElement ?? null,
+  ]
+  for (const el of els) if (el && el.scrollTop) el.scrollTop = 0
+}
+
+// 临时诊断：键盘打开时在屏幕顶部显示一行视口读数，便于真机截图定位（确认修好后删除）。
+function writeKbDebug() {
+  const root = document.documentElement
+  let el = document.getElementById('bw-kb-debug')
+  if (!root.hasAttribute('data-keyboard')) {
+    el?.remove()
+    return
+  }
+  if (!el) {
+    el = document.createElement('div')
+    el.id = 'bw-kb-debug'
+    el.style.cssText =
+      'position:fixed;left:6px;right:6px;top:calc(env(safe-area-inset-top) + 2px);z-index:99999;font:10px/1.3 ui-monospace,monospace;color:#fff;background:rgba(0,0,0,.6);padding:3px 6px;border-radius:6px;pointer-events:none;white-space:pre-wrap'
+    document.body.appendChild(el)
+  }
+  const vv = window.visualViewport
+  const shell = document.getElementById('bw-app-shell')
+  const comp = document.querySelector('.bw-chat-composer')
+  const r = (n?: number) => (n == null ? '-' : Math.round(n))
+  const st = [document.documentElement, document.body, shell, shell?.firstElementChild, document.querySelector('.bw-chat-shell'), document.querySelector('.bw-chat-shell')?.parentElement]
+    .map((e) => r(e?.scrollTop))
+    .join('/')
+  el.textContent =
+    `vv ${r(vv?.height)}+${r(vv?.offsetTop)} inner ${window.innerHeight} scr ${screen.height} sy ${r(window.scrollY)}\n` +
+    `app ${root.style.getPropertyValue('--app-height')} off ${root.style.getPropertyValue('--app-offset')} kb ${root.style.getPropertyValue('--keyboard-inset')}\n` +
+    `shell ${r(shell?.getBoundingClientRect().top)}..${r(shell?.getBoundingClientRect().bottom)} comp ${r(comp?.getBoundingClientRect().top)}..${r(comp?.getBoundingClientRect().bottom)} st ${st}`
 }
 syncViewport()
 window.visualViewport?.addEventListener('resize', syncViewport)
