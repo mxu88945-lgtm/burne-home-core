@@ -1739,7 +1739,7 @@ export default function Chat() {
                 )}
 
                 {!selectMode && editingId !== m.id && !streamingIds.has(m.id) && (
-                  <div className="mt-2 flex flex-wrap items-center gap-3.5 px-1 text-muted">
+                  <div className="bw-message-actions mt-2 flex flex-wrap items-center gap-3.5 px-1 text-muted">
                     <span className="text-[10px]">{m.at}</span>
                     {!me && ttsEnabled && m.text.trim() && (
                       <button

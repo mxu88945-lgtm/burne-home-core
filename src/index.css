@@ -444,7 +444,11 @@ html[data-standalone='true'][data-keyboard] .bw-chat-shell {
   font-size: 15px !important;
   line-height: 1.9 !important;
 }
-.bw-shell-message.bw-message-me { width: min(88%, 520px); margin-left: auto; }
+.bw-shell-message.bw-message-me { width: fit-content; min-width: min(64%, 260px); max-width: min(88%, 520px); margin-left: auto; }
+/* 我的消息：卡片随内容收缩靠右，正文气泡也只包住文字并贴右，时间/按钮行靠右。 */
+.bw-shell-message.bw-message-me .bw-message-body { align-items: flex-end !important; }
+.bw-shell-message.bw-message-me .bw-message-bubble { width: fit-content; max-width: 100%; margin-left: auto; }
+.bw-shell-message.bw-message-me .bw-message-actions { justify-content: flex-end; }
 .bw-shell-message.bw-message-me .bw-shell-heading-row { flex-direction: row-reverse; text-align: right; }
 .bw-shell-message.bw-message-me .bw-shell-kicker { text-align: right; }
 .bw-shell-message .bw-message-content { min-width: 0; }
