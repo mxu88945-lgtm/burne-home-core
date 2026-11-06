@@ -445,6 +445,8 @@ html[data-standalone='true'][data-keyboard] .bw-chat-shell {
   line-height: 1.9 !important;
 }
 .bw-shell-message.bw-message-me { width: fit-content; min-width: min(64%, 260px); max-width: min(88%, 520px); margin-left: auto; }
+.bw-shell-message.bw-message-companion { width: fit-content; min-width: min(64%, 260px); max-width: 100%; margin-right: auto; }
+.bw-shell-message.bw-message-companion .bw-message-bubble { width: fit-content; max-width: 100%; }
 /* 我的消息：卡片随内容收缩靠右，正文气泡也只包住文字并贴右，时间/按钮行靠右。 */
 .bw-shell-message.bw-message-me .bw-message-body { align-items: flex-end !important; }
 .bw-shell-message.bw-message-me .bw-message-bubble { width: fit-content; max-width: 100%; margin-left: auto; }
