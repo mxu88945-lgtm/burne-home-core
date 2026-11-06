@@ -22,6 +22,14 @@ describe('rich chat text semantics', () => {
     expect(html).toContain('我低笑了一声')
   })
 
+  it('treats straight ASCII double quotes (Claude style) as dialogue too', () => {
+    const html = renderToStaticMarkup(
+      <div>{renderRichText('"……江屹琛？"\n"顾祁砚……"我低声说')}</div>,
+    )
+    expect(html.match(/bw-quote-line/g)?.length).toBe(1)
+    expect(html.match(/bw-chat-quote/g)?.length).toBe(2)
+  })
+
   it('keeps links clickable inside formatted paragraphs', () => {
     const html = renderToStaticMarkup(
       <div>{renderRichText('资料：[OpenAI](https://openai.com)')}</div>,
