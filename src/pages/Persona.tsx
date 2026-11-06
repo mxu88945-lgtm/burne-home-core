@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { usePersonaStore } from '@/store/personaStore'
+import { usePersonaStore, type PromptPreset } from '@/store/personaStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { useProfileStore } from '@/store/profileStore'
 
@@ -20,6 +20,28 @@ export default function Persona() {
   const allowTasks = useChatPrefsStore((s) => s.allowTasks)
   const toggleAllowTasks = useChatPrefsStore((s) => s.toggleAllowTasks)
   const [promptOpen, setPromptOpen] = useState(false)
+  const [openPresetId, setOpenPresetId] = useState('')
+  const presets = persona.presets ?? []
+  const enabledCount = presets.filter((p) => p.enabled && p.content.trim()).length
+  function savePresets(next: PromptPreset[]) {
+    setPersona({ presets: next })
+  }
+  function patchPreset(id: string, patch: Partial<PromptPreset>) {
+    savePresets(presets.map((p) => (p.id === id ? { ...p, ...patch } : p)))
+  }
+  function addPreset() {
+    const id = `preset-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+    savePresets([...presets, { id, name: '新预设', content: '', enabled: true }])
+    setOpenPresetId(id)
+  }
+  function movePreset(id: string, dir: -1 | 1) {
+    const i = presets.findIndex((p) => p.id === id)
+    const j = i + dir
+    if (i < 0 || j < 0 || j >= presets.length) return
+    const next = [...presets]
+    ;[next[i], next[j]] = [next[j], next[i]]
+    savePresets(next)
+  }
 
   return (
     <div className="space-y-5">
@@ -116,6 +138,91 @@ export default function Persona() {
             </div>
           </>
         )}
+      </section>
+
+      {/* 系统指令 */}
+      <section className="glass rounded-3xl p-5 space-y-2">
+        <div className="label">System Instruction · 系统指令</div>
+        <p className="text-[11px] text-muted">
+          不会替换上面的灵魂设定；专门补充给模型的执行、输出与格式要求，下一条消息起生效。
+        </p>
+        <textarea
+          className={inputCls + ' min-h-[140px] leading-relaxed'}
+          placeholder="例如：回复用中文；动作用（）括起来；不要替我说话或做决定……"
+          value={persona.systemInstruction ?? ''}
+          onChange={(e) => setPersona({ systemInstruction: e.target.value })}
+        />
+        <div className="text-right text-[11px] text-muted">{(persona.systemInstruction ?? '').length} 字</div>
+      </section>
+
+      {/* 预设 */}
+      <section className="glass rounded-3xl p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="label">Presets · 预设</span>
+          <button type="button" onClick={addPreset} className="btn-primary rounded-full px-3 py-1 text-[12px]">
+            ＋ 添加
+          </button>
+        </div>
+        <p className="text-[11px] text-muted">
+          启用的条目会和人设一起发给模型，顺序就是注入顺序；关掉后内容保留但不发送。
+          {presets.length ? ` 已启用 ${enabledCount} / ${presets.length}。` : ''}
+        </p>
+        {presets.map((p, i) => {
+          const open = openPresetId === p.id
+          return (
+            <div key={p.id} className="rounded-2xl border border-line bg-white/40 p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={p.enabled}
+                  onChange={(e) => patchPreset(p.id, { enabled: e.target.checked })}
+                  className="h-4 w-4 flex-none accent-accent"
+                  aria-label="启用"
+                />
+                <input
+                  className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none"
+                  value={p.name}
+                  placeholder="预设名称"
+                  onChange={(e) => patchPreset(p.id, { name: e.target.value })}
+                />
+                <button type="button" disabled={i === 0} onClick={() => movePreset(p.id, -1)} className="px-1 text-[12px] text-muted disabled:opacity-30">↑</button>
+                <button type="button" disabled={i === presets.length - 1} onClick={() => movePreset(p.id, 1)} className="px-1 text-[12px] text-muted disabled:opacity-30">↓</button>
+                <button type="button" onClick={() => setOpenPresetId(open ? '' : p.id)} className="px-1 text-[12px] text-accent">
+                  {open ? '收起' : '编辑'}
+                </button>
+              </div>
+              {open ? (
+                <>
+                  <textarea
+                    autoFocus
+                    className={inputCls + ' min-h-[180px] leading-relaxed'}
+                    placeholder="预设内容，比如写作风格、文风、禁词、输出格式……"
+                    value={p.content}
+                    onChange={(e) => patchPreset(p.id, { content: e.target.value })}
+                  />
+                  <div className="flex items-center justify-between text-[11px] text-muted">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm(`删除预设「${p.name || '未命名预设'}」？`)) {
+                          savePresets(presets.filter((x) => x.id !== p.id))
+                        }
+                      }}
+                      className="text-red-500"
+                    >
+                      删除
+                    </button>
+                    <span>{p.content.length} 字</span>
+                  </div>
+                </>
+              ) : (
+                p.content.trim() && (
+                  <p className="line-clamp-2 whitespace-pre-wrap text-[11px] text-muted [overflow-wrap:anywhere]">{p.content}</p>
+                )
+              )}
+            </div>
+          )
+        })}
       </section>
 
       {/* 模型参数 */}

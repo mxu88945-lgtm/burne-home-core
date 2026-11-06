@@ -26,7 +26,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
     items: [
       { to: '/settings/appearance', Icon: ImageIcon, title: '形象 · 外观', sub: '头像 · 聊天背景' },
       { to: '/theme', Icon: PaletteIcon, title: '主题', sub: '外观配色' },
-      { to: '/persona', Icon: PersonIcon, title: '角色人设', sub: '灵魂设定与参数' },
+      { to: '/persona', Icon: PersonIcon, title: '角色人设 · 系统提示词', sub: '灵魂设定、系统指令、预设与参数' },
     ],
   },
   {

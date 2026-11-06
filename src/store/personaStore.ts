@@ -14,6 +14,10 @@ export interface Persona {
   status: string
   /** 灵魂设定 / 身份 / 资料 —— 作为 system prompt */
   systemPrompt: string
+  /** 系统指令：独立附加，不替换灵魂设定；专门写执行/输出/格式要求 */
+  systemInstruction?: string
+  /** 预设条目：启用的按顺序和人设一起发给模型；关掉保留内容但不发送 */
+  presets?: PromptPreset[]
   /** 采样温度 */
   temperature: number
   /** 最大回复 tokens */
@@ -22,6 +26,25 @@ export interface Persona {
   reasoning?: boolean
   /** 思考强度（开思考时生效）：auto=交给模型自己定，默认 auto */
   reasoningEffort?: 'auto' | 'low' | 'medium' | 'high'
+}
+
+export interface PromptPreset {
+  id: string
+  name: string
+  content: string
+  enabled: boolean
+}
+
+/** 把系统指令 + 启用的预设拼成一段，接在灵魂设定后面发给模型 */
+export function buildPersonaExtras(p: Persona): string {
+  const parts: string[] = []
+  for (const item of p.presets ?? []) {
+    if (item.enabled && item.content.trim()) {
+      parts.push(`【预设 · ${item.name.trim() || '未命名预设'}】\n${item.content.trim()}`)
+    }
+  }
+  if (p.systemInstruction?.trim()) parts.push(`【系统指令】\n${p.systemInstruction.trim()}`)
+  return parts.join('\n\n')
 }
 
 const DEFAULT_PERSONA: Persona = {

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useProfileStore } from '@/store/profileStore'
-import { usePersonaStore } from '@/store/personaStore'
+import { usePersonaStore, buildPersonaExtras } from '@/store/personaStore'
 import { useSyncStore } from '@/store/syncStore'
 import { useApiStore } from '@/store/apiStore'
 import { useUsageStore } from '@/store/usageStore'
@@ -1065,7 +1065,8 @@ export default function Chat() {
       hour: '2-digit',
       minute: '2-digit',
     })
-    let system = `${base}\n\n（当前用户本地时间：${localTime}，回应时可自然参考，不必刻意复述。）`
+    const extras = buildPersonaExtras(persona)
+    let system = `${base}${extras ? `\n\n${extras}` : ''}\n\n（当前用户本地时间：${localTime}，回应时可自然参考，不必刻意复述。）`
     if (rollingSummary?.text.trim()) {
       system +=
         `\n\n【较早对话·连续性档案】\n${rollingSummary.text.trim()}\n` +
