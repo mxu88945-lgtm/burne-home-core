@@ -99,7 +99,7 @@ window.addEventListener('resize', syncViewport)
 window.addEventListener('orientationchange', syncViewport)
 // iOS 聚焦输入框后会再滚一次页面，但不一定再发 visualViewport 事件：补测几次。
 document.addEventListener('focusin', () => {
-  for (const ms of [60, 250, 500]) window.setTimeout(syncViewport, ms)
+  for (const ms of [60, 250, 500, 800, 1200]) window.setTimeout(syncViewport, ms)
 })
 document.addEventListener('focusout', () => window.setTimeout(syncViewport, 250))
 
