@@ -11,10 +11,8 @@ const NS = 'burne-home-core:'
 
 /** 各存储 key 的中文名 + 太大时该怎么办 */
 const KEY_INFO: Record<string, { label: string; hint?: string }> = {
-  drama: { label: '戏剧（剧本+对话+角色卡）', hint: '删掉不玩的旧剧本，或对旧会话用 ⋮→♻️重启对话' },
   chat: { label: '主聊天记录', hint: '删掉不需要的旧会话' },
   phone: { label: '小手机', hint: '删掉不需要的旧会话' },
-  'char-lib': { label: '角色卡库', hint: '删掉不用的角色卡（世界书/正则多的卡很占地方）' },
   memories: { label: '记忆库' },
   appearance: { label: '外观（背景设置）', hint: '背景图已自动搬去大仓库，这里应该很小' },
   stickers: { label: '表情贴纸', hint: '删掉不用的图片贴纸' },

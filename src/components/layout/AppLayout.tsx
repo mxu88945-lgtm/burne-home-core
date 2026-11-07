@@ -8,8 +8,6 @@ import { usePhoneStore } from '@/store/phoneStore'
 import { useAppearanceStore } from '@/store/appearanceStore'
 import { useProfileStore } from '@/store/profileStore'
 import { useStickerStore } from '@/store/stickerStore'
-import { useDramaStore } from '@/store/dramaStore'
-import { useCharLibStore } from '@/store/charLibStore'
 import { idbSet } from '@/lib/idb'
 import plushBg from '@/assets/themes/plush-bg'
 
@@ -125,37 +123,6 @@ export default function AppLayout() {
         }
       }
 
-      // 戏剧各剧场成员头像
-      const dr = useDramaStore.getState()
-      if (dr.scenes.some((s) => s.chars.some((c) => c.avatarImg?.startsWith('data:')))) {
-        const scenes = await Promise.all(
-          dr.scenes.map(async (s) => ({
-            ...s,
-            chars: await Promise.all(
-              s.chars.map(async (c) => {
-                if (!c.avatarImg?.startsWith('data:')) return c
-                await idbSet(`av:mig-d-${c.id}`, c.avatarImg)
-                return { ...c, avatarImg: `idb:av:mig-d-${c.id}` }
-              }),
-            ),
-          })),
-        )
-        dr.replaceScenes(scenes)
-      }
-
-      // 角色库头像
-      const cl = useCharLibStore.getState()
-      if (cl.chars.some((c) => c.avatarImg?.startsWith('data:'))) {
-        const chars = await Promise.all(
-          cl.chars.map(async (c) => {
-            if (!c.avatarImg?.startsWith('data:')) return c
-            await idbSet(`av:mig-l-${c.id}`, c.avatarImg)
-            return { ...c, avatarImg: `idb:av:mig-l-${c.id}` }
-          }),
-        )
-        cl.replaceChars(chars)
-      }
-
       localStorage.setItem(KEY, '1')
     } catch (e) {
       console.warn('[img-mig4] 迁移失败，下次再试', e)
@@ -170,7 +137,7 @@ export default function AppLayout() {
     void (async () => {
       try {
         const ap = useAppearanceStore.getState().appearance
-        for (const field of ['chatBg', 'dramaBg'] as const) {
+        for (const field of ['chatBg'] as const) {
           const v = ap[field]
           if (v.startsWith('data:')) {
             const k = `bg:mig-${field}`

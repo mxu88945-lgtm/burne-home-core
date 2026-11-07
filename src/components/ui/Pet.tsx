@@ -10,7 +10,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { usePetStore, PET_CHOICES } from '@/store/petStore'
-import { useDramaStore } from '@/store/dramaStore'
 import { useChatStore } from '@/store/chatStore'
 import PetCritter, { type PetVariant } from '@/components/ui/PetCritter'
 
@@ -26,9 +25,8 @@ export default function Pet() {
   const { enabled, emoji, x, y, setPos } = usePetStore()
 
   // 全站新消息计数（当前戏剧场景 + 当前 1v1 会话）→ 增长时冒气泡
-  const dramaLen = useDramaStore((s) => s.scenes.find((sc) => sc.id === s.activeId)?.messages.length ?? 0)
   const chatLen = useChatStore((s) => s.sessions.find((c) => c.id === s.activeId)?.messages.length ?? 0)
-  const total = dramaLen + chatLen
+  const total = chatLen
 
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setLocalPos] = useState({ x, y })

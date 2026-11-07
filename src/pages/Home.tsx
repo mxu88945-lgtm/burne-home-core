@@ -2,11 +2,10 @@ import { Link } from 'react-router-dom'
 import type { ComponentType } from 'react'
 import { useProfileStore, daysTogether } from '@/store/profileStore'
 import { useChatStore } from '@/store/chatStore'
-import { useDramaStore } from '@/store/dramaStore'
 import { usePeriodStore } from '@/store/periodStore'
 import { computeStat } from '@/lib/period'
 import { EditIcon } from '@/components/ui/icons'
-import { PhoneIcon, ChatIcon, DatabaseIcon, BookIcon, UsersIcon, GearIcon, HeartIcon } from '@/components/ui/navIcons'
+import { PhoneIcon, ChatIcon, DatabaseIcon, BookIcon, GearIcon, HeartIcon } from '@/components/ui/navIcons'
 import Avatar from '@/components/ui/Avatar'
 
 const avatarStyle = {
@@ -57,7 +56,6 @@ function QuickEntry({
 export default function Home() {
   const { profile, setProfile } = useProfileStore()
   const openLatest = useChatStore((s) => s.openLatest)
-  const hasDrama = useDramaStore((s) => s.scenes.length > 0)
   const periodDays = usePeriodStore((s) => s.days)
   const periodLen = usePeriodStore((s) => s.periodLen)
   const pstat = computeStat(periodDays, periodLen)
@@ -193,9 +191,9 @@ export default function Home() {
       <section className="grid grid-cols-2 gap-2.5">
         <QuickEntry to="/memories" Icon={DatabaseIcon} title="我们的记忆" sub="摘要 · 核心 · 全部" tint="#b191e0" />
         <QuickEntry to="/reading" Icon={BookIcon} title="一起看书" sub="和 TA 共读一本书" tint="#e6a760" />
-        {/* 有剧场→直接进聊天房间（☰ 抽屉里切对话）；还没有→落地管理页新建 */}
-        <QuickEntry to={hasDrama ? '/drama/room' : '/drama'} Icon={UsersIcon} title="戏剧" sub="多角色群聊 · 扮演" tint="#ef7a9b" />
-        <QuickEntry to="/settings" Icon={GearIcon} title="设置" sub="同步 · 备份 · 隐私" tint="#5cb6a6" />
+        <div className="col-span-2 grid">
+          <QuickEntry to="/settings" Icon={GearIcon} title="设置" sub="同步 · 备份 · 隐私" tint="#5cb6a6" />
+        </div>
       </section>
 
       <button

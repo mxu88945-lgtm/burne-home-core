@@ -73,7 +73,6 @@ export default function AppearanceManager() {
   const setMusicEnabled = useMusicStore((s) => s.setEnabled)
   const [err, setErr] = useState('')
   const chatBgSrc = useImgSrc(appearance.chatBg)
-  const dramaBgSrc = useImgSrc(appearance.dramaBg)
 
   return (
     <div className="space-y-3">
@@ -344,77 +343,9 @@ export default function AppearanceManager() {
         </p>
       </div>
 
-      {/* 戏剧背景（剧场列表 + 戏剧房间） */}
-      <div className="glass rounded-2xl p-4 space-y-2">
-        <div className="label">戏剧背景</div>
-        <div className="flex items-center gap-3">
-          <div
-            className="h-14 w-14 shrink-0 rounded-xl bg-cover bg-center"
-            style={{
-              backgroundImage: dramaBgSrc ? `url(${dramaBgSrc})` : undefined,
-              backgroundColor: dramaBgSrc ? undefined : 'var(--card-strong)',
-              border: '1px solid var(--card-border)',
-            }}
-          />
-          <div className="flex flex-wrap items-center gap-2">
-            <UploadButton
-              label="上传背景"
-              maxSize={1280}
-              onPicked={(d) => update({ dramaBg: d })}
-              onError={setErr}
-            />
-            {appearance.dramaBg && (
-              <button
-                type="button"
-                onClick={() => update({ dramaBg: '' })}
-                className="text-[11px] text-muted hover:text-accent"
-              >
-                移除背景
-              </button>
-            )}
-          </div>
-        </div>
-        {!appearance.dramaBg && (
-          <p className="text-[11px] text-muted">作用于剧场列表 + 戏剧房间。上传后这里会出现 模糊 / 毛玻璃 可以调。</p>
-        )}
-        {appearance.dramaBg && (
-          <div className="space-y-3">
-            <label className="block text-[12px] text-muted">
-              <div className="mb-1 flex justify-between">
-                <span>模糊</span>
-                <span>{appearance.dramaBgBlur}px</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={20}
-                step={1}
-                value={appearance.dramaBgBlur}
-                onChange={(e) => update({ dramaBgBlur: Number(e.target.value) })}
-                className="w-full accent-accent"
-              />
-            </label>
-            <label className="block text-[12px] text-muted">
-              <div className="mb-1 flex justify-between">
-                <span>毛玻璃（白纱 · 越大文字越清楚）</span>
-                <span>{Math.round(appearance.dramaBgFrost * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={0.7}
-                step={0.05}
-                value={appearance.dramaBgFrost}
-                onChange={(e) => update({ dramaBgFrost: Number(e.target.value) })}
-                className="w-full accent-accent"
-              />
-            </label>
-          </div>
-        )}
-      </div>
 
       <p className="text-[11px] text-muted leading-relaxed">
-        图片会自动压缩、只保存在本设备浏览器，不会上传或进入仓库。背景作用于聊天页和戏剧页。
+        图片会自动压缩、只保存在本设备浏览器，不会上传或进入仓库。背景作用于聊天页。
       </p>
     </div>
   )

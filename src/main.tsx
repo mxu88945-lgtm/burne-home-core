@@ -3,8 +3,6 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 import { applyChatFont, applyTheme, readStoredChatFont, readStoredTheme } from '@/store/themeStore'
-import { hydrateDramaStore } from '@/store/dramaStore'
-import { hydrateCharLibStore } from '@/store/charLibStore'
 import { resolveStandaloneFrame } from '@/lib/viewportGeometry'
 
 // 渲染前先应用已保存的主题，避免首屏闪烁
@@ -122,15 +120,32 @@ window.addEventListener('bw:storage-write-failed', () => {
   window.alert('⚠️ 本地大仓库刚才没有写入成功。请先不要关闭页面，确认手机存储空间后重试刚才的操作。')
 })
 
-async function startApp() {
+async function purgeRemovedDrama() {
+  const FLAG = 'burne-home-core:drama-purged'
   try {
-    // 两个最大文本仓先恢复/迁移，再渲染页面，避免空状态误覆盖旧数据。
-    await Promise.all([hydrateDramaStore(), hydrateCharLibStore()])
+    if (localStorage.getItem(FLAG)) return
+    const { idbDel } = await import('@/lib/idb')
+    for (const key of ['burne-home-core:drama', 'burne-home-core:char-lib']) {
+      localStorage.removeItem(key)
+      await idbDel(`state:${key}`)
+    }
+    const bgRaw = localStorage.getItem('burne-home-core:appearance')
+    if (bgRaw) {
+      const ap = JSON.parse(bgRaw) as { state?: Record<string, unknown> } & Record<string, unknown>
+      const box = (ap.state && typeof ap.state === 'object' ? ap.state : ap) as Record<string, unknown>
+      const target = (box.appearance && typeof box.appearance === 'object' ? box.appearance : box) as Record<string, unknown>
+      const ref = target.dramaBg
+      if (typeof ref === 'string' && ref.startsWith('idb:')) await idbDel(ref.slice(4))
+    }
+    localStorage.setItem(FLAG, '1')
   } catch (err) {
-    console.error('[startup] 大仓库恢复失败', err)
-    window.alert('本地数据仓库暂时读取失败，请不要编辑或删除内容。刷新页面重试；原数据仍保留在本机。')
-    return
+    console.warn('[drama-purge] 清理失败，下次启动再试', err)
   }
+}
+
+async function startApp() {
+  // 戏剧板块已删除（2026-11-07 她决定：剧情交给惟境/顾祁砚剧场）。一次性清掉戏剧与角色卡库的本地数据，失败不挡启动。
+  void purgeRemovedDrama()
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <App />
