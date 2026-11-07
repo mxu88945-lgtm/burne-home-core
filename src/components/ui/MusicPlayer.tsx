@@ -171,6 +171,7 @@ export default function MusicPlayer() {
     try {
       for (const f of all) {
         if (/\.(lrc|txt)$/i.test(f.name)) continue
+        if (/^(image|video)\//.test(f.type)) continue
         const id = musicTrackId()
         await idbSet(`music:${id}`, f)
         const lrc = lrcs.find((l) => base(l.name) === base(f.name))
@@ -239,11 +240,10 @@ export default function MusicPlayer() {
 
   return createPortal(
     <section className="glass rounded-2xl px-4 py-3">
-      <input ref={fileRef} type="file" accept="audio/*,.lrc,.txt" multiple className="hidden" onChange={(e) => { void onFiles(e.target.files); e.target.value = '' }} />
+      <input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => { void onFiles(e.target.files); e.target.value = '' }} />
       <input
         ref={lyricFileRef}
         type="file"
-        accept=".lrc,.txt,text/plain"
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0]
