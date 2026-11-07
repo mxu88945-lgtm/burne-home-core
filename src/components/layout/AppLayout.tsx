@@ -160,6 +160,8 @@ export default function AppLayout() {
   const isHome = pathname === '/'
   // 聊天页 / 小手机自管头部与内边距（沉浸式）；首页用全局顶栏；其余页自带返回头
   const isChat = pathname === '/chat' || pathname === '/phone'
+  // 设置页：顶部安全区交给 StickyBar 自己留（main 再留一次会让固定横幅往下掉一截）
+  const isSettings = pathname.startsWith('/settings')
 
   return (
     // 滚动锁：固定壳 + 可视视口尺寸/位移，键盘弹出时整体贴住键盘上方
@@ -185,6 +187,8 @@ export default function AppLayout() {
               ? 'min-h-0 flex-1 overflow-y-auto'
               : isHome
                 ? 'min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-1'
+                : isSettings
+                  ? 'min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-0'
                 : 'min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-[max(0.75rem,env(safe-area-inset-top))]'
           }
         >
