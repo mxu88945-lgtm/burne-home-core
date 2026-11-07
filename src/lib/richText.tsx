@@ -10,7 +10,7 @@ function shortUrl(url: string): string {
   }
 }
 
-const RICH_TOKEN_RE = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s)]+)|“[^”\n]+”|"[^"\n]+"|「[^」\n]+」|『[^』\n]+』/g
+const RICH_TOKEN_RE = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s)]+)|“[^”\n]+”|"[^"\n]+"|「[^」\n]+」|『[^』\n]+』|\*\*([^*\n]+?)\*\*|\*([^*\n]+?)\*/g
 
 /**
  * 抹掉文本里的链接（联网引用），并清理残留的空括号/分隔符。
@@ -42,8 +42,9 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
   let last = 0
   let m: RegExpExecArray | null
   let i = 0
-  RICH_TOKEN_RE.lastIndex = 0
-  while ((m = RICH_TOKEN_RE.exec(text)) !== null) {
+  // 每次调用用自己的正则实例：粗体/旁白里会递归调用，共用全局 lastIndex 会死循环
+  const re = new RegExp(RICH_TOKEN_RE.source, 'g')
+  while ((m = re.exec(text)) !== null) {
     if (m.index > last) nodes.push(text.slice(last, m.index))
     if (m[1] || m[3]) {
       const url = m[2] || m[3]
@@ -59,6 +60,12 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
           {label}
         </a>,
       )
+    } else if (m[4]) {
+      // **粗体**：去掉星号，里面的对白照样高亮
+      nodes.push(<strong key={`${keyPrefix}-b-${i++}`} className="bw-rich-strong">{renderInline(m[4], `${keyPrefix}-b${i}`)}</strong>)
+    } else if (m[5]) {
+      // *动作*：行内旁白
+      nodes.push(<span key={`${keyPrefix}-em-${i++}`} className="bw-chat-narration">{renderInline(m[5], `${keyPrefix}-em${i}`)}</span>)
     } else {
       nodes.push(<span key={`${keyPrefix}-quote-${i++}`} className="bw-chat-quote">{m[0]}</span>)
     }
@@ -76,6 +83,17 @@ export function renderRichText(text: string): ReactNode {
   return text.split('\n').map((rawLine, index) => {
     if (!rawLine.trim()) return <span key={`space-${index}`} className="bw-rich-spacer" aria-hidden="true" />
     const trimmed = rawLine.trim()
+    // Markdown 分隔线 --- / *** / ___
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) return <hr key={`hr-${index}`} className="bw-rich-hr" />
+    // Markdown 标题 # ~ ######：去掉井号，加粗成小标题
+    const heading = /^#{1,6}\s+(.+)$/.exec(trimmed)
+    if (heading) {
+      return (
+        <span key={`h-${index}`} className="bw-rich-line bw-rich-heading">
+          {renderInline(heading[1].replace(/\s*#+$/, ''), `h-${index}`)}
+        </span>
+      )
+    }
     const narration =
       (/^[（(].+[）)]$/.test(trimmed) || /^\*[^*].*\*$/.test(trimmed))
     const display = narration && /^\*.*\*$/.test(trimmed) ? trimmed.slice(1, -1) : rawLine

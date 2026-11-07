@@ -37,4 +37,17 @@ describe('rich chat text semantics', () => {
     expect(html).toContain('href="https://openai.com"')
     expect(html).toContain('OpenAI')
   })
+
+  it('renders markdown bold, headings and rules instead of showing the symbols', () => {
+    const html = renderToStaticMarkup(
+      <div>{renderRichText('手足无措——**这反差感，也太可爱了点。**\n---\n### 👑 小朋友\n他*轻轻笑*了')}</div>,
+    )
+    expect(html).not.toContain('**')
+    expect(html).not.toContain('###')
+    expect(html).not.toContain('---')
+    expect(html).toContain('<strong class="bw-rich-strong">这反差感，也太可爱了点。</strong>')
+    expect(html).toContain('bw-rich-hr')
+    expect(html).toContain('bw-rich-heading')
+    expect(html).toContain('<span class="bw-chat-narration">轻轻笑</span>')
+  })
 })
