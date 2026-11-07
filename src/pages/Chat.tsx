@@ -2374,25 +2374,6 @@ export default function Chat() {
             className="glass-strong flex h-full w-72 max-w-[80%] flex-col gap-2 p-3 pt-[max(1rem,env(safe-area-inset-top))]"
             onClick={(e) => e.stopPropagation()}
           >
-            <Link
-              to="/"
-              onClick={() => setDrawerOpen(false)}
-              className="mb-1 inline-flex items-center gap-1 px-1 text-[12px] text-muted hover:text-accent"
-            >
-              ← 主页
-            </Link>
-            <div className="flex items-center justify-end px-1">
-              <button
-                type="button"
-                onClick={() => {
-                  createSession()
-                  setDrawerOpen(false)
-                }}
-                className="btn-primary rounded-full px-3 py-1 text-[12px]"
-              >
-                ＋ 新对话
-              </button>
-            </div>
             <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
               {sessions.map((s) => {
                 const on = s.id === activeId
@@ -2435,6 +2416,28 @@ export default function Chat() {
                   </div>
                 )
               })}
+            </div>
+            {/* 底部按键（仿顾祁砚）：主页 · 新对话，拇指够得着 */}
+            <div className="flex items-center justify-center gap-5 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+              <Link
+                to="/"
+                onClick={() => setDrawerOpen(false)}
+                aria-label="主页"
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-black/10 bg-white/80 text-ink shadow-sm"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V21h5v-6h4v6h5V9.5" /></svg>
+              </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  createSession()
+                  setDrawerOpen(false)
+                }}
+                aria-label="新对话"
+                className="flex h-12 w-12 items-center justify-center rounded-full border border-black/10 bg-white/80 text-ink shadow-sm"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 12.5V17a2 2 0 0 1-2 2H9l-5 3V7a2 2 0 0 1 2-2h7" /><path d="M18 3v6M15 6h6" /></svg>
+              </button>
             </div>
           </div>
         </div>
