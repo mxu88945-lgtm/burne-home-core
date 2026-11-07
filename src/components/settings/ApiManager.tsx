@@ -20,6 +20,9 @@ export default function ApiManager() {
   const [model, setModel] = useState('')
   const [viaWorker, setViaWorker] = useState(false)
   const [msg, setMsg] = useState('')
+  // 各渠道自己的提示（拉取失败/已确认等），显示在那张渠道卡片里，不用滚回顶上看
+  const [chMsg, setChMsg] = useState<Record<string, string>>({})
+  const sayCh = (id: string, text: string) => setChMsg((m) => ({ ...m, [id]: text }))
   const [models, setModels] = useState<Record<string, string[]>>({})
   const [pending, setPending] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState<string>('')
@@ -40,7 +43,7 @@ export default function ApiManager() {
   function saveEdit() {
     if (!editId) return
     if (!draft.baseUrl?.trim() || !draft.apiKey?.trim()) {
-      setMsg('base URL 和 key 不能空')
+      sayCh(editId, 'base URL 和 key 不能空')
       return
     }
     updateChannel(editId, {
@@ -51,15 +54,15 @@ export default function ApiManager() {
       viaWorker: !!draft.viaWorker,
     })
     setModels((m) => ({ ...m, [editId]: [] }))
+    sayCh(editId, '渠道已保存')
     setEditId('')
-    setMsg('渠道已保存')
   }
   function copyChannel(c: ApiChannel) {
     const { id: _id, ...rest } = c
     void _id
     const copy = addChannel({ ...rest, name: `${c.name} 副本` })
     startEdit(copy)
-    setMsg('已拷贝一份，改好点保存')
+    sayCh(copy.id, '已拷贝一份，改好点保存')
   }
   function remove(c: ApiChannel) {
     if (!window.confirm(`删除渠道「${c.name}」？`)) return
@@ -130,14 +133,14 @@ export default function ApiManager() {
     const ch = channels.find((c) => c.id === id)
     if (!ch) return
     setBusy(id)
-    setMsg('')
+    sayCh(id, '')
     try {
       const list = await listModels(ch, { workerUrl, syncKey })
       setModels((m) => ({ ...m, [id]: list }))
       setPending((p) => ({ ...p, [id]: ch.model || list[0] || '' }))
-      setMsg(`拉到 ${list.length} 个模型，选一个点「确认模型」`)
+      sayCh(id, `拉到 ${list.length} 个模型，选一个点「确认模型」`)
     } catch (e) {
-      setMsg(`拉取模型失败：${(e as Error).message}`)
+      sayCh(id, `拉取模型失败：${(e as Error).message}`)
     } finally {
       setBusy('')
     }
@@ -145,7 +148,6 @@ export default function ApiManager() {
 
   return (
     <div className="space-y-3">
-      {msg && <div className="text-[11px] text-accent">{msg}</div>}
 
       {/* 已有渠道：整块折叠（点标题收/展全部，渠道多时更清爽） */}
       {channels.length === 0 ? (
@@ -264,6 +266,11 @@ export default function ApiManager() {
                           {busy === c.id ? '拉取中…' : '获取模型'}
                         </button>
                       </div>
+                      {chMsg[c.id] && (
+                        <div className={`text-[11px] ${chMsg[c.id].includes('失败') || chMsg[c.id].includes('不能空') ? 'text-red-500' : 'text-accent'}`}>
+                          {chMsg[c.id]}
+                        </div>
+                      )}
 
                       {/* 手填模型（拉不到模型的渠道也能直接改，不用删了重建） */}
                       <div className="flex items-center gap-2">
@@ -279,7 +286,7 @@ export default function ApiManager() {
                             if (!v) return
                             updateChannel(c.id, { model: v })
                             setManual((m) => ({ ...m, [c.id]: '' }))
-                            setMsg(`已确认模型：${v}`)
+                            sayCh(c.id, `已确认模型：${v}`)
                           }}
                           disabled={!(manual[c.id] ?? '').trim()}
                           className="btn-primary shrink-0 rounded-xl px-4 py-2 text-xs disabled:opacity-50"
@@ -305,7 +312,7 @@ export default function ApiManager() {
                             onClick={() => {
                               const sel = pending[c.id] ?? c.model
                               updateChannel(c.id, { model: sel })
-                              setMsg(`已确认模型：${sel}`)
+                              sayCh(c.id, `已确认模型：${sel}`)
                             }}
                             disabled={(pending[c.id] ?? c.model) === c.model}
                             className="btn-primary shrink-0 rounded-xl px-4 py-2 text-xs disabled:opacity-50"
@@ -325,6 +332,7 @@ export default function ApiManager() {
 
       {/* 新增渠道 */}
       <div className="rounded-2xl border border-dashed border-line p-3">
+        {msg && <div className={`mb-2 text-[11px] ${msg.includes('失败') ? 'text-red-500' : 'text-accent'}`}>{msg}</div>}
         <div className="flex items-center justify-between">
           <span className="label">新增渠道</span>
           <button
