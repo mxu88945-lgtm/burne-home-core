@@ -20,6 +20,7 @@ describe('archive recall planner', () => {
     expect(prompt).toContain('惟惟：你以前也是这样')
     expect(prompt).toContain('伯恩：我想到掌心画爱心那次')
     expect(prompt).toContain('全局记忆线索')
+    expect(prompt).toContain('不得把第三方的台词')
   })
 
   it('parses fenced JSON, removes duplicates, and fails closed', () => {

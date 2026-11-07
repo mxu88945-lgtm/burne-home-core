@@ -29,6 +29,10 @@ import {
   shouldPlanArchive,
 } from '@/lib/archivePlanner'
 import { isArchiveRecallEnabled } from '@/lib/archiveSettings'
+import {
+  buildMemoryRetrievalCapabilityNote,
+  isPrivateMemoryLookup,
+} from '@/lib/memoryRetrievalPolicy'
 import { useMemoryModelStore } from '@/store/memoryModelStore'
 import { useSttStore } from '@/store/sttStore'
 import { transcribe } from '@/api/stt'
@@ -1160,6 +1164,12 @@ export default function Chat() {
     // 先召回结构化全局记忆：除了直接注入，也给旧文规划器提供安全、已知的联想线索。
     const memState = useMemoryStore.getState()
     const currentQuery = [...history].reverse().find((m) => m.role === 'me')?.text ?? ''
+    const privateMemoryLookup = isPrivateMemoryLookup(currentQuery)
+    // “搜旧聊天/记忆”只走本地档案；不要把同一句交给 OpenRouter :online 去公网乱搜。
+    const usePublicWebSearch = webSearch && !privateMemoryLookup
+    if (isArchiveRecallEnabled()) {
+      system += buildMemoryRetrievalCapabilityNote(name)
+    }
     const memoryContext = recallMemories({
       query: currentQuery,
       scope: 'chat',
@@ -1272,7 +1282,7 @@ export default function Chat() {
                 maxTokens: persona.maxTokens,
                 reasoning: persona.reasoning,
                 reasoningEffort: persona.reasoningEffort,
-                webSearch,
+                webSearch: usePublicWebSearch,
               },
               {
                 onReasoning: (d) => {
@@ -1355,7 +1365,7 @@ export default function Chat() {
                   maxTokens: persona.maxTokens,
                   reasoning: persona.reasoning,
                 reasoningEffort: persona.reasoningEffort,
-                  webSearch,
+                  webSearch: usePublicWebSearch,
                 })
                 if (r.usage) {
                   addUsage({
@@ -1453,7 +1463,7 @@ export default function Chat() {
               maxTokens: persona.maxTokens,
               reasoning: persona.reasoning,
                 reasoningEffort: persona.reasoningEffort,
-              webSearch,
+              webSearch: usePublicWebSearch,
             })
             reply = r.text
             reasoning = r.reasoning

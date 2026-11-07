@@ -37,6 +37,8 @@ describe('crossSessionRecall', () => {
     expect(r.text).toContain('半球的电水壶')
     expect(r.text).toContain('烧两壶水')
     expect(r.text).toContain('窗口「周三」')
+    expect(r.text).toContain('当时的助手（身份按原文判断）')
+    expect(r.text).toContain('不自动等于当前角色')
   })
 
   it('skips messages already in context and returns empty when nothing matches', () => {

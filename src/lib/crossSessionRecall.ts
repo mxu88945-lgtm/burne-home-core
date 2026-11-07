@@ -140,7 +140,7 @@ export function recallCrossSessions(opts: CrossRecallOptions): CrossRecallResult
     const lines: string[] = []
     for (const i of [...idx].sort((a, b) => a - b)) {
       const m = session.messages[i]
-      const who = m.role === 'me' ? opts.meName : opts.aiName
+      const who = m.role === 'me' ? opts.meName : same ? `${opts.aiName}（当时）` : '当时的助手（身份按原文判断）'
       const line = `[${stamp(m, session)}] ${who}：${clip(m.text, 160)}`
       if (used + line.length > maxChars) break
       lines.push(line)
@@ -153,6 +153,7 @@ export function recallCrossSessions(opts: CrossRecallOptions): CrossRecallResult
   const text =
     `\n\n【跨窗口回忆 · 之前的原话】\n${blocks.join('\n')}\n` +
     '这些是其他聊天窗口或本窗口更早时候的原话，用来接上之前聊过的事；' +
-    '当前对话、人设和用户此刻的说法优先。自然地记得就好，不要生硬复述，也不要提「窗口」「检索」这些词。'
+    '当前对话、人设和用户此刻的说法优先。其他窗口的“当时的助手”不自动等于当前角色；' +
+    '若原文在讨论或扮演第三方，必须保留第三方归属，不得据为自己的经历。自然地记得就好，不要生硬复述，也不要提「窗口」「检索」这些词。'
   return { text, hits: Math.min(hits.length, maxHits) }
 }

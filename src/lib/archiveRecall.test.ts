@@ -90,8 +90,23 @@ describe('independent memory archive recall', () => {
       messageIds: chunk.messageIds,
     })
     expect(result.hits[0].reasons).toContain('原话完整命中')
+    expect(result.hits[0].matchedSpeaker).toBe('user')
     expect(result.prompt).toContain('旧日对话原文档案')
     expect(result.prompt).toContain('当前用户明确说法')
+    expect(result.prompt).toContain('命中：用户原话')
+    expect(result.prompt).toContain('不自动等于当前角色本人')
+  })
+
+  it('labels historical assistant output instead of assigning it to the current companion', async () => {
+    const suffix = `assistant-speaker-${Date.now()}`
+    const { conversation, chunk } = fixture(true, suffix)
+    await putArchiveBatch([conversation], [chunk])
+
+    const result = await recallArchive('旧日约定', { maxHits: 4 })
+    const hit = result.hits.find((item) => item.chunkId === chunk.id)
+    expect(hit?.matchedSpeaker).toBe('assistant')
+    expect(result.prompt).toContain('命中：历史助手原话')
+    expect(result.prompt).toContain('第三方姓名、端口、剧本或角色台词')
   })
 
   it('merges direct and proactive searches without duplicating the same evidence', async () => {

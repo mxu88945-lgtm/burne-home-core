@@ -42,6 +42,7 @@ export function buildArchivePlannerPrompt(options: {
     `请读最近双方对话，判断${options.companionName}此刻是否会自然联想到某段更早的共同经历、称呼、约定、冲突或情绪锚点。\n` +
     `如果值得回忆，生成 1～3 个彼此互补的检索短句；可以从含蓄指代推断具体搜索方向，也可以使用${options.companionName}刚刚提到的联想。` +
     `短句要尽量包含可能在旧聊天原文中出现的人名、昵称、事件或原话锚点，长度 4～40 字。不要编造资料里没有的事实。\n` +
+    `身份边界：全局线索和旧文可能包含对第三方角色、其他端口或剧本的讨论。只有最近对话确实在谈那个人或那件事时才检索；不得把第三方的台词、经历或称呼当成${options.companionName}自己的。\n` +
     `如果只是当下闲聊、没有自然关联，queries 必须为空。多数普通轮次允许为空。\n` +
     `只输出 JSON：{"queries":["检索短句"]}\n\n` +
     (continuity ? `【较早连续性资料】\n${continuity}\n\n` : '') +

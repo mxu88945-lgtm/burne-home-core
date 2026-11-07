@@ -101,7 +101,9 @@ export function recallMemories(options: MemoryRecallOptions): MemoryRecallResult
   const queryTokens = tokenise(query)
   const overview = clip(options.overview ?? '', OVERVIEW_CHARS)
   const overviewText = overview ? `\n（长期记忆目录）${overview}` : ''
-  const memoryHeader = '\n\n【相关记忆——自然运用，不要提及记忆系统；当前用户明确说法优先】\n'
+  const memoryHeader =
+    '\n\n【相关记忆——自然运用，不要提及记忆系统；当前用户明确说法优先】\n' +
+    '条目可能描述用户、当前伴侣、第三方角色、剧本或项目；必须按标题和正文里的主语严格归属。未明确属于当前角色的内容，不得当作当前角色自己的经历、台词或承诺。\n'
   const contentBudget = Math.max(0, maxChars - overviewText.length - memoryHeader.length)
   const skipped: MemoryDiagnostic['skipped'] = []
   const candidates: Array<{ memory: MemoryItem; score: number; reason: string }> = []
@@ -164,7 +166,7 @@ export function recallMemories(options: MemoryRecallOptions): MemoryRecallResult
   let text = ''
   if (overview) text += `\n（长期记忆目录）${overview}`
   if (lines.length) {
-    text += `\n\n【相关记忆——自然运用，不要提及记忆系统；当前用户明确说法优先】\n${lines.join('\n')}`
+    text += `${memoryHeader}${lines.join('\n')}`
   }
   const diagnostic: MemoryDiagnostic = {
     id: `memdiag-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,

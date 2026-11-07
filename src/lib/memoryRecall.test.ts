@@ -30,6 +30,7 @@ describe('memory recall', () => {
     })
 
     expect(result.text).toContain('睡前习惯')
+    expect(result.text).toContain('第三方角色、剧本或项目')
     expect(result.diagnostic.used.map((item) => item.id)).toContain('core')
     expect(result.diagnostic.used.map((item) => item.id)).toContain('hit')
     expect(result.diagnostic.totalChars).toBe(result.text.length)

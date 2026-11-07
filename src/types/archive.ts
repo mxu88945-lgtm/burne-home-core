@@ -107,6 +107,8 @@ export interface ArchiveRecallHit {
   messageIds: string[]
   score: number
   reasons: string[]
+  /** 查询实际命中了谁的文字，避免把历史助手或第三方转述错认成当前角色亲历。 */
+  matchedSpeaker?: 'user' | 'assistant' | 'mixed' | 'unknown'
   /** 多路主动检索时，记录是哪条联想查询找到的，便于准确截取证据附近原文。 */
   matchedQuery?: string
 }
