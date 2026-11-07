@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { parseLyrics, lyricIndexAt, isTimed, type LyricLine } from '@/lib/lyrics'
+import { parseLyrics, lyricIndexAt, isTimed, fetchOnlineLyrics, type LyricLine } from '@/lib/lyrics'
 import { useMusicStore, musicTrackId, type MusicTrack } from '@/store/musicStore'
 import { idbGet, idbSet, idbDel } from '@/lib/idb'
 import { PlayIcon, PauseIcon, SkipPrevIcon, SkipNextIcon, TrashIcon } from '@/components/ui/icons'
@@ -105,6 +105,34 @@ export default function MusicPlayer() {
   async function loadLyrics(id: string) {
     const raw = await idbGet<string>(`lyric:${id}`).catch(() => null)
     setLyrics(raw ? parseLyrics(raw) : [])
+    setLyricHint('')
+    if (!raw) void autoLyrics(id)
+  }
+
+  /** 没歌词文件时上网找一次（lrclib）；同一首本次打开只找一次 */
+  const triedRef = useRef(new Set<string>())
+  const [lyricHint, setLyricHint] = useState('')
+  async function autoLyrics(id: string) {
+    if (triedRef.current.has(id)) return
+    triedRef.current.add(id)
+    const t = stateRef.current.tracks.find((x) => x.id === id)
+    if (!t) return
+    setLyricHint('正在找歌词…')
+    try {
+      const text = await fetchOnlineLyrics(t.name)
+      if (!text || !parseLyrics(text).length) {
+        if (loadedIdRef.current === id) setLyricHint('没找到歌词，可以点歌单里「+歌词」自己加')
+        return
+      }
+      await idbSet(`lyric:${id}`, text)
+      setHasLyrics(id, true)
+      if (loadedIdRef.current === id) {
+        setLyrics(parseLyrics(text))
+        setLyricHint('')
+      }
+    } catch {
+      if (loadedIdRef.current === id) setLyricHint('歌词没找到（网络不通）')
+    }
   }
 
   async function attachLyrics(id: string, file: File) {
@@ -264,7 +292,7 @@ export default function MusicPlayer() {
                   ? nextLine?.text ?? '♪'
                   : lyrics.length
                     ? '有歌词（纯文本）'
-                    : `${fmt(pos)} / ${fmt(dur)}`}
+                    : `${fmt(pos)} / ${fmt(dur)}${lyricHint ? ' · ' + lyricHint : ''}`}
           </div>
         </div>
         <button onClick={() => void step(-1)} aria-label="上一首" className="text-muted disabled:opacity-40" disabled={tracks.length < 2}>

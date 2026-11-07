@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseLyrics, lyricIndexAt, buildMusicNote } from './lyrics'
+import { parseLyrics, lyricIndexAt, buildMusicNote, guessSongMeta, pickLyrics } from './lyrics'
 
 const lrc = `[ti:晴天]
 [ar:周杰伦]
@@ -24,5 +24,22 @@ describe('lyrics', () => {
     expect(n).toContain('《晴天》')
     expect(n).toContain('▶ 从出生那年就飘着')
     expect(buildMusicNote({ name: '晴天', playing: false, pos: 16, dur: 269 }, l)).toBe('')
+  })
+})
+
+describe('online lyrics helpers', () => {
+  it('guesses title and artist from file name', () => {
+    expect(guessSongMeta('阿梨粤-偏偏喜欢你(女声版)')).toEqual({ title: '偏偏喜欢你', artist: '阿梨粤' })
+    expect(guessSongMeta('阿梨粤–一格格(阿梨粤版).mp3')).toEqual({ title: '一格格', artist: '阿梨粤' })
+    expect(guessSongMeta('飘雪')).toEqual({ title: '飘雪', artist: '' })
+  })
+  it('prefers same-title synced lyrics', () => {
+    const items = [
+      { trackName: '难得有情人 Live', syncedLyrics: '[00:01.00]b' },
+      { trackName: '难得有情人', plainLyrics: 'p' },
+      { trackName: '难得有情人', syncedLyrics: '[00:01.00]a' },
+    ]
+    expect(pickLyrics(items, '难得有情人')).toBe('[00:01.00]a')
+    expect(pickLyrics([{ trackName: '别的', syncedLyrics: 'x' }], '难得有情人')).toBe('')
   })
 })

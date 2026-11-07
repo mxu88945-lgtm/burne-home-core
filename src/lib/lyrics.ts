@@ -89,3 +89,48 @@ export function buildMusicNote(now: NowPlaying | null, lines: LyricLine[]): stri
   parts.push('可以自然地聊这首歌、顺着歌词说点什么，别每条都提，别编造没给你的歌词，不要提“系统”“提示”。')
   return '\n\n【一起听歌】\n' + parts.join('\n')
 }
+
+/** 从文件名猜歌名/歌手：「阿梨粤-我和春天有个约会(女声版)」→ { title:'我和春天有个约会', artist:'阿梨粤' } */
+export function guessSongMeta(name: string): { title: string; artist: string } {
+  let s = name.replace(/\.[a-z0-9]{2,4}$/i, '').trim()
+  let artist = ''
+  const m = s.match(/^(.+?)\s*[-–—]\s*(.+)$/)
+  if (m) {
+    artist = m[1].trim()
+    s = m[2]
+  }
+  const title = s.replace(/[（(【[].*?[）)】\]]/g, '').replace(/[-–—]+$/, '').trim()
+  return { title: title || s.trim(), artist }
+}
+
+interface LrclibItem { trackName?: string; artistName?: string; syncedLyrics?: string | null; plainLyrics?: string | null; instrumental?: boolean }
+
+/** 从搜索结果里挑歌词：先同名带时间轴，再同名纯文本，再任一带时间轴（翻唱多数歌词一样） */
+export function pickLyrics(items: LrclibItem[], title: string): string {
+  const norm = (x: string) => x.replace(/\s+/g, '').toLowerCase()
+  const t = norm(title)
+  const ok = items.filter((i) => !i.instrumental)
+  const same = ok.filter((i) => norm(i.trackName || '') === t)
+  return (
+    same.find((i) => i.syncedLyrics)?.syncedLyrics ||
+    same.find((i) => i.plainLyrics)?.plainLyrics ||
+    ok.filter((i) => norm(i.trackName || '').includes(t)).find((i) => i.syncedLyrics)?.syncedLyrics ||
+    ''
+  )
+}
+
+/** 网上自动找歌词（lrclib.net，免费、可跨域）。找不到返回空串 */
+export async function fetchOnlineLyrics(name: string, signal?: AbortSignal): Promise<string> {
+  const { title, artist } = guessSongMeta(name)
+  if (!title) return ''
+  const get = async (q: string) => {
+    const r = await fetch(`https://lrclib.net/api/search?${q}`, { signal })
+    if (!r.ok) return [] as LrclibItem[]
+    return (await r.json()) as LrclibItem[]
+  }
+  const enc = encodeURIComponent
+  let found = ''
+  if (artist) found = pickLyrics(await get(`track_name=${enc(title)}&artist_name=${enc(artist)}`), title)
+  if (!found) found = pickLyrics(await get(`track_name=${enc(title)}`), title)
+  return found
+}
