@@ -323,7 +323,7 @@ export default function AppearanceManager() {
         )}
       </div>
 
-      {/* 悬浮音乐播放器（浮在所有页面） */}
+      {/* 首页音乐小卡（换页不断播） */}
       <div className="glass rounded-2xl p-4 space-y-2">
         <div className="flex items-center justify-between">
           <div className="label">音乐播放器</div>
@@ -339,7 +339,7 @@ export default function AppearanceManager() {
           </label>
         </div>
         <p className="text-[11px] text-muted">
-          右下角一张小唱片，点开可播放/暂停/切歌、管理歌单；音乐自己上传，只存在本机、不上传。播放时唱片会转圈圈～
+          首页一张音乐小卡：播放/切歌/歌单，可给每首配 .lrc 歌词。放歌时 TA 知道你在听哪首、唱到哪句，能陪你一起听；换页不断播，音乐只存本机。
         </p>
       </div>
 

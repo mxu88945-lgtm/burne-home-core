@@ -8,6 +8,7 @@ import { EditIcon } from '@/components/ui/icons'
 import { PhoneIcon, ChatIcon, DatabaseIcon, BookIcon, GearIcon, HeartIcon } from '@/components/ui/navIcons'
 import Avatar from '@/components/ui/Avatar'
 import WeatherClock from '@/components/home/WeatherClock'
+import { useMusicStore } from '@/store/musicStore'
 
 const avatarStyle = {
   backgroundColor: 'var(--card-strong)',
@@ -55,6 +56,7 @@ function QuickEntry({
 }
 
 export default function Home() {
+  const setMusicSlot = useMusicStore((st) => st.setSlot)
   const { profile, setProfile } = useProfileStore()
   const openLatest = useChatStore((s) => s.openLatest)
   const periodDays = usePeriodStore((s) => s.days)
@@ -182,6 +184,9 @@ export default function Home() {
           <div className="whitespace-nowrap text-2xl font-semibold" style={{ color: '#ef7a9b' }}>{pMain}</div>
         </Link>
       </section>
+
+      {/* 音乐小卡：播放器本体挂在 AppLayout（换页不断播），这里只是挂载点 */}
+      <div ref={setMusicSlot} />
 
       {/* 小手机 + 今天聊聊（并排两块） */}
       <section className="grid grid-cols-2 gap-2.5">

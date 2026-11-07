@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { ComponentType } from 'react'
-import BackBar from '@/components/layout/BackBar'
+import StickyBar from '@/components/layout/StickyBar'
 import {
   PaletteIcon,
   ImageIcon,
@@ -73,11 +73,8 @@ function Row({ to, Icon, title, sub }: { to: string; Icon: IconType; title: stri
 export default function Settings() {
   return (
     <div className="space-y-2.5">
-      <BackBar />
-      <div className="px-1 pb-1">
-        <h2 className="headline text-2xl text-ink">设置</h2>
-        <p className="mt-1 text-sm text-muted">个性 · 同步 · 备份 · 隐私</p>
-      </div>
+      <StickyBar to="/" label="主页" title="设置" />
+      <p className="px-1 text-sm text-muted">个性 · 同步 · 备份 · 隐私</p>
       {GROUPS.map((g) => (
         <div key={g.label} className="space-y-2.5 pt-1.5">
           <div className="label px-1">{g.label}</div>

@@ -1,3 +1,5 @@
+import { buildMusicNote } from '@/lib/lyrics'
+import { useMusicStore } from '@/store/musicStore'
 import { buildWeatherNote } from '@/lib/weather'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { useState, useRef, useEffect } from 'react'
@@ -577,7 +579,7 @@ export default function PhonePage() {
         minute: '2-digit',
       })
       const query = [...history].reverse().find((m) => m.role === 'me')?.text ?? ''
-      const system = `${base}${texting}${memoryNote(query)}${stickerNote}${taskNote}\n\n（当前时间：${localTime}，可自然参考。）${buildWeatherNote(useChatPrefsStore.getState().locationAware)}`
+      const system = `${base}${texting}${memoryNote(query)}${stickerNote}${taskNote}\n\n（当前时间：${localTime}，可自然参考。）${buildWeatherNote(useChatPrefsStore.getState().locationAware)}${buildMusicNote(useMusicStore.getState().now, useMusicStore.getState().lyrics)}`
 
       let reply = ''
       if (responseChannel) {

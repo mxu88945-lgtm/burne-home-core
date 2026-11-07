@@ -1,3 +1,5 @@
+import { buildMusicNote } from '@/lib/lyrics'
+import { useMusicStore } from '@/store/musicStore'
 import { buildWeatherNote, elapsedNote } from '@/lib/weather'
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
@@ -1225,6 +1227,10 @@ export default function Chat() {
     if (crossRecallText) system += crossRecallText
     // 天气与位置（首页天气卡的缓存）+ 距上次说话多久
     system += buildWeatherNote(useChatPrefsStore.getState().locationAware)
+    {
+      const mu = useMusicStore.getState()
+      system += buildMusicNote(mu.now, mu.lyrics)
+    }
     {
       const gap = elapsedNote(history)
       if (gap) system += `\n\n${gap}`

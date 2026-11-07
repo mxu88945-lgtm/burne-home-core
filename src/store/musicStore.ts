@@ -7,11 +7,14 @@
 import { create } from 'zustand'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS } from '@/lib/constants'
+import type { LyricLine, NowPlaying } from '@/lib/lyrics'
 
 export interface MusicTrack {
   id: string
   /** 显示名（默认取文件名去后缀，可重命名） */
   name: string
+  /** 有歌词（本体存 IndexedDB `lyric:{id}`） */
+  hasLyrics?: boolean
 }
 
 interface Persisted {
@@ -33,6 +36,14 @@ interface MusicState extends Persisted {
   removeTrack: (id: string) => void
   renameTrack: (id: string, name: string) => void
   setActive: (id: string) => void
+  setHasLyrics: (id: string, on: boolean) => void
+  /** 以下不持久化：首页卡片挂载点、正在播放、当前歌曲歌词（给聊天「一起听」用） */
+  slot: HTMLElement | null
+  setSlot: (el: HTMLElement | null) => void
+  now: NowPlaying | null
+  setNow: (n: NowPlaying | null) => void
+  lyrics: LyricLine[]
+  setLyrics: (l: LyricLine[]) => void
 }
 
 export const useMusicStore = create<MusicState>((set, get) => {
@@ -62,6 +73,13 @@ export const useMusicStore = create<MusicState>((set, get) => {
     renameTrack: (id, name) =>
       persist({ tracks: get().tracks.map((t) => (t.id === id ? { ...t, name: name.trim() || t.name } : t)) }),
     setActive: (id) => persist({ activeId: id }),
+    setHasLyrics: (id, on) => persist({ tracks: get().tracks.map((t) => (t.id === id ? { ...t, hasLyrics: on } : t)) }),
+    slot: null,
+    setSlot: (el) => set({ slot: el }),
+    now: null,
+    setNow: (n) => set({ now: n }),
+    lyrics: [],
+    setLyrics: (l) => set({ lyrics: l }),
   }
 })
 

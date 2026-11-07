@@ -1,10 +1,13 @@
 /**
- * 悬浮音乐播放器：收起＝角落一张会转的小唱片，点开＝小卡（歌名/进度/上一首/播放/下一首/歌单）。
- * 音频文件用户自己上传：本体存 IndexedDB（key `music:{id}`，只在本机、不上传），元数据在 musicStore。
- * 挂在 AppLayout（app 列 relative 作定位上下文），全站可用；外观页可整体关掉。
+ * 音乐播放器：首页的桌面小卡（歌名 / 当前歌词 / 进度 / 上一首·播放·下一首 / 歌单）。
+ * 组件一直挂在 AppLayout 里（换页不断播），界面用 portal 画进首页的挂载点；离开首页只是看不到卡片，歌继续放。
+ * 音频和歌词都是她自己上传：本体存 IndexedDB（`music:{id}` / `lyric:{id}`，只在本机），元数据在 musicStore。
+ * 正在放的歌和当前歌词同步到 musicStore.now / lyrics，聊天时注入「一起听歌」。
  */
 
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { parseLyrics, lyricIndexAt, isTimed, type LyricLine } from '@/lib/lyrics'
 import { useMusicStore, musicTrackId, type MusicTrack } from '@/store/musicStore'
 import { idbGet, idbSet, idbDel } from '@/lib/idb'
 import { PlayIcon, PauseIcon, SkipPrevIcon, SkipNextIcon, TrashIcon } from '@/components/ui/icons'
@@ -18,13 +21,18 @@ function fmt(sec: number): string {
 
 export default function MusicPlayer() {
   const enabled = useMusicStore((s) => s.enabled)
-  const collapsed = useMusicStore((s) => s.collapsed)
   const tracks = useMusicStore((s) => s.tracks)
   const activeId = useMusicStore((s) => s.activeId)
-  const setCollapsed = useMusicStore((s) => s.setCollapsed)
   const addTracks = useMusicStore((s) => s.addTracks)
   const removeTrack = useMusicStore((s) => s.removeTrack)
   const setActive = useMusicStore((s) => s.setActive)
+  const setHasLyrics = useMusicStore((s) => s.setHasLyrics)
+  const slot = useMusicStore((s) => s.slot)
+  const setNow = useMusicStore((s) => s.setNow)
+  const setLyrics = useMusicStore((s) => s.setLyrics)
+  const lyrics = useMusicStore((s) => s.lyrics)
+  const lyricFileRef = useRef<HTMLInputElement>(null)
+  const lyricForRef = useRef('')
 
   const [playing, setPlaying] = useState(false)
   const [listOpen, setListOpen] = useState(false)
@@ -46,12 +54,29 @@ export default function MusicPlayer() {
     let a = audioRef.current
     if (!a) {
       a = new Audio()
+      let lastPub = 0
+      const publish = () => {
+        const { tracks: ts, activeId: cur } = stateRef.current
+        const t = ts.find((x) => x.id === loadedIdRef.current) ?? ts.find((x) => x.id === cur)
+        setNow(t ? { name: t.name, playing: !a!.paused, pos: a!.currentTime, dur: isFinite(a!.duration) ? a!.duration : 0 } : null)
+      }
       a.addEventListener('timeupdate', () => {
         setPos(a!.currentTime)
         if (isFinite(a!.duration)) setDur(a!.duration)
+        const n = Date.now()
+        if (n - lastPub > 1000) {
+          lastPub = n
+          publish()
+        }
       })
-      a.addEventListener('play', () => setPlaying(true))
-      a.addEventListener('pause', () => setPlaying(false))
+      a.addEventListener('play', () => {
+        setPlaying(true)
+        publish()
+      })
+      a.addEventListener('pause', () => {
+        setPlaying(false)
+        publish()
+      })
       a.addEventListener('ended', () => void step(1, true))
       audioRef.current = a
     }
@@ -71,9 +96,30 @@ export default function MusicPlayer() {
     urlRef.current = URL.createObjectURL(blob)
     a.src = urlRef.current
     loadedIdRef.current = id
+    void loadLyrics(id)
     setPos(0)
     setDur(0)
     return a
+  }
+
+  async function loadLyrics(id: string) {
+    const raw = await idbGet<string>(`lyric:${id}`).catch(() => null)
+    setLyrics(raw ? parseLyrics(raw) : [])
+  }
+
+  async function attachLyrics(id: string, file: File) {
+    try {
+      const text = await file.text()
+      if (!parseLyrics(text).length) {
+        setErr('这个歌词文件是空的')
+        return
+      }
+      await idbSet(`lyric:${id}`, text)
+      setHasLyrics(id, true)
+      if (loadedIdRef.current === id || stateRef.current.activeId === id) await loadLyrics(id)
+    } catch (e) {
+      setErr(`歌词保存失败：${(e as Error).message}`)
+    }
   }
 
   async function playTrack(id: string) {
@@ -119,11 +165,22 @@ export default function MusicPlayer() {
     if (!files?.length) return
     setErr('')
     const metas: MusicTrack[] = []
+    const base = (n: string) => n.replace(/\.[^.]+$/, '')
+    const all = Array.from(files)
+    const lrcs = all.filter((f) => /\.(lrc|txt)$/i.test(f.name))
     try {
-      for (const f of Array.from(files)) {
+      for (const f of all) {
+        if (/\.(lrc|txt)$/i.test(f.name)) continue
         const id = musicTrackId()
         await idbSet(`music:${id}`, f)
-        metas.push({ id, name: f.name.replace(/\.[^.]+$/, '') })
+        const lrc = lrcs.find((l) => base(l.name) === base(f.name))
+        if (lrc) await idbSet(`lyric:${id}`, await lrc.text())
+        metas.push({ id, name: base(f.name), hasLyrics: !!lrc })
+      }
+      if (!metas.length && lrcs.length && active) {
+        // 只选了歌词文件：给当前这首配上
+        await attachLyrics(active.id, lrcs[0])
+        return
       }
       addTracks(metas)
       setListOpen(true)
@@ -135,6 +192,7 @@ export default function MusicPlayer() {
   function del(t: MusicTrack) {
     if (!window.confirm(`删除「${t.name}」？`)) return
     void idbDel(`music:${t.id}`)
+    void idbDel(`lyric:${t.id}`)
     if (loadedIdRef.current === t.id) {
       const a = ensureAudio()
       a.pause()
@@ -150,6 +208,12 @@ export default function MusicPlayer() {
     removeTrack(t.id)
   }
 
+  // 切到别的歌（还没开始放）时也把歌词换上，卡片显示对得上
+  useEffect(() => {
+    if (active && loadedIdRef.current !== active.id) void loadLyrics(active.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id])
+
   // 卸载时收拾资源
   useEffect(
     () => () => {
@@ -159,7 +223,7 @@ export default function MusicPlayer() {
     [],
   )
 
-  if (!enabled) return null
+  if (!enabled || !slot) return null
 
   const disc = (
     <span
@@ -168,94 +232,107 @@ export default function MusicPlayer() {
       aria-hidden
     />
   )
+  const li = lyricIndexAt(lyrics, pos)
+  const timed = isTimed(lyrics)
+  const curLine: LyricLine | undefined = timed ? lyrics[li] : undefined
+  const nextLine: LyricLine | undefined = timed ? lyrics[li + 1] : undefined
 
-  return (
-    <div className={`absolute bottom-24 z-30 ${collapsed ? 'right-0' : 'right-2.5'}`}>
-      <input ref={fileRef} type="file" accept="audio/*" multiple className="hidden" onChange={(e) => { void onFiles(e.target.files); e.target.value = '' }} />
-      {collapsed ? (
-        // 收起＝半张唱片缩进屏幕右缘（不挡输入的字），点一下滑出展开
-        <button
-          onClick={() => setCollapsed(false)}
-          aria-label="打开播放器"
-          className="glass-strong flex h-11 w-11 translate-x-[55%] items-center justify-center rounded-full opacity-75 shadow-lg transition-transform"
-        >
-          {disc}
+  return createPortal(
+    <section className="glass rounded-2xl px-4 py-3">
+      <input ref={fileRef} type="file" accept="audio/*,.lrc,.txt" multiple className="hidden" onChange={(e) => { void onFiles(e.target.files); e.target.value = '' }} />
+      <input
+        ref={lyricFileRef}
+        type="file"
+        accept=".lrc,.txt,text/plain"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0]
+          if (f && lyricForRef.current) void attachLyrics(lyricForRef.current, f)
+          e.target.value = ''
+        }}
+      />
+      <div className="flex items-center gap-3">
+        {disc}
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13px] font-medium text-ink">{active ? active.name : '还没有音乐'}</div>
+          <div className="truncate text-[11px] text-muted">
+            {!active
+              ? '上传喜欢的歌，TA 也能陪你一起听'
+              : curLine
+                ? curLine.text
+                : timed
+                  ? nextLine?.text ?? '♪'
+                  : lyrics.length
+                    ? '有歌词（纯文本）'
+                    : `${fmt(pos)} / ${fmt(dur)}`}
+          </div>
+        </div>
+        <button onClick={() => void step(-1)} aria-label="上一首" className="text-muted disabled:opacity-40" disabled={tracks.length < 2}>
+          <SkipPrevIcon className="h-[18px] w-[18px]" />
         </button>
-      ) : (
-        <div className="glass-strong w-64 rounded-2xl p-3 shadow-lg">
-          <div className="flex items-center gap-2">
-            {disc}
-            <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{active ? active.name : '还没有音乐'}</span>
-            <button onClick={() => setListOpen((o) => !o)} aria-label="歌单" className={`px-1 text-[13px] ${listOpen ? 'text-accent' : 'text-muted'}`}>
-              ♫
-            </button>
-            <button onClick={() => { setCollapsed(true); setListOpen(false) }} aria-label="收起" className="px-1 text-[13px] text-muted">
-              ▾
-            </button>
-          </div>
+        <button
+          onClick={() => (active ? void toggle() : fileRef.current?.click())}
+          aria-label={playing ? '暂停' : '播放'}
+          className="btn-primary flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+        >
+          {playing ? <PauseIcon className="h-[18px] w-[18px]" /> : <PlayIcon className="h-[18px] w-[18px]" />}
+        </button>
+        <button onClick={() => void step(1)} aria-label="下一首" className="text-muted disabled:opacity-40" disabled={tracks.length < 2}>
+          <SkipNextIcon className="h-[18px] w-[18px]" />
+        </button>
+        <button onClick={() => setListOpen((o) => !o)} aria-label="歌单" className={`px-0.5 text-[14px] ${listOpen ? 'text-accent' : 'text-muted'}`}>
+          ♫
+        </button>
+      </div>
 
-          {/* 进度条 */}
-          <div className="mt-2 flex items-center gap-2">
-            <span className="w-8 text-right text-[10px] tabular-nums text-muted">{fmt(pos)}</span>
-            <input
-              type="range"
-              min={0}
-              max={Math.max(1, dur)}
-              step={0.1}
-              value={Math.min(pos, dur || 0)}
-              onChange={(e) => {
-                const a = ensureAudio()
-                if (a.src) a.currentTime = Number(e.target.value)
-              }}
-              className="h-1 min-w-0 flex-1 accent-accent"
-              aria-label="进度"
-            />
-            <span className="w-8 text-[10px] tabular-nums text-muted">{fmt(dur)}</span>
-          </div>
+      {active && (
+        <input
+          type="range"
+          min={0}
+          max={Math.max(1, dur)}
+          step={0.1}
+          value={Math.min(pos, dur || 0)}
+          onChange={(e) => {
+            const a = ensureAudio()
+            if (a.src) a.currentTime = Number(e.target.value)
+          }}
+          className="mt-2 h-1 w-full accent-accent"
+          aria-label="进度"
+        />
+      )}
 
-          {/* 控制键 */}
-          <div className="mt-1.5 flex items-center justify-center gap-6">
-            <button onClick={() => void step(-1)} aria-label="上一首" className="text-muted hover:text-accent disabled:opacity-40" disabled={tracks.length < 2}>
-              <SkipPrevIcon className="h-5 w-5" />
-            </button>
-            <button
-              onClick={() => void toggle()}
-              aria-label={playing ? '暂停' : '播放'}
-              className="btn-primary flex h-10 w-10 items-center justify-center rounded-full disabled:opacity-40"
-              disabled={!active}
-            >
-              {playing ? <PauseIcon className="h-5 w-5" /> : <PlayIcon className="h-5 w-5" />}
-            </button>
-            <button onClick={() => void step(1)} aria-label="下一首" className="text-muted hover:text-accent disabled:opacity-40" disabled={tracks.length < 2}>
-              <SkipNextIcon className="h-5 w-5" />
-            </button>
-          </div>
+      {err && <p className="mt-1.5 text-[10px] leading-relaxed text-red-500">{err}</p>}
 
-          {err && <p className="mt-1.5 text-[10px] leading-relaxed text-red-500">{err}</p>}
-
-          {/* 歌单 */}
-          {(listOpen || tracks.length === 0) && (
-            <div className="mt-2 space-y-1 border-t border-line/40 pt-2">
-              <div className="max-h-40 space-y-0.5 overflow-y-auto">
-                {tracks.map((t) => (
-                  <div key={t.id} className={`flex items-center gap-1.5 rounded-xl px-2 py-1.5 ${t.id === active?.id ? 'bg-accent/10' : ''}`}>
-                    <button onClick={() => void playTrack(t.id)} className={`min-w-0 flex-1 truncate text-left text-[12px] ${t.id === active?.id ? 'text-accent' : 'text-ink'}`}>
-                      {t.name}
-                    </button>
-                    <button onClick={() => del(t)} aria-label="删除" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted hover:text-red-500">
-                      <TrashIcon className="h-[13px] w-[13px]" />
-                    </button>
-                  </div>
-                ))}
-                {tracks.length === 0 && <p className="px-2 py-1 text-[11px] text-muted">上传几首喜欢的歌吧～只存在你本机 ♡</p>}
+      {listOpen && (
+        <div className="mt-2 space-y-1 border-t border-line/40 pt-2">
+          <div className="max-h-48 space-y-0.5 overflow-y-auto">
+            {tracks.map((t) => (
+              <div key={t.id} className={`flex items-center gap-1.5 rounded-xl px-2 py-1.5 ${t.id === active?.id ? 'bg-accent/10' : ''}`}>
+                <button onClick={() => void playTrack(t.id)} className={`min-w-0 flex-1 truncate text-left text-[12px] ${t.id === active?.id ? 'text-accent' : 'text-ink'}`}>
+                  {t.name}
+                </button>
+                <button
+                  onClick={() => {
+                    lyricForRef.current = t.id
+                    lyricFileRef.current?.click()
+                  }}
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${t.hasLyrics ? 'text-accent' : 'text-muted'}`}
+                >
+                  {t.hasLyrics ? '换歌词' : '+歌词'}
+                </button>
+                <button onClick={() => del(t)} aria-label="删除" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted hover:text-red-500">
+                  <TrashIcon className="h-[13px] w-[13px]" />
+                </button>
               </div>
-              <button onClick={() => fileRef.current?.click()} className="glass w-full rounded-xl py-1.5 text-[12px] text-ink">
-                ＋ 添加音乐
-              </button>
-            </div>
-          )}
+            ))}
+            {tracks.length === 0 && <p className="px-2 py-1 text-[11px] text-muted">上传几首喜欢的歌吧～只存在你本机 ♡</p>}
+          </div>
+          <button onClick={() => fileRef.current?.click()} className="glass w-full rounded-xl py-1.5 text-[12px] text-ink">
+            ＋ 添加音乐（可连同同名 .lrc 歌词一起选）
+          </button>
         </div>
       )}
-    </div>
+    </section>,
+    slot,
   )
 }
