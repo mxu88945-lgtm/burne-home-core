@@ -39,6 +39,15 @@ export default function MusicPlayer() {
   const [pos, setPos] = useState(0)
   const [dur, setDur] = useState(0)
   const [err, setErr] = useState('')
+  // 离开首页时的小浮窗：收起只剩唱片，记住她的选择
+  const [mini, setMini] = useState(() => localStorage.getItem('bw-music-float') === 'mini')
+  const toggleMini = () => {
+    setMini((m) => {
+      const next = !m
+      try { localStorage.setItem('bw-music-float', next ? 'mini' : 'full') } catch { /* ignore */ }
+      return next
+    })
+  }
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const urlRef = useRef('')
   const loadedIdRef = useRef('') // 当前 audio.src 对应的曲目 id
@@ -252,7 +261,39 @@ export default function MusicPlayer() {
     [],
   )
 
-  if (!enabled || !slot) return null
+  if (!enabled) return null
+
+  const li = lyricIndexAt(lyrics, pos)
+  const timed = isTimed(lyrics)
+  const curLine: LyricLine | undefined = timed ? lyrics[li] : undefined
+  const nextLine: LyricLine | undefined = timed ? lyrics[li + 1] : undefined
+
+  // 不在首页：有歌在放（或放到一半暂停）就自动出一个小浮窗，能切歌不用回首页
+  if (!slot) {
+    if (!active || (!playing && pos <= 0)) return null
+    return createPortal(
+      <div className="music-float" role="group" aria-label="音乐小浮窗">
+        <button onClick={toggleMini} aria-label={mini ? '展开' : '收起'} className="shrink-0">
+          <span className="music-disc" style={{ animationPlayState: playing ? 'running' : 'paused' }} aria-hidden />
+        </button>
+        {!mini && (
+          <>
+            <span className="music-float-text text-ink">{curLine?.text || active.name}</span>
+            <button onClick={() => void step(-1)} aria-label="上一首" className="text-muted disabled:opacity-40" disabled={tracks.length < 2}>
+              <SkipPrevIcon className="h-[15px] w-[15px]" />
+            </button>
+            <button onClick={() => void toggle()} aria-label={playing ? '暂停' : '播放'} className="text-ink">
+              {playing ? <PauseIcon className="h-[16px] w-[16px]" /> : <PlayIcon className="h-[16px] w-[16px]" />}
+            </button>
+            <button onClick={() => void step(1)} aria-label="下一首" className="text-muted disabled:opacity-40" disabled={tracks.length < 2}>
+              <SkipNextIcon className="h-[15px] w-[15px]" />
+            </button>
+          </>
+        )}
+      </div>,
+      document.body,
+    )
+  }
 
   const disc = (
     <span
@@ -261,10 +302,6 @@ export default function MusicPlayer() {
       aria-hidden
     />
   )
-  const li = lyricIndexAt(lyrics, pos)
-  const timed = isTimed(lyrics)
-  const curLine: LyricLine | undefined = timed ? lyrics[li] : undefined
-  const nextLine: LyricLine | undefined = timed ? lyrics[li + 1] : undefined
 
   return createPortal(
     <section className="glass rounded-2xl px-4 py-3">

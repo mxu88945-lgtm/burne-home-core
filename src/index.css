@@ -712,6 +712,32 @@ html[data-standalone='true'][data-keyboard] .bw-composer-dock {
   .music-disc { animation: none; }
 }
 
+/* 离开首页时的音乐小浮窗：右上、顶栏下方；不用 backdrop-filter（压在消息区上） */
+.music-float {
+  position: fixed;
+  z-index: 40;
+  right: 10px;
+  top: calc(env(safe-area-inset-top) + 62px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(72vw, 300px);
+  padding: 5px 12px 5px 5px;
+  border-radius: 9999px;
+  background: rgba(253, 251, 252, 0.92);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 6px 20px var(--shadow);
+}
+.music-float:has(> button:only-child) { padding: 5px; }
+.music-float-text {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+
 /* 抽屉面板：不用 backdrop-filter —— iOS 上「整屏高毛玻璃 + 滑入动画」会卡死 WebKit 合成器（整页无响应），
    用近实底 + 阴影代替，观感接近、稳定优先。别改回 glass-strong。 */
 .drawer-panel {
