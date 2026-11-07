@@ -317,10 +317,10 @@ html[data-standalone='true'] body {
 }
 
 /* 顾祁砚主题在伯恩主聊里的排版适配。语义类只属于主聊天，不影响首页、剧场或小手机。 */
-.bw-chat-shell {
-  padding-bottom: max(.5rem, env(safe-area-inset-bottom));
-}
-html[data-standalone='true'][data-keyboard] .bw-chat-shell {
+/* 输入栏是悬浮的（absolute bottom-0），底部安全区由 dock 自己留；shell 不再留，消息能滚到最底、从输入栏下透出来。 */
+.bw-chat-shell { padding-bottom: 0; }
+.bw-composer-dock { padding-bottom: max(.5rem, env(safe-area-inset-bottom)); }
+html[data-standalone='true'][data-keyboard] .bw-composer-dock {
   /* 高度已在 main.tsx 收到键盘上沿，这里只留一点呼吸空间，不再加键盘高度。 */
   padding-bottom: .5rem;
 }
