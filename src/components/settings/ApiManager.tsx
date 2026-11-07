@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useApiStore, type ApiProvider } from '@/store/apiStore'
+import { useApiStore, type ApiProvider, type ApiChannel } from '@/store/apiStore'
 import { useSyncStore } from '@/store/syncStore'
 import { listModels } from '@/api/llm'
 import PasswordInput from '@/components/ui/PasswordInput'
@@ -29,6 +29,43 @@ export default function ApiManager() {
   // 整块折叠：渠道多时把整个列表收成一行，点标题收/展全部
   const [listOpen, setListOpen] = useState(false)
   const activeCh = channels.find((c) => c.id === activeId)
+  // 编辑已有渠道（名称 / 格式 / base URL / key / 中转），照顾祁砚的渠道管理
+  const [editId, setEditId] = useState('')
+  const [draft, setDraft] = useState<Partial<ApiChannel>>({})
+
+  function startEdit(c: ApiChannel) {
+    setEditId(c.id)
+    setDraft({ name: c.name, provider: c.provider, baseUrl: c.baseUrl, apiKey: c.apiKey, viaWorker: !!c.viaWorker })
+  }
+  function saveEdit() {
+    if (!editId) return
+    if (!draft.baseUrl?.trim() || !draft.apiKey?.trim()) {
+      setMsg('base URL 和 key 不能空')
+      return
+    }
+    updateChannel(editId, {
+      name: draft.name?.trim() || draft.provider || 'openai',
+      provider: draft.provider ?? 'openai',
+      baseUrl: draft.baseUrl.trim(),
+      apiKey: draft.apiKey.trim(),
+      viaWorker: !!draft.viaWorker,
+    })
+    setModels((m) => ({ ...m, [editId]: [] }))
+    setEditId('')
+    setMsg('渠道已保存')
+  }
+  function copyChannel(c: ApiChannel) {
+    const { id: _id, ...rest } = c
+    void _id
+    const copy = addChannel({ ...rest, name: `${c.name} 副本` })
+    startEdit(copy)
+    setMsg('已拷贝一份，改好点保存')
+  }
+  function remove(c: ApiChannel) {
+    if (!window.confirm(`删除渠道「${c.name}」？`)) return
+    if (editId === c.id) setEditId('')
+    removeChannel(c.id)
+  }
 
   function preset() {
     setName('OpenRouter')
@@ -153,12 +190,66 @@ export default function ApiManager() {
                         </span>
                       </button>
                       <button
-                        onClick={() => removeChannel(c.id)}
-                        className="text-[11px] text-muted hover:text-accent"
+                        onClick={() => (editId === c.id ? setEditId('') : startEdit(c))}
+                        className="text-[11px] text-accent"
                       >
+                        {editId === c.id ? '收起' : '编辑'}
+                      </button>
+                      <button onClick={() => copyChannel(c)} className="text-[11px] text-muted hover:text-accent">
+                        拷贝
+                      </button>
+                      <button onClick={() => remove(c)} className="text-[11px] text-muted hover:text-accent">
                         删除
                       </button>
                     </div>
+
+                    {editId === c.id && (
+                      <div className="mt-2 space-y-2 rounded-xl border border-line/60 p-2">
+                        <input
+                          className={inputCls}
+                          placeholder="名称"
+                          value={draft.name ?? ''}
+                          onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                        />
+                        <select
+                          className={inputCls}
+                          value={draft.provider ?? 'openai'}
+                          onChange={(e) => setDraft((d) => ({ ...d, provider: e.target.value as ApiProvider }))}
+                        >
+                          <option value="openai">OpenAI 兼容（含 OpenRouter）</option>
+                          <option value="anthropic">Anthropic 官方</option>
+                        </select>
+                        <input
+                          className={inputCls}
+                          placeholder="base URL"
+                          value={draft.baseUrl ?? ''}
+                          onChange={(e) => setDraft((d) => ({ ...d, baseUrl: e.target.value }))}
+                        />
+                        <PasswordInput
+                          className={inputCls}
+                          placeholder="API key（只存本地）"
+                          value={draft.apiKey ?? ''}
+                          onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))}
+                        />
+                        <label className="flex items-center gap-2 text-[11px] text-muted">
+                          <input
+                            type="checkbox"
+                            checked={!!draft.viaWorker}
+                            onChange={(e) => setDraft((d) => ({ ...d, viaWorker: e.target.checked }))}
+                            className="h-4 w-4 accent-accent"
+                          />
+                          经 Worker 中转
+                        </label>
+                        <div className="flex gap-2">
+                          <button onClick={() => setEditId('')} className="glass flex-1 rounded-xl py-2 text-xs text-ink">
+                            取消
+                          </button>
+                          <button onClick={saveEdit} className="btn-primary flex-1 rounded-xl py-2 text-xs">
+                            保存
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="mt-2 space-y-2">
                       <div className="flex items-center justify-between text-[11px]">
