@@ -308,6 +308,29 @@ export default function Chat() {
   const endRef = useRef<HTMLDivElement>(null)
   const exportRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // 输入栏悬浮在消息上面（半透明，消息从底下透出来）：量它的高度给消息列表留底，最后一条不被盖住
+  const dockRef = useRef<HTMLDivElement>(null)
+  const [dockH, setDockH] = useState(96)
+  useEffect(() => {
+    const el = dockRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      const h = Math.round(el.getBoundingClientRect().height)
+      setDockH((old) => {
+        if (h === old) return old
+        // 原本贴底的话，输入栏变高后继续贴底
+        const box = scrollRef.current
+        if (box && box.scrollHeight - box.scrollTop - box.clientHeight < 40) {
+          requestAnimationFrame(() => {
+            box.scrollTop = box.scrollHeight
+          })
+        }
+        return h
+      })
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [selectMode])
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -1681,7 +1704,7 @@ export default function Chat() {
       )}
 
       {/* 消息列表 */}
-      <div className="bw-chat-messages space-y-4 px-4 pb-2 pt-3">
+      <div className="bw-chat-messages space-y-4 px-4 pt-3" style={{ paddingBottom: selectMode ? 8 : dockH + 12 }}>
         {messages.map((m) => {
           const me = m.role === 'me'
           const shelled = SHELL_THEMES.has(theme)
@@ -2059,7 +2082,7 @@ export default function Chat() {
 
       {/* 输入栏 + 模型条（钉在底部，不滚） */}
       {!selectMode && (
-      <div className="bw-composer-dock relative z-10 flex-none px-4 pt-2">
+      <div ref={dockRef} className="bw-composer-dock absolute inset-x-0 bottom-0 z-20 px-4 pt-2">
         {ttsError && (
           <div className="mb-1 px-2 text-center text-[11px] text-red-500">
             朗读失败：{ttsError}

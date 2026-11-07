@@ -344,7 +344,14 @@ html[data-standalone='true'][data-keyboard] .bw-chat-shell {
 [data-theme='claude'] .bw-message-me .bw-message-bubble { background: #eeeeec !important; color: #292826 !important; box-shadow: none !important; }
 [data-theme='claude'] .bw-chat-messages { max-width: 760px; margin-inline: auto; }
 
-[data-theme='white'] .bw-chat-composer { background: rgba(255,255,255,.94) !important; box-shadow: 0 8px 24px rgba(20,20,30,.06) !important; }
+/* 输入栏悬浮半透明（照顾祁砚）：消息从底下透出来；底座 dock 本身完全透明，不再套一层壳 */
+.bw-composer-dock { background: transparent; }
+.bw-chat-composer.glass-strong {
+  background: rgba(255,255,255,.46);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  backdrop-filter: blur(18px) saturate(1.4);
+}
+[data-theme='white'] .bw-chat-composer { background: rgba(255,255,255,.5) !important; box-shadow: 0 8px 24px rgba(20,20,30,.06) !important; }
 [data-theme='white'] .bw-message-companion .bw-message-bubble { box-shadow: 0 7px 22px rgba(20,20,30,.05); }
 
 [data-theme='frostbubble'] .bw-message-bubble,
@@ -386,7 +393,7 @@ html[data-standalone='true'][data-keyboard] .bw-chat-shell {
 
 [data-theme='mobile'] .bw-message-bubble { border-radius: 21px !important; box-shadow: 0 8px 24px rgba(41,41,54,.07) !important; }
 [data-theme='mobile'] .bw-message-me .bw-message-bubble { background: linear-gradient(120deg,#f2f2f5,#e5e5ea) !important; color: #242429 !important; }
-[data-theme='mobile'] .bw-chat-composer { background: rgba(255,255,255,.94) !important; }
+[data-theme='mobile'] .bw-chat-composer { background: rgba(255,255,255,.5) !important; }
 
 [data-theme='letter'] .bw-message-companion .bw-message-bubble { border-radius: 5px 22px 22px 22px !important; background: rgba(250,249,246,.82) !important; }
 [data-theme='letter'] .bw-message-me .bw-message-bubble { border-radius: 22px 5px 22px 22px !important; background: rgba(231,236,239,.9) !important; color: #34383d !important; }
