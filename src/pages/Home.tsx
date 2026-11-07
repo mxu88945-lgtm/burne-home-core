@@ -7,6 +7,7 @@ import { computeStat } from '@/lib/period'
 import { EditIcon } from '@/components/ui/icons'
 import { PhoneIcon, ChatIcon, DatabaseIcon, BookIcon, GearIcon, HeartIcon } from '@/components/ui/navIcons'
 import Avatar from '@/components/ui/Avatar'
+import WeatherClock from '@/components/home/WeatherClock'
 
 const avatarStyle = {
   backgroundColor: 'var(--card-strong)',
@@ -96,6 +97,7 @@ export default function Home() {
 
   return (
     <div className="home-glassy space-y-2.5">
+      <WeatherClock />
       {/* 情侣主视觉 */}
       <section className="glass-strong relative overflow-hidden rounded-3xl px-4 py-5 text-center">
         {/* 头像后一层柔光晕，暖一点、不再白惨惨 */}

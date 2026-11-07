@@ -21,6 +21,8 @@ export default function Persona() {
   const toggleAllowTasks = useChatPrefsStore((s) => s.toggleAllowTasks)
   const crossRecall = useChatPrefsStore((s) => s.crossRecall)
   const toggleCrossRecall = useChatPrefsStore((s) => s.toggleCrossRecall)
+  const locationAware = useChatPrefsStore((s) => s.locationAware)
+  const toggleLocationAware = useChatPrefsStore((s) => s.toggleLocationAware)
   const [promptOpen, setPromptOpen] = useState(false)
   const [openPresetId, setOpenPresetId] = useState('')
   const presets = persona.presets ?? []
@@ -320,6 +322,20 @@ export default function Persona() {
             type="checkbox"
             checked={crossRecall}
             onChange={toggleCrossRecall}
+            className="h-5 w-5 accent-accent"
+          />
+        </label>
+        <label className="flex items-center justify-between">
+          <span className="text-sm text-ink">
+            位置与天气感知
+            <span className="block text-[11px] text-muted">
+              首页天气卡拿到的城市、天气、明天预报会告诉 TA，能自然地催睡、提醒带伞（不发精确坐标；默认开）
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={locationAware}
+            onChange={toggleLocationAware}
             className="h-5 w-5 accent-accent"
           />
         </label>

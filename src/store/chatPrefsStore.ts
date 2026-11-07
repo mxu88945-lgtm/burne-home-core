@@ -21,6 +21,8 @@ interface ChatPrefs {
   allowTasks: boolean
   /** 跨窗口回忆：从其他聊天窗口和更早的原话里找回相关内容（默认开） */
   crossRecall: boolean
+  /** 位置感知：首页天气卡获取的地名/天气注入聊天（默认开；关掉后也不在后台定位） */
+  locationAware: boolean
 }
 
 const DEFAULT: ChatPrefs = {
@@ -30,6 +32,7 @@ const DEFAULT: ChatPrefs = {
   showLinks: false,
   allowTasks: false,
   crossRecall: true,
+  locationAware: true,
 }
 
 interface ChatPrefsState extends ChatPrefs {
@@ -39,6 +42,7 @@ interface ChatPrefsState extends ChatPrefs {
   toggleShowLinks: () => void
   toggleAllowTasks: () => void
   toggleCrossRecall: () => void
+  toggleLocationAware: () => void
 }
 
 const init = { ...DEFAULT, ...readJSON<Partial<ChatPrefs>>(STORAGE_KEYS.chatprefs, {}) }
@@ -50,6 +54,12 @@ export const useChatPrefsStore = create<ChatPrefsState>((set, get) => ({
   showLinks: init.showLinks,
   allowTasks: init.allowTasks,
   crossRecall: init.crossRecall,
+  locationAware: init.locationAware,
+  toggleLocationAware: () => {
+    const locationAware = !get().locationAware
+    writeJSON(STORAGE_KEYS.chatprefs, { ...pick(get()), locationAware })
+    set({ locationAware })
+  },
   toggleCrossRecall: () => {
     const crossRecall = !get().crossRecall
     writeJSON(STORAGE_KEYS.chatprefs, { ...pick(get()), crossRecall })
@@ -89,5 +99,6 @@ function pick(s: ChatPrefsState): ChatPrefs {
     showLinks: s.showLinks,
     allowTasks: s.allowTasks,
     crossRecall: s.crossRecall,
+    locationAware: s.locationAware,
   }
 }

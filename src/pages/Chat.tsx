@@ -1,3 +1,4 @@
+import { buildWeatherNote, elapsedNote } from '@/lib/weather'
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useProfileStore } from '@/store/profileStore'
@@ -1222,6 +1223,12 @@ export default function Chat() {
     if (memoryContext.text) system += memoryContext.text
     // 跨窗口全局回忆：其他聊天窗口 + 本窗口滑出上下文的更早原话，按用户最近原话找回（不额外请求模型）
     if (crossRecallText) system += crossRecallText
+    // 天气与位置（首页天气卡的缓存）+ 距上次说话多久
+    system += buildWeatherNote(useChatPrefsStore.getState().locationAware)
+    {
+      const gap = elapsedNote(history)
+      if (gap) system += `\n\n${gap}`
+    }
     if (allowTasks) {
       system +=
         `\n\n【任务提醒功能 · 请理解并善用】\n` +

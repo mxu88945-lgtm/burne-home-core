@@ -1,3 +1,5 @@
+import { buildWeatherNote } from '@/lib/weather'
+import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useProfileStore } from '@/store/profileStore'
@@ -575,7 +577,7 @@ export default function PhonePage() {
         minute: '2-digit',
       })
       const query = [...history].reverse().find((m) => m.role === 'me')?.text ?? ''
-      const system = `${base}${texting}${memoryNote(query)}${stickerNote}${taskNote}\n\n（当前时间：${localTime}，可自然参考。）`
+      const system = `${base}${texting}${memoryNote(query)}${stickerNote}${taskNote}\n\n（当前时间：${localTime}，可自然参考。）${buildWeatherNote(useChatPrefsStore.getState().locationAware)}`
 
       let reply = ''
       if (responseChannel) {
