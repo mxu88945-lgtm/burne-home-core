@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { parseLyrics, lyricIndexAt, isTimed, fetchOnlineLyrics, type LyricLine } from '@/lib/lyrics'
+import { parseLyrics, lyricIndexAt, isTimed, fetchLyricCandidates, shiftLyrics, type LyricLine } from '@/lib/lyrics'
 import { useMusicStore, musicTrackId, type MusicTrack } from '@/store/musicStore'
 import { idbGet, idbSet, idbDel } from '@/lib/idb'
 import { PlayIcon, PauseIcon, SkipPrevIcon, SkipNextIcon, TrashIcon } from '@/components/ui/icons'
@@ -113,9 +113,56 @@ export default function MusicPlayer() {
 
   async function loadLyrics(id: string) {
     const raw = await idbGet<string>(`lyric:${id}`).catch(() => null)
-    setLyrics(raw ? parseLyrics(raw) : [])
+    setLyrics(raw ? shiftLyrics(parseLyrics(raw), getOffset(id)) : [])
     setLyricHint('')
+    setOffsetView(getOffset(id))
     if (!raw) void autoLyrics(id)
+  }
+
+  // 歌词偏移（秒，正数 = 歌词晚一点出现），每首单独记
+  const getOffset = (id: string) => Number(localStorage.getItem(`bw-lyric-offset:${id}`) || 0) || 0
+  const [offsetView, setOffsetView] = useState(0)
+  function nudge(id: string, delta: number) {
+    const next = Math.round((getOffset(id) + delta) * 10) / 10
+    try { localStorage.setItem(`bw-lyric-offset:${id}`, String(next)) } catch { /* ignore */ }
+    void loadLyrics(id)
+  }
+
+  /** 等音频时长出来（最多 4 秒），用来挑时长最接近的那版歌词 */
+  function waitDuration(): Promise<number> {
+    const a = audioRef.current
+    if (!a) return Promise.resolve(0)
+    if (isFinite(a.duration) && a.duration > 0) return Promise.resolve(a.duration)
+    return new Promise((resolve) => {
+      const done = () => { a.removeEventListener('loadedmetadata', done); resolve(isFinite(a.duration) ? a.duration : 0) }
+      a.addEventListener('loadedmetadata', done)
+      setTimeout(done, 4000)
+    })
+  }
+
+  // 每首的网上候选歌词（本次打开缓存），「换一版」轮着用
+  const candRef = useRef(new Map<string, { list: string[]; idx: number }>())
+  async function nextVersion(id: string) {
+    const t = stateRef.current.tracks.find((x) => x.id === id)
+    if (!t) return
+    let c = candRef.current.get(id)
+    setLyricHint('正在找别的版本…')
+    try {
+      if (!c) {
+        c = { list: await fetchLyricCandidates(t.name, await waitDuration()), idx: -1 }
+        candRef.current.set(id, c)
+      }
+      if (!c.list.length) { setLyricHint('网上没找到这首的歌词'); return }
+      c.idx = (c.idx + 1) % c.list.length
+      await idbSet(`lyric:${id}`, c.list[c.idx])
+      setHasLyrics(id, true)
+      try { localStorage.removeItem(`bw-lyric-offset:${id}`) } catch { /* ignore */ }
+      await loadLyrics(id)
+      setLyricHint(`第 ${c.idx + 1}/${c.list.length} 版歌词`)
+      setTimeout(() => setLyricHint(''), 2500)
+    } catch {
+      setLyricHint('网络不通，没找到')
+    }
   }
 
   /** 没歌词文件时上网找一次（lrclib）；同一首本次打开只找一次 */
@@ -128,7 +175,9 @@ export default function MusicPlayer() {
     if (!t) return
     setLyricHint('正在找歌词…')
     try {
-      const text = await fetchOnlineLyrics(t.name)
+      const list = await fetchLyricCandidates(t.name, await waitDuration())
+      candRef.current.set(id, { list, idx: 0 })
+      const text = list[0] || ''
       if (!text || !parseLyrics(text).length) {
         if (loadedIdRef.current === id) setLyricHint('没找到歌词，可以点歌单里「+歌词」自己加')
         return
@@ -136,7 +185,7 @@ export default function MusicPlayer() {
       await idbSet(`lyric:${id}`, text)
       setHasLyrics(id, true)
       if (loadedIdRef.current === id) {
-        setLyrics(parseLyrics(text))
+        setLyrics(shiftLyrics(parseLyrics(text), getOffset(id)))
         setLyricHint('')
       }
     } catch {
@@ -323,7 +372,9 @@ export default function MusicPlayer() {
           <div className="truncate text-[11px] text-muted">
             {!active
               ? '上传喜欢的歌，TA 也能陪你一起听'
-              : curLine
+              : lyricHint && lyrics.length
+                ? lyricHint
+                : curLine
                 ? curLine.text
                 : timed
                   ? nextLine?.text ?? '♪'
@@ -370,6 +421,19 @@ export default function MusicPlayer() {
 
       {listOpen && (
         <div className="mt-2 space-y-1 border-t border-line/40 pt-2">
+          {active && loadedIdRef.current === active.id && (
+            <div className="flex flex-wrap items-center gap-1.5 px-2 pb-1 text-[11px] text-muted">
+              {timed && (
+                <>
+                  <span>歌词</span>
+                  <button onClick={() => nudge(active.id, -0.5)} className="glass rounded-full px-2 py-0.5 text-ink">提前 0.5s</button>
+                  <span className="min-w-[3em] text-center tabular-nums">{offsetView > 0 ? '+' : ''}{offsetView.toFixed(1)}s</span>
+                  <button onClick={() => nudge(active.id, 0.5)} className="glass rounded-full px-2 py-0.5 text-ink">延后 0.5s</button>
+                </>
+              )}
+              <button onClick={() => void nextVersion(active.id)} className="glass ml-auto rounded-full px-2 py-0.5 text-ink">换一版歌词</button>
+            </div>
+          )}
           <div className="max-h-48 space-y-0.5 overflow-y-auto">
             {tracks.map((t) => (
               <div key={t.id} className={`flex items-center gap-1.5 rounded-xl px-2 py-1.5 ${t.id === active?.id ? 'bg-accent/10' : ''}`}>

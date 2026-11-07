@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseLyrics, lyricIndexAt, buildMusicNote, guessSongMeta, pickLyrics } from './lyrics'
+import { parseLyrics, lyricIndexAt, buildMusicNote, guessSongMeta, pickLyrics, rankLyrics, shiftLyrics } from './lyrics'
 
 const lrc = `[ti:晴天]
 [ar:周杰伦]
@@ -41,5 +41,19 @@ describe('online lyrics helpers', () => {
     ]
     expect(pickLyrics(items, '难得有情人')).toBe('[00:01.00]a')
     expect(pickLyrics([{ trackName: '别的', syncedLyrics: 'x' }], '难得有情人')).toBe('')
+  })
+})
+
+describe('lyric ranking by duration', () => {
+  it('prefers the version closest to the real duration', () => {
+    const items = [
+      { trackName: '飘雪', duration: 250, syncedLyrics: '[00:01.00]A' },
+      { trackName: '飘雪', duration: 271, syncedLyrics: '[00:01.00]B' },
+    ]
+    expect(rankLyrics(items, '飘雪', 270)).toEqual(['[00:01.00]B', '[00:01.00]A'])
+  })
+  it('shifts timed lyrics', () => {
+    expect(shiftLyrics([{ t: 1, text: 'a' }], 0.5)[0].t).toBe(1.5)
+    expect(shiftLyrics([{ t: -1, text: 'a' }], 0.5)[0].t).toBe(-1)
   })
 })

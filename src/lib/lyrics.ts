@@ -103,34 +103,59 @@ export function guessSongMeta(name: string): { title: string; artist: string } {
   return { title: title || s.trim(), artist }
 }
 
-interface LrclibItem { trackName?: string; artistName?: string; syncedLyrics?: string | null; plainLyrics?: string | null; instrumental?: boolean }
+interface LrclibItem { trackName?: string; artistName?: string; duration?: number; syncedLyrics?: string | null; plainLyrics?: string | null; instrumental?: boolean }
 
-/** 从搜索结果里挑歌词：先同名带时间轴，再同名纯文本，再任一带时间轴（翻唱多数歌词一样） */
-export function pickLyrics(items: LrclibItem[], title: string): string {
+/**
+ * 候选歌词排序：同名优先 → 带时间轴优先 → 时长和这首歌最接近的优先（翻唱时长不同，时间轴才对得上）。
+ * 同一份歌词去重。
+ */
+export function rankLyrics(items: LrclibItem[], title: string, dur = 0): string[] {
   const norm = (x: string) => x.replace(/\s+/g, '').toLowerCase()
   const t = norm(title)
-  const ok = items.filter((i) => !i.instrumental)
-  const same = ok.filter((i) => norm(i.trackName || '') === t)
-  return (
-    same.find((i) => i.syncedLyrics)?.syncedLyrics ||
-    same.find((i) => i.plainLyrics)?.plainLyrics ||
-    ok.filter((i) => norm(i.trackName || '').includes(t)).find((i) => i.syncedLyrics)?.syncedLyrics ||
-    ''
-  )
+  const ok = items.filter((i) => !i.instrumental && norm(i.trackName || '').includes(t) && (i.syncedLyrics || i.plainLyrics))
+  const score = (i: LrclibItem) => {
+    const same = norm(i.trackName || '') === t ? 0 : 1000
+    const synced = i.syncedLyrics ? 0 : 500
+    const gap = dur > 0 && i.duration ? Math.abs(i.duration - dur) : 100
+    return same + synced + gap
+  }
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const i of ok.sort((a, b) => score(a) - score(b))) {
+    const text = (i.syncedLyrics || i.plainLyrics || '') as string
+    if (seen.has(text)) continue
+    seen.add(text)
+    out.push(text)
+  }
+  return out
 }
 
-/** 网上自动找歌词（lrclib.net，免费、可跨域）。找不到返回空串 */
-export async function fetchOnlineLyrics(name: string, signal?: AbortSignal): Promise<string> {
+/** 兼容旧调用：取排第一的 */
+export function pickLyrics(items: LrclibItem[], title: string, dur = 0): string {
+  return rankLyrics(items, title, dur)[0] || ''
+}
+
+/** 网上找歌词候选（lrclib.net，免费、可跨域），按 rankLyrics 排好；dur 是这首歌实际时长（秒） */
+export async function fetchLyricCandidates(name: string, dur = 0, signal?: AbortSignal): Promise<string[]> {
   const { title, artist } = guessSongMeta(name)
-  if (!title) return ''
+  if (!title) return []
   const get = async (q: string) => {
     const r = await fetch(`https://lrclib.net/api/search?${q}`, { signal })
     if (!r.ok) return [] as LrclibItem[]
     return (await r.json()) as LrclibItem[]
   }
   const enc = encodeURIComponent
-  let found = ''
-  if (artist) found = pickLyrics(await get(`track_name=${enc(title)}&artist_name=${enc(artist)}`), title)
-  if (!found) found = pickLyrics(await get(`track_name=${enc(title)}`), title)
-  return found
+  const byArtist = artist ? rankLyrics(await get(`track_name=${enc(title)}&artist_name=${enc(artist)}`), title, dur) : []
+  const all = rankLyrics(await get(`track_name=${enc(title)}`), title, dur)
+  return [...byArtist, ...all.filter((x) => !byArtist.includes(x))]
+}
+
+export async function fetchOnlineLyrics(name: string, signal?: AbortSignal, dur = 0): Promise<string> {
+  return (await fetchLyricCandidates(name, dur, signal))[0] || ''
+}
+
+/** 整体平移时间轴（秒，正数 = 歌词晚一点出现） */
+export function shiftLyrics(lines: LyricLine[], offset: number): LyricLine[] {
+  if (!offset || !isTimed(lines)) return lines
+  return lines.map((l) => ({ ...l, t: Math.max(0, l.t + offset) }))
 }
