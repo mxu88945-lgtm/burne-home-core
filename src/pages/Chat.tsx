@@ -1,3 +1,4 @@
+import { ImageStack, ImageViewer } from '@/components/chat/ImageViewer'
 import { buildMusicNote } from '@/lib/lyrics'
 import { useMusicStore } from '@/store/musicStore'
 import { buildWeatherNote, elapsedNote } from '@/lib/weather'
@@ -354,7 +355,7 @@ export default function Chat() {
   // 大图查看：一组图可左右滑动（单张时就是一张）
   const [gallery, setGallery] = useState<{ urls: string[]; index: number } | null>(null)
   const [galleryAt, setGalleryAt] = useState(0)
-  const galleryRef = useRef<HTMLDivElement | null>(null)
+  const galleryRef = useRef<HTMLDivElement>(null)
   const setLightbox = (url: string) => {
     if (!url) {
       setGallery(null)
@@ -1978,32 +1979,14 @@ export default function Chat() {
                     avatarEmoji={me ? profile.avatarA : profile.avatarB}
                   />
                 )}
-                {m.image && !m.images?.length && (
-                  <IdbImg
-                    src={m.image}
-                    alt="图片"
-                    onClick={() => {
-                      if (!selectMode) void resolveImgRef(m.image!).then((u) => u && setLightbox(u))
+                {m.image && (
+                  <ImageStack
+                    refs={[m.image, ...(m.images ?? [])]}
+                    me={me}
+                    onOpen={(all, i) => {
+                      if (!selectMode) void openGallery(all, i)
                     }}
-                    className="max-h-60 max-w-full cursor-pointer rounded-2xl object-cover"
                   />
-                )}
-                {m.image && !!m.images?.length && (
-                  <div
-                    className={`relative z-[1] my-3 grid w-[min(270px,78%)] gap-1.5 ${me ? 'ml-auto' : ''} ${m.images.length === 1 ? 'grid-cols-2' : 'grid-cols-3'}`}
-                  >
-                    {[m.image, ...m.images].map((ref, i, all) => (
-                      <IdbImg
-                        key={ref}
-                        src={ref}
-                        alt="图片"
-                        onClick={() => {
-                          if (!selectMode) void openGallery(all, i)
-                        }}
-                        className="aspect-square w-full cursor-pointer rounded-2xl border border-black/5 bg-white/60 object-cover shadow-sm"
-                      />
-                    ))}
-                  </div>
                 )}
                 {m.file && (
                   <a
@@ -2585,32 +2568,16 @@ export default function Chat() {
         </div>
       )}
 
-      {/* 图片大图预览（长图导出后也走这里，iOS 长按可存相册） */}
+      {/* 图片大图预览：毛玻璃底 + 顶部独立的关闭/保存按钮，图片像卡片悬在中间，左右滑翻页 */}
       {gallery && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-black/90" onClick={() => setGallery(null)}>
-          <div
-            ref={galleryRef}
-            onScroll={(e) => {
-              const el = e.currentTarget
-              setGalleryAt(Math.round(el.scrollLeft / Math.max(1, el.clientWidth)))
-            }}
-            className="flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-contain [scrollbar-width:none]"
-          >
-            {gallery.urls.map((url, i) => (
-              <div key={i} className="flex h-full w-full shrink-0 snap-center items-center justify-center p-4">
-                <img
-                  src={url}
-                  alt="大图"
-                  onClick={(e) => e.stopPropagation()}
-                  className="max-h-full max-w-full rounded-xl object-contain"
-                />
-              </div>
-            ))}
-          </div>
-          <div className="pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-[12px] text-white/80">
-            {gallery.urls.length > 1 ? `${galleryAt + 1} / ${gallery.urls.length} · 左右滑动 · ` : ''}长按图片可保存 · 点空白关闭
-          </div>
-        </div>
+        <ImageViewer
+          urls={gallery.urls}
+          index={gallery.index}
+          at={galleryAt}
+          setAt={setGalleryAt}
+          scrollRef={galleryRef}
+          onClose={() => setGallery(null)}
+        />
       )}
 
       {/* 会话侧栏（多对话窗口） */}
