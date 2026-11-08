@@ -41,6 +41,7 @@ import { useSttStore } from '@/store/sttStore'
 import { transcribe } from '@/api/stt'
 import type { ApiChannel } from '@/store/apiStore'
 import Avatar from '@/components/ui/Avatar'
+import '@/themeArchives.css'
 import ModelConfigSheet from '@/components/chat/ModelConfigSheet'
 import { CopyIcon, RegenIcon, EditIcon, SpeakerIcon, StopIcon, ArrowUpIcon, MicIcon, PhoneIcon } from '@/components/ui/icons'
 import { renderRichText, stripLinks } from '@/lib/richText'
@@ -75,6 +76,46 @@ const MAX_FILE = 1.5 * 1024 * 1024 // 1.5MB（dataURL 存 localStorage，避免�
 const SHELL_THEMES = new Set<ThemeId>([
   'paper', 'scrapbook', 'academy', 'mobile', 'letter', 'mistnote', 'nightglow', 'vinyl',
 ])
+
+/** 这 6 套主题与顾祁砚主聊天用同一套「档案」DOM 与样式（src/themeArchives.css 原样移植） */
+const ARCHIVE_THEMES = new Set<ThemeId>(['academy', 'vinyl', 'mobile', 'letter', 'mistnote', 'nightglow'])
+
+function ArchiveHeading({ theme, me, name, avatarImg, avatarEmoji }: {
+  theme: ThemeId
+  me: boolean
+  name: string
+  avatarImg?: string
+  avatarEmoji: string
+}) {
+  const src = useImgSrc(avatarImg)
+  const portrait = src ? <img src={src} alt="" /> : <span>{avatarEmoji || String(name || '角').slice(-1)}</span>
+  const cover = <div className="archive-portrait"><div className="archive-cover">{portrait}</div></div>
+  if (theme === 'mobile') return (
+    <div className="archive-heading"><div className="mobile-status" aria-hidden="true"><span>MESSAGE</span><span>⌁ ▰</span></div>{cover}<div className="archive-heading-copy"><strong className="archive-name">{name}</strong><small>{me ? '我的消息' : '他的来信'}</small></div></div>
+  )
+  if (theme === 'letter') return (
+    <div className="archive-heading"><div className="letter-cover" aria-hidden="true"><span>LETTERS · AFTERGLOW</span><i>✦</i></div>{cover}<div className="archive-heading-copy"><strong className="archive-name">{name}</strong><small>{me ? '@answer_before_dawn' : '@letters_at_midnight'}</small><p>{me ? '循着纸页的微光而来，把回信交给你。' : '把未寄出的黄昏折进信里，等你醒来。'}</p><div className="letter-stats" aria-hidden="true"><span><b>1314</b> Following</span><span><b>5.20k</b> Letters</span></div></div></div>
+  )
+  if (theme === 'nightglow') return (
+    <div className="archive-heading">{cover}<div className="archive-heading-copy"><strong className="archive-name">{name}</strong></div></div>
+  )
+  if (theme === 'mistnote') return (
+    <div className="archive-heading"><div className="mistnote-kicker" aria-hidden="true"><span>LETTERS · MIST</span><i>✦</i></div>{cover}<div className="archive-heading-copy"><strong className="archive-name">{name}</strong><small>{me ? '循光而来' : '雾色来信'}</small><p>{me ? '纸页翻向你，回声停在右岸。' : '长夜很轻，话落成一封未寄出的信。'}</p></div></div>
+  )
+  const vinyl = theme === 'vinyl'
+  return (
+    <div className="archive-heading">
+      {vinyl && <div className="archive-kicker" aria-hidden="true"><span>REEL 24 / 33⅓ RPM</span><b>✦ SCENE ✦</b><span>CYAN &amp; AMBER ✦</span></div>}
+      <div className="archive-portrait"><div className="archive-disc" aria-hidden="true" /><div className="archive-cover">{portrait}</div></div>
+      <div className="archive-heading-copy">
+        {vinyl && <small>SIDE A · CHARACTER ARCHIVE</small>}
+        <strong className="archive-name">{name}</strong>
+        {vinyl && <><em>Spinning softly, frame by frame.</em><div className="archive-track" aria-hidden="true"><i /><span>33⅓</span></div></>}
+      </div>
+      {vinyl ? <div className="archive-caption" aria-hidden="true">ANALOG PHONOGRAPH &amp; CINEMA ARCHIVE</div> : <span className="archive-grade" aria-hidden="true">{me ? 'A+' : 'B−'}</span>}
+    </div>
+  )
+}
 
 function ThemeMessageHeading({
   theme,
@@ -1707,7 +1748,8 @@ export default function Chat() {
       <div className="bw-chat-messages space-y-4 px-4 pt-3" style={{ paddingBottom: selectMode ? 8 : dockH + 12 }}>
         {messages.map((m) => {
           const me = m.role === 'me'
-          const shelled = SHELL_THEMES.has(theme)
+          const archived = ARCHIVE_THEMES.has(theme)
+          const shelled = SHELL_THEMES.has(theme) && !archived
           const picked = selectMode && selected.has(m.id)
 
           // 任务卡：进行中的在右上角悬浮卡显示；完成/取消后落进对话成记录
@@ -1765,13 +1807,14 @@ export default function Chat() {
                 'bw-message',
                 me ? 'bw-message-me' : 'bw-message-companion',
                 shelled ? `bw-shell-message bw-shell-${theme}` : '',
+                archived ? `archive-row archive-${theme}${me ? ' user' : ''}` : '',
                 flat ? 'flex flex-col' : 'flex items-start gap-2',
                 !flat && me ? 'flex-row-reverse' : '',
                 selectMode ? 'cursor-pointer rounded-2xl p-1' : '',
                 picked ? 'bg-white/25 ring-2 ring-accent' : '',
               ].join(' ')}
             >
-              {!flat && !shelled && (
+              {!flat && !shelled && !archived && (
                 <Avatar
                   img={me ? profile.avatarAImg : profile.avatarBImg}
                   emoji={me ? profile.avatarA : profile.avatarB}
@@ -1781,12 +1824,12 @@ export default function Chat() {
               )}
               <div
                 className={
-                  flat || shelled
+                  flat || shelled || archived
                     ? `bw-message-body flex w-full min-w-0 flex-col ${me ? 'items-end' : ''}`
                     : `bw-message-body flex min-w-0 max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`
                 }
               >
-                {flat && !shelled && (
+                {flat && !shelled && !archived && (
                   <div className={`mb-1 flex items-center gap-2 ${me ? 'flex-row-reverse' : ''}`}>
                     <Avatar
                       img={me ? profile.avatarAImg : profile.avatarBImg}
@@ -1798,6 +1841,15 @@ export default function Chat() {
                       {me ? profile.nameA || '我' : name}
                     </span>
                   </div>
+                )}
+                {archived && (
+                  <ArchiveHeading
+                    theme={theme}
+                    me={me}
+                    name={me ? profile.nameA || '我' : name}
+                    avatarImg={me ? profile.avatarAImg : profile.avatarBImg}
+                    avatarEmoji={me ? profile.avatarA : profile.avatarB}
+                  />
                 )}
                 {shelled && (
                   <ThemeMessageHeading
@@ -1859,7 +1911,7 @@ export default function Chat() {
                 ) : (
                   (m.text || (!me && (m.reasoning || streamingIds.has(m.id)))) && (
                     <div
-                      className={[
+                      className={archived ? 'archive-body' : [
                         'bw-message-bubble',
                         'max-w-full overflow-hidden text-sm leading-relaxed [overflow-wrap:anywhere]',
                         m.image || m.file ? 'mt-1' : '',
@@ -1907,7 +1959,7 @@ export default function Chat() {
                           </div>
                         )
                       })()}
-                      {m.text && <div className="bw-message-content [overflow-wrap:anywhere]">{renderRichText(showLinks ? m.text : stripLinks(m.text))}</div>}
+                      {m.text && <div className={`bw-message-content [overflow-wrap:anywhere]${archived ? ' bubble message-plain-text' : ''}`}>{renderRichText(showLinks ? m.text : stripLinks(m.text))}</div>}
                     </div>
                   )
                 )}

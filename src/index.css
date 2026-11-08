@@ -406,7 +406,7 @@ html[data-standalone='true'][data-keyboard] .bw-composer-dock {
 [data-theme='nightglow'] .bw-chat-messages,
 [data-theme='nightglow'] .bw-message-bubble,
 [data-theme='nightglow'] .bw-message-bubble * { font-family: 'Huiwen-mincho','Songti SC','STSong','Noto Serif SC',serif !important; }
-[data-theme='nightglow'] .bw-message:not(.bw-shell-message) { padding-bottom: 20px; border-bottom: 1px solid rgba(168,56,60,.14); }
+[data-theme='nightglow'] .bw-message:not(.bw-shell-message):not(.archive-row) { padding-bottom: 20px; border-bottom: 1px solid rgba(168,56,60,.14); }
 [data-theme='nightglow'] .bw-message-companion .bw-message-bubble { background: transparent !important; border: 0 !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; line-height: 2 !important; }
 [data-theme='nightglow'] .bw-message-me .bw-message-bubble { background: rgba(239,231,225,.9) !important; color: #2b2522 !important; }
 

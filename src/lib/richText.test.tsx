@@ -48,6 +48,6 @@ describe('rich chat text semantics', () => {
     expect(html).toContain('<strong class="bw-rich-strong">这反差感，也太可爱了点。</strong>')
     expect(html).toContain('bw-rich-hr')
     expect(html).toContain('bw-rich-heading')
-    expect(html).toContain('<span class="bw-chat-narration">轻轻笑</span>')
+    expect(html).toContain('<span class="bw-chat-narration chat-narration">轻轻笑</span>')
   })
 })
