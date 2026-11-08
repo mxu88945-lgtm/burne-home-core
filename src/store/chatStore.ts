@@ -17,6 +17,8 @@ export interface ChatMsg {
   ts?: number
   /** 图片（压缩后的 dataURL，只存本地） */
   image?: string
+  /** 同一条消息里的其余图片（第一张仍在 image 里，旧数据兼容） */
+  images?: string[]
   /** 这条 AI 回复消耗的总 token（有就显示） */
   tokens?: number
   /** 思考过程（开启 reasoning 时，折叠展示） */

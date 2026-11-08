@@ -117,6 +117,8 @@ export interface ChatOptions {
   reasoningEffort?: ReasoningEffort
   /** 联网查询（OpenRouter：model:online） */
   webSearch?: boolean
+  /** 用户点「停止」时中断请求 */
+  signal?: AbortSignal
 }
 
 export interface UsageInfo {
@@ -196,6 +198,7 @@ export async function chatCompleteStream(
     maxTokens,
     (effectiveMaxTokens) => fetch(`${trim(ch.baseUrl)}/chat/completions`, {
       method: 'POST',
+      signal: opts.signal,
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${ch.apiKey}`,
@@ -318,6 +321,7 @@ export async function chatComplete(
       maxTokens,
       (effectiveMaxTokens) => fetch(`${trim(ch.baseUrl)}/v1/messages`, {
         method: 'POST',
+        signal: opts.signal,
         headers: {
           'content-type': 'application/json',
           'x-api-key': ch.apiKey,
@@ -376,6 +380,7 @@ export async function chatComplete(
     maxTokens,
     (effectiveMaxTokens) => fetch(`${trim(ch.baseUrl)}/chat/completions`, {
       method: 'POST',
+      signal: opts.signal,
       headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${ch.apiKey}`,

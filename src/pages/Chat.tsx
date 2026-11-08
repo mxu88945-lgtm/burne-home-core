@@ -66,11 +66,10 @@ import {
   ImageIcon,
   FileIcon,
   ImageSparkIcon,
-  CropIcon,
-  CompressIcon,
 } from '@/components/ui/navIcons'
 
 type PendingFile = NonNullable<Msg['file']>
+const MAX_IMAGES = 9 // 一次最多发 9 张图
 const MAX_FILE = 1.5 * 1024 * 1024 // 1.5MB（dataURL 存 localStorage，避免超额）
 
 const SHELL_THEMES = new Set<ThemeId>([
@@ -317,7 +316,7 @@ export default function Chat() {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [plusOpen, setPlusOpen] = useState(false)
-  const [pendingImage, setPendingImage] = useState('')
+  const [pendingImages, setPendingImages] = useState<string[]>([])
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null)
   const [lightbox, setLightbox] = useState('')
   const [imgErr, setImgErr] = useState('')
@@ -331,6 +330,11 @@ export default function Chat() {
   const [openReasoning, setOpenReasoning] = useState<Set<string>>(new Set())
   // 正在流式输出（思考/正文边收边显示）的消息 id
   const [streamingIds, setStreamingIds] = useState<Set<string>>(new Set())
+  // 用户点「停止」：中断当前这次回复请求
+  const abortRef = useRef<AbortController | null>(null)
+  function stopReply() {
+    abortRef.current?.abort()
+  }
   // 各流式消息的思考起始时间戳（用于「深度思考 (x.xs)」实时计时）
   const thinkStartRef = useRef<Record<string, number>>({})
   // 记忆提示（飘一下就消失，不进对话正文）
@@ -609,12 +613,13 @@ export default function Chat() {
     const sessionId = session?.id
     if (!sessionId) return undefined
     const previous = session?.contextSummary
-    if (!force && !shouldAutoCompact(history)) return previous
+    if (!force && !shouldAutoCompact(history, previous)) return previous
 
     const batch = selectCompactionBatch(history, previous, AUTO_COMPACT_KEEP)
     // Automatic summaries are batched too: once the first summary exists, do
     // not spend a model call on every single new turn.
     if (batch.length < (force ? 3 : 8)) return previous
+    showMemToast('🧭 已累积到 240 条，正在整理连续性档案…')
     const transcript = buildCompactionTranscript(batch, previous)
     const maxTokens = Math.min(Math.max(persona.maxTokens || 0, 1200), 1800)
     setImgErr('')
@@ -649,32 +654,12 @@ export default function Chat() {
       // Target the original session: the user may have switched rooms while
       // the summary request was in flight.
       setSessionContextSummary(sessionId, next)
+      showMemToast(`✅ 已整理连续性档案：旧原文仍在本地，最近 ${AUTO_COMPACT_KEEP} 条保持原样`)
       return next
     } catch (e) {
       console.warn('[context] rolling summary failed', e)
-      if (force) setImgErr(`压缩失败：${(e as Error).message}`)
+      showMemToast(`连续性档案稍后重试：${(e as Error).message}`)
       return previous
-    }
-  }
-
-  /** 压缩长对话：摘要只作为后台连续性档案，旧消息仍留在本地。 */
-  async function compress() {
-    setPlusOpen(false)
-    if (sending || generating) return
-    if (messages.length <= AUTO_COMPACT_KEEP + 2) {
-      setImgErr('对话还很短，暂时不用压缩')
-      return
-    }
-    if (!activeChannel && !workerUrl) {
-      setImgErr('压缩需要先配置聊天渠道')
-      return
-    }
-    if (!window.confirm(`整理较早对话并保留最近 ${AUTO_COMPACT_KEEP} 条原文？（历史不会删除）`)) return
-    setSending(true)
-    try {
-      await compactContext(messages, true)
-    } finally {
-      setSending(false)
     }
   }
 
@@ -714,14 +699,20 @@ export default function Chat() {
   }
 
   /** 选图：不立即发送，挂到输入框上方作待发预览 */
-  async function pickImage(file: File) {
+  async function pickImages(files: File[]) {
     setPlusOpen(false)
     setImgErr('')
-    try {
-      setPendingFile(null)
-      setPendingImage(await fileToDataUrl(file, 1280, 0.8))
-    } catch (e) {
-      setImgErr((e as Error).message)
+    if (!files.length) return
+    setPendingFile(null)
+    const room = Math.max(0, MAX_IMAGES - pendingImages.length)
+    if (files.length > room) setImgErr(`一次最多 ${MAX_IMAGES} 张，多出的没加上`)
+    for (const file of files.slice(0, room)) {
+      try {
+        const url = await fileToDataUrl(file, 1280, 0.8)
+        setPendingImages((prev) => (prev.length >= MAX_IMAGES ? prev : [...prev, url]))
+      } catch (e) {
+        setImgErr((e as Error).message)
+      }
     }
   }
 
@@ -742,7 +733,7 @@ export default function Chat() {
       return
     }
     // 先挂上，确保随时能发送
-    setPendingImage('')
+    setPendingImages([])
     setPendingFile({ name: file.name, size: file.size, url })
 
     // 后台读取内容（文本/PDF），成功则补上 text；失败/超时不影响发送
@@ -770,17 +761,18 @@ export default function Chat() {
 
   async function send(textOverride?: string) {
     const text = (textOverride ?? draft).trim()
-    if ((!text && !pendingImage && !pendingFile) || sending) return
+    if ((!text && !pendingImages.length && !pendingFile) || sending) return
     const mid = newId()
-    let imageRef: string | undefined
-    if (pendingImage) {
-      try {
-        imageRef = await saveImgRef('cimg', mid, pendingImage)
-      } catch (e) {
-        setImgErr(`图片保存失败：${(e as Error).message}`)
-        return
+    const imageRefs: string[] = []
+    try {
+      for (let i = 0; i < pendingImages.length; i += 1) {
+        imageRefs.push(await saveImgRef('cimg', i === 0 ? mid : `${mid}-${i}`, pendingImages[i]))
       }
+    } catch (e) {
+      setImgErr(`图片保存失败：${(e as Error).message}`)
+      return
     }
+    const imageRef = imageRefs[0]
     const mine: Msg = {
       id: mid,
       role: 'me',
@@ -788,13 +780,14 @@ export default function Chat() {
       at: now(),
       // 图片本体进 IndexedDB，消息里只存引用（别撑爆 localStorage）
       ...(imageRef ? { image: imageRef } : {}),
+      ...(imageRefs.length > 1 ? { images: imageRefs.slice(1) } : {}),
       ...(pendingFile ? { file: pendingFile } : {}),
     }
     const history = [...messages, mine]
     setMessages(history)
     if (text) autoTitle(text)
     setDraft('')
-    setPendingImage('')
+    setPendingImages([])
     setPendingFile(null)
 
     if (!connected) {
@@ -1144,6 +1137,9 @@ export default function Chat() {
   /** 用当前历史调用模型并把回复加入对话（图片按 vision 格式发送） */
   async function respond(history: Msg[]) {
     setSending(true)
+    const abortCtl = new AbortController()
+    abortRef.current = abortCtl
+    const stopped = () => abortCtl.signal.aborted
     // Before every request, try to roll older turns into a continuity file
     // once the local transcript becomes large. Even if this model call cannot
     // produce a summary, the bounded window below still protects the request.
@@ -1155,10 +1151,11 @@ export default function Chat() {
     const resolvedImgs = new Map<string, string>()
     await Promise.all(
       apiHistory
-        .filter((m) => m.image && m.image.startsWith('idb:'))
-        .map(async (m) => {
+        .flatMap((m) => [m.image, ...(m.images ?? [])])
+        .filter((ref): ref is string => !!ref && ref.startsWith('idb:'))
+        .map(async (ref) => {
           try {
-            resolvedImgs.set(m.id, await resolveImgRef(m.image!))
+            resolvedImgs.set(ref, await resolveImgRef(ref))
           } catch {
             // A missing local image should degrade to the text/placeholder,
             // not strand the whole request before its error handler starts.
@@ -1191,11 +1188,13 @@ export default function Chat() {
           textPart = textPart.trim()
         }
         if (m.image) {
-          const imgUrl = m.image.startsWith('idb:') ? resolvedImgs.get(m.id) || '' : m.image
-          if (!imgUrl) return { role, content: textPart || '［图片］' }
+          const urls = [m.image, ...(m.images ?? [])]
+            .map((ref) => (ref.startsWith('idb:') ? resolvedImgs.get(ref) || '' : ref))
+            .filter(Boolean)
+          if (!urls.length) return { role, content: textPart || '［图片］' }
           const parts: Exclude<ChatApiMessage['content'], string> = []
           if (textPart) parts.push({ type: 'text', text: textPart })
-          parts.push({ type: 'image_url', image_url: { url: imgUrl } })
+          for (const url of urls) parts.push({ type: 'image_url', image_url: { url } })
           return { role, content: parts }
         }
         return { role, content: textPart }
@@ -1324,6 +1323,10 @@ export default function Chat() {
 
     // 开了思考过程且渠道可流式（OpenAI 兼容直连）→ 走流式：思考链实时流动、思考完自动收起出正文
     const useStream = !!channel && canStream(channel) && persona.reasoning
+    if (stopped()) {
+      setSending(false)
+      return
+    }
 
     try {
       // ——— 流式分支：边收思考边显示，思考结束自动收起再流出正文 ———
@@ -1373,6 +1376,7 @@ export default function Chat() {
                 reasoning: persona.reasoning,
                 reasoningEffort: persona.reasoningEffort,
                 webSearch: usePublicWebSearch,
+                signal: abortCtl.signal,
               },
               {
                 onReasoning: (d) => {
@@ -1433,6 +1437,18 @@ export default function Chat() {
             break // 成功
           } catch (err) {
             const msg = (err as Error).message || ''
+            if (stopped()) {
+              // 用户点了停止：已经流出来的字留着，啥都没出就把空气泡撤掉
+              collapseThink()
+              setMessages((prev) =>
+                prev.flatMap((m) => {
+                  if (m.id !== replyId) return [m]
+                  const kept = cleanReply(m.text || '')
+                  return kept ? [{ ...m, text: kept }] : []
+                }),
+              )
+              break
+            }
             const interrupted =
               (hiddenDuringReq || (typeof document !== 'undefined' && document.hidden)) &&
               looksBackgrounded(msg)
@@ -1456,6 +1472,7 @@ export default function Chat() {
                   reasoning: persona.reasoning,
                 reasoningEffort: persona.reasoningEffort,
                   webSearch: usePublicWebSearch,
+                signal: abortCtl.signal,
                 })
                 if (r.usage) {
                   addUsage({
@@ -1554,6 +1571,7 @@ export default function Chat() {
               reasoning: persona.reasoning,
                 reasoningEffort: persona.reasoningEffort,
               webSearch: usePublicWebSearch,
+                signal: abortCtl.signal,
             })
             reply = r.text
             reasoning = r.reasoning
@@ -1584,6 +1602,7 @@ export default function Chat() {
           break // 成功
         } catch (err) {
           const m = (err as Error).message || ''
+          if (stopped()) return
           const interrupted =
             (hiddenDuringReq || (typeof document !== 'undefined' && document.hidden)) &&
             looksBackgrounded(m)
@@ -1651,8 +1670,9 @@ export default function Chat() {
         void extractMemories([...history, { id: 'tmp', role: 'companion', text: reply, at: '' }], force)
       }
     } catch (e) {
-      showMemToast(`发送失败：${(e as Error).message}`)
+      if (!stopped()) showMemToast(`发送失败：${(e as Error).message}`)
     } finally {
+      if (abortRef.current === abortCtl) abortRef.current = null
       setSending(false)
     }
   }
@@ -1883,7 +1903,7 @@ export default function Chat() {
                     avatarEmoji={me ? profile.avatarA : profile.avatarB}
                   />
                 )}
-                {m.image && (
+                {m.image && !m.images?.length && (
                   <IdbImg
                     src={m.image}
                     alt="图片"
@@ -1892,6 +1912,21 @@ export default function Chat() {
                     }}
                     className="max-h-60 max-w-full cursor-pointer rounded-2xl object-cover"
                   />
+                )}
+                {m.image && !!m.images?.length && (
+                  <div className={`grid max-w-[260px] gap-1.5 ${me ? 'ml-auto' : ''} ${m.images.length === 1 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                    {[m.image, ...m.images].map((ref) => (
+                      <IdbImg
+                        key={ref}
+                        src={ref}
+                        alt="图片"
+                        onClick={() => {
+                          if (!selectMode) void resolveImgRef(ref).then((u) => u && setLightbox(u))
+                        }}
+                        className="aspect-square w-full cursor-pointer rounded-xl object-cover"
+                      />
+                    ))}
+                  </div>
                 )}
                 {m.file && (
                   <a
@@ -2163,24 +2198,31 @@ export default function Chat() {
             朗读失败：{ttsError}
           </div>
         )}
-        {pendingImage && (
-          <div className="mb-2 flex items-center gap-2 px-2">
-            <div className="relative">
-              <img
-                src={pendingImage}
-                alt="待发送"
-                className="h-16 w-16 rounded-xl object-cover"
-              />
+        {pendingImages.length > 0 && (
+          <div className="mb-2 flex items-center gap-2 overflow-x-auto px-2 pt-1.5">
+            {pendingImages.map((url, i) => (
+              <div key={i} className="relative shrink-0">
+                <img src={url} alt="待发送" className="h-16 w-16 rounded-xl object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setPendingImages((prev) => prev.filter((_, j) => j !== i))}
+                  aria-label="移除图片"
+                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[11px] text-white"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            {pendingImages.length < MAX_IMAGES && (
               <button
                 type="button"
-                onClick={() => setPendingImage('')}
-                aria-label="移除图片"
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[11px] text-white"
+                onClick={() => fileRef.current?.click()}
+                aria-label="再加一张"
+                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-dashed border-black/20 text-xl text-muted"
               >
-                ✕
+                ＋
               </button>
-            </div>
-            <span className="text-[11px] text-muted">图片已就绪，可一起发送文字</span>
+            )}
           </div>
         )}
         {pendingFile && (
@@ -2210,11 +2252,12 @@ export default function Chat() {
           ref={fileRef}
           type="file"
           accept="image/*"
+          multiple
           className="hidden"
           onChange={(e) => {
-            const f = e.target.files?.[0]
+            const files = Array.from(e.target.files ?? [])
             e.target.value = ''
-            if (f) pickImage(f)
+            void pickImages(files)
           }}
         />
         <input
@@ -2259,25 +2302,6 @@ export default function Chat() {
                 >
                   <ImageSparkIcon className="h-4 w-4 shrink-0 text-accent" />
                   生成图片
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPlusOpen(false)
-                    setSelectMode(true)
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left hover:bg-white/40"
-                >
-                  <CropIcon className="h-4 w-4 shrink-0 text-accent" />
-                  截图
-                </button>
-                <button
-                  type="button"
-                  onClick={compress}
-                  className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left hover:bg-white/40"
-                >
-                  <CompressIcon className="h-4 w-4 shrink-0 text-accent" />
-                  压缩对话
                 </button>
               </div>
             </>
@@ -2351,7 +2375,16 @@ export default function Chat() {
                 </button>
               )}
               {/* 黑色圆键：有字=发送(↑)，没字且开了语音=通话(📞)，否则=发送 */}
-              {draft.trim() || !sttCfg.enabled ? (
+              {sending ? (
+                <button
+                  type="button"
+                  onClick={stopReply}
+                  aria-label="停止回复"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-white"
+                >
+                  <span className="block h-3 w-3 rounded-[3px] bg-white" />
+                </button>
+              ) : draft.trim() || pendingImages.length || pendingFile || !sttCfg.enabled ? (
                 <button
                   type="button"
                   onClick={() => send()}

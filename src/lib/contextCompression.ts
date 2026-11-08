@@ -12,11 +12,11 @@ import type { ChatMsg, ChatContextSummary } from '@/store/chatStore'
 // Leave headroom for the persona/system prompt, memories, local-time note,
 // and a rolling summary. The provider limit belongs to the whole request,
 // not only the messages array.
-export const API_HISTORY_TOKEN_BUDGET = 4200
-export const API_HISTORY_MESSAGE_CAP = 48
-export const AUTO_COMPACT_TOKEN_THRESHOLD = 8500
-export const AUTO_COMPACT_MESSAGE_THRESHOLD = 40
-export const AUTO_COMPACT_KEEP = 24
+// 2026-11-08 对齐顾祁砚：攒满 240 条才自动整理一次，保留最近 96 条原文。
+export const API_HISTORY_TOKEN_BUDGET = 8200
+export const API_HISTORY_MESSAGE_CAP = 96
+export const AUTO_COMPACT_MESSAGE_THRESHOLD = 240
+export const AUTO_COMPACT_KEEP = 96
 // Chinese characters are roughly one token each. Keep the summary request
 // itself comfortably below the provider's context limit even when a previous
 // summary is included.
@@ -33,7 +33,8 @@ function estimateTextTokens(value: string): number {
 
 function messageExtraText(message: ChatMsg): string {
   const parts: string[] = []
-  if (message.image) parts.push('［图片］')
+  const imgCount = (message.image ? 1 : 0) + (message.images?.length ?? 0)
+  if (imgCount) parts.push(imgCount > 1 ? `［图片×${imgCount}］` : '［图片］')
   if (message.file) {
     parts.push(
       message.file.text
@@ -58,7 +59,7 @@ export function estimateMessageTokens(message: ChatMsg): number {
   // Images are deliberately charged conservatively. The actual provider cost
   // varies by image dimensions, but treating each as ~1200 tokens prevents a
   // long image-heavy chat from bypassing the window.
-  const imageCost = message.image ? 1200 : 0
+  const imageCost = ((message.image ? 1 : 0) + (message.images?.length ?? 0)) * 1200
   return Math.max(4, estimateTextTokens(text) + imageCost + 4)
 }
 
@@ -162,9 +163,17 @@ export function selectCompactionBatch(
   return usable.slice(start, targetEnd)
 }
 
-export function shouldAutoCompact(messages: ChatMsg[]): boolean {
-  return (
-    messages.filter(hasPromptContent).length >= AUTO_COMPACT_MESSAGE_THRESHOLD ||
-    estimateHistoryTokens(messages) >= AUTO_COMPACT_TOKEN_THRESHOLD
-  )
+/** 还没被连续性档案覆盖的消息（顾祁砚口径：只数这些，满 240 才整理）。 */
+export function uncompactedMessages(
+  messages: ChatMsg[],
+  previousSummary?: ChatContextSummary,
+): ChatMsg[] {
+  const usable = messages.filter(hasPromptContent)
+  if (!previousSummary?.coveredThroughId) return usable
+  const covered = usable.findIndex((message) => message.id === previousSummary.coveredThroughId)
+  return covered >= 0 ? usable.slice(covered + 1) : usable
+}
+
+export function shouldAutoCompact(messages: ChatMsg[], previousSummary?: ChatContextSummary): boolean {
+  return uncompactedMessages(messages, previousSummary).length >= AUTO_COMPACT_MESSAGE_THRESHOLD
 }
