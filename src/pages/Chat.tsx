@@ -38,6 +38,14 @@ import { recallPeople } from '@/lib/peopleRecall'
 import { MAX_SEARCH_ROUNDS, SEARCH_TAG_PROMPT, extractSearchTag, runModelSearch } from '@/lib/modelSearch'
 import { usePeopleStore } from '@/store/peopleStore'
 import { buildArchiveQuery, recallArchiveQueries } from '@/lib/archiveRecall'
+import { isSemanticReady, scheduleSemanticIndex, semanticLookup } from '@/lib/semanticRuntime'
+import {
+  archiveHitsFromSemantic,
+  chatBoostMap,
+  memoryBoostMap,
+  personEventBlock,
+  selectTurnHits,
+} from '@/lib/semanticRecall'
 import {
   buildArchivePlannerPrompt,
   mergeArchiveQueries,
@@ -1211,6 +1219,10 @@ export default function Chat() {
     const abortCtl = new AbortController()
     abortRef.current = abortCtl
     const stopped = () => abortCtl.signal.aborted
+    // 语义召回（开关关着时立刻得到 []、不发请求）：和下面的上下文压缩并行，最多等 4 秒
+    const semanticPromise = semanticLookup(
+      history.filter((m) => m.role === 'me').slice(-2).map((m) => m.text || ''),
+    ).catch(() => [])
     // Before every request, try to roll older turns into a continuity file
     // once the local transcript becomes large. Even if this model call cannot
     // produce a summary, the bounded window below still protects the request.
@@ -1330,11 +1342,14 @@ export default function Chat() {
     if (isArchiveRecallEnabled()) {
       system += buildMemoryRetrievalCapabilityNote(name)
     }
+    const turnContextIds = new Set(apiHistory.map((m) => m.id))
+    const semHits = selectTurnHits(await semanticPromise, turnContextIds)
     const memoryContext = recallMemories({
       query: currentQuery,
       scope: 'chat',
       memories: memState.memories,
       overview: memState.overview,
+      ...(semHits.length ? { semanticBoost: memoryBoostMap(semHits) } : {}),
     })
     recordMemoryDiagnostic(memoryContext.diagnostic)
 
@@ -1355,6 +1370,7 @@ export default function Chat() {
           userQueries,
           meName: profile.nameA || '我',
           aiName: name,
+          ...(semHits.length ? { semanticBoost: chatBoostMap(semHits, sessionsForRecall, turnContextIds) } : {}),
         }).text
       } catch {
         // 回忆失败不影响正常聊天
@@ -1374,6 +1390,9 @@ export default function Chat() {
         memories: memState.memories,
       })
       peopleText = peopleRecall.text
+      if (semHits.length) {
+        peopleText += personEventBlock(semHits, usePeopleStore.getState().people, new Set(peopleRecall.personIds))
+      }
       if (peopleRecall.personIds.length) {
         usePeopleStore.getState().markUsed(peopleRecall.personIds, peopleRecall.eventIds)
         usedMemoryIds.push(...peopleRecall.memoryIds)
@@ -1393,9 +1412,10 @@ export default function Chat() {
         [memoryContext.text, crossRecallText].filter(Boolean).join('\n\n'),
         rollingSummary?.text ?? '',
       )
+      const semanticArchive = archiveHitsFromSemantic(semHits)
       const archiveContext = await recallArchiveQueries(
         mergeArchiveQueries(directQuery, planned),
-        { maxHits: 5, maxChars: 4200 },
+        { maxHits: 5, maxChars: 4200, ...(semanticArchive.length ? { extraHits: semanticArchive } : {}) },
       )
       if (archiveContext.prompt) system += archiveContext.prompt
     } catch {
@@ -1440,6 +1460,7 @@ export default function Chat() {
           people: usePeopleStore.getState().people,
           meName: profile.nameA || '她',
           aiName: name,
+          ...(isSemanticReady() ? { semantic: (q: string) => semanticLookup([q]) } : {}),
         })
         if (found.memoryIds.length) useMemoryStore.getState().markUsed(found.memoryIds)
         return found.text
@@ -1841,6 +1862,8 @@ export default function Chat() {
     } finally {
       if (abortRef.current === abortCtl) abortRef.current = null
       setSending(false)
+      // 每次回复后：后台增量补语义索引（关着时什么也不做）
+      scheduleSemanticIndex(3000)
     }
   }
 

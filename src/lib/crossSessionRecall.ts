@@ -24,6 +24,8 @@ export interface CrossRecallOptions {
   minScore?: number
   /** 标题（默认「跨窗口回忆 · 之前的原话」） */
   heading?: string
+  /** 语义召回的加分（消息 id → 分）；和关键词分相加，同一套排序、预算与去重。 */
+  semanticBoost?: Map<string, number>
 }
 
 export interface CrossRecallResult {
@@ -92,8 +94,8 @@ export function recallCrossSessions(opts: CrossRecallOptions): CrossRecallResult
   const maxHits = opts.maxHits ?? 6
   const maxChars = opts.maxChars ?? 1800
   const queries = opts.userQueries.map((q) => q.trim()).filter(Boolean)
-  if (!queries.length) return { text: '', hits: 0 }
-  const latest = queries[queries.length - 1]
+  if (!queries.length && !opts.semanticBoost?.size) return { text: '', hits: 0 }
+  const latest = queries[queries.length - 1] ?? ''
   // 最新一句权重最高；省略式追问（"那中午呢"）靠上一句补话题
   const q = new Map<string, number>()
   queries.forEach((text, i) => {
@@ -102,7 +104,8 @@ export function recallCrossSessions(opts: CrossRecallOptions): CrossRecallResult
   })
   const dates = parseDates(latest, now)
   const intent = RECALL_INTENT.test(latest)
-  if (!q.size && !dates.size) return { text: '', hits: 0 }
+  const boost = opts.semanticBoost
+  if (!q.size && !dates.size && !boost?.size) return { text: '', hits: 0 }
 
   type Hit = { session: ChatSession; index: number; score: number }
   const hits: Hit[] = []
@@ -116,6 +119,7 @@ export function recallCrossSessions(opts: CrossRecallOptions): CrossRecallResult
       let score = 0
       for (const [t, w] of q) if (mt.has(t)) score += w
       if (dates.size && msg.ts && dates.has(dayKey(new Date(msg.ts)))) score += intent ? 3 : 2
+      if (boost) score += boost.get(msg.id) ?? 0
       // 用户自己说过的话更可信，略加权
       if (msg.role === 'me') score *= 1.15
       if (score >= (opts.minScore ?? 2)) hits.push({ session, index, score })

@@ -160,3 +160,15 @@ export async function getArchiveChunksByTerms(
   batches.flat().forEach((item) => unique.set(item.id, item))
   return [...unique.values()]
 }
+
+/** 指定会话的全部原文切片（语义索引用；只取启用的会话，按会话逐个读，避免一次性拉全库）。 */
+export async function listArchiveChunksForConversations(conversationIds: string[]): Promise<ArchiveChunk[]> {
+  if (!conversationIds.length) return []
+  const db = await openArchiveDb()
+  const tx = db.transaction(CHUNKS, 'readonly')
+  const index = tx.objectStore(CHUNKS).index('conversationId')
+  const batches = await Promise.all(
+    conversationIds.map((id) => request(index.getAll(IDBKeyRange.only(id))) as Promise<ArchiveChunk[]>),
+  )
+  return batches.flat().sort((a, b) => a.conversationId.localeCompare(b.conversationId) || a.sequence - b.sequence)
+}

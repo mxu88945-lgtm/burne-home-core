@@ -10,6 +10,14 @@ import { recallArchiveQueries } from '@/lib/archiveRecall'
 import { matchKeyword } from '@/lib/memory'
 import { findPerson, sortedEvents, type Person } from '@/lib/people'
 import { clipQuote } from '@/lib/quoteFormat'
+import {
+  archiveHitsFromSemantic,
+  chatBoostMap,
+  memoryIdsFromHits,
+  selectTurnHits,
+  type SemanticHit,
+} from '@/lib/semanticRecall'
+import type { ArchiveRecallHit } from '@/types/archive'
 
 export const MAX_SEARCH_ROUNDS = 1
 
@@ -38,7 +46,9 @@ export interface ModelSearchOptions {
   aiName: string
   now?: Date
   /** 档案查询（测试可替换）；默认走 recallArchiveQueries，遵守「旧日原文召回」开关 */
-  archiveSearch?: (query: string) => Promise<string>
+  archiveSearch?: (query: string, extraHits?: ArchiveRecallHit[]) => Promise<string>
+  /** 语义检索（开关关着时不传）；失败/超时自己返回 []。 */
+  semantic?: (query: string) => Promise<SemanticHit[]>
 }
 
 export interface ModelSearchResult {
@@ -47,13 +57,21 @@ export interface ModelSearchResult {
   memoryIds: string[]
 }
 
-const defaultArchiveSearch = async (query: string) =>
-  (await recallArchiveQueries([query], { maxHits: 4, maxChars: 2400 })).prompt
+const defaultArchiveSearch = async (query: string, extraHits?: ArchiveRecallHit[]) =>
+  (await recallArchiveQueries([query], { maxHits: 4, maxChars: 2400, extraHits })).prompt
 
 export async function runModelSearch(opts: ModelSearchOptions): Promise<ModelSearchResult> {
   const q = opts.query.trim()
   const parts: string[] = []
   const memoryIds: string[] = []
+  let semHits: SemanticHit[] = []
+  if (opts.semantic) {
+    try {
+      semHits = selectTurnHits(await opts.semantic(q), opts.inContextIds)
+    } catch {
+      semHits = []
+    }
+  }
 
   // 1) 所有聊天窗口里的原话（包括本窗口已滑出上下文的），带日期和前后各 1 条
   try {
@@ -69,6 +87,7 @@ export async function runModelSearch(opts: ModelSearchOptions): Promise<ModelSea
       maxHits: 6,
       maxChars: 2000,
       heading: `翻旧账 · 「${q}」在聊天里的原话`,
+      ...(semHits.length ? { semanticBoost: chatBoostMap(semHits, opts.sessions, opts.inContextIds) } : {}),
     })
     if (cross.text) parts.push(cross.text.trim())
   } catch {
@@ -77,16 +96,23 @@ export async function runModelSearch(opts: ModelSearchOptions): Promise<ModelSea
 
   // 2) 导入的旧日档案
   try {
-    const archive = await (opts.archiveSearch ?? defaultArchiveSearch)(q)
+    const extra = archiveHitsFromSemantic(semHits)
+    const search = opts.archiveSearch ?? defaultArchiveSearch
+    const archive = await (extra.length ? search(q, extra) : search(q))
     if (archive.trim()) parts.push(archive.trim())
   } catch {
     /* 档案库不可用 */
   }
 
   // 3) 记忆库
-  const mems = opts.memories
-    .filter((m) => !m.deletedAt && !m.supersededById && matchKeyword(m, q))
-    .slice(0, 5)
+  const active = opts.memories.filter((m) => !m.deletedAt && !m.supersededById)
+  const keywordMems = active.filter((m) => matchKeyword(m, q))
+  const semIds = memoryIdsFromHits(semHits)
+  const semMems = semIds
+    .map((id) => active.find((m) => m.id === id))
+    .filter((m): m is MemoryItem => !!m && !keywordMems.includes(m))
+  // 关键词命中在前，语义补充在后，合计最多 5 条
+  const mems = [...keywordMems, ...semMems].slice(0, 5)
   if (mems.length) {
     parts.push(`【翻旧账 · 记忆库】\n${mems.map((m) => `- ${clipQuote(m.content, 140)}`).join('\n')}`)
     memoryIds.push(...mems.map((m) => m.id))

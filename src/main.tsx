@@ -146,6 +146,8 @@ async function purgeRemovedDrama() {
 async function startApp() {
   // 戏剧板块已删除（2026-11-07 她决定：剧情交给惟境/顾祁砚剧场）。一次性清掉戏剧与角色卡库的本地数据，失败不挡启动。
   void purgeRemovedDrama()
+  // 语义召回：启动约 60 秒后后台补一次索引（开关关着时什么也不做）
+  void import('@/lib/semanticRuntime').then((m) => m.scheduleSemanticIndex(60_000)).catch(() => {})
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
       <App />

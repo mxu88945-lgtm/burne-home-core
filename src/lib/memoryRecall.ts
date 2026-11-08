@@ -14,6 +14,8 @@ export interface MemoryRecallOptions {
   maxItems?: number
   maxChars?: number
   now?: Date
+  /** 语义召回的加分（记忆 id → 分），和关键词相关度相加。 */
+  semanticBoost?: Map<string, number>
 }
 
 export interface MemoryRecallResult {
@@ -154,6 +156,11 @@ export function recallMemories(options: MemoryRecallOptions): MemoryRecallResult
     }
     if (!isActive(memory, now)) continue
     const scored = scoreMemory(memory, queryTokens, query, now)
+    const sem = options.semanticBoost?.get(memory.id)
+    if (sem) {
+      scored.score += sem
+      scored.reason = ['语义相近', ...scored.reason.split(' · ')].slice(0, 2).join(' · ')
+    }
     candidates.push({ memory, ...scored })
   }
 

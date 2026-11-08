@@ -16,6 +16,8 @@ export interface ArchiveRecallOptions {
   includeDisabled?: boolean
   /** 档案页人工核对时可搜索；不代表允许主聊天自动召回。 */
   ignoreGlobalToggle?: boolean
+  /** 语义召回找到的旧日原文（分数已折算）；与关键词命中按 chunkId 合并加分、去重。 */
+  extraHits?: ArchiveRecallHit[]
 }
 
 function displayDate(value?: string): string {
@@ -168,7 +170,8 @@ export async function recallArchiveQueries(
       .filter((query) => query.length >= 2)
       .map((query) => [normalizeArchiveText(query), query]),
   ).values()].slice(0, 4)
-  if (!cleanQueries.length) return { query: '', hits: [], prompt: '', candidateCount: 0 }
+  const extras = options.ignoreGlobalToggle || isArchiveRecallEnabled() ? options.extraHits ?? [] : []
+  if (!cleanQueries.length && !extras.length) return { query: '', hits: [], prompt: '', candidateCount: 0 }
 
   const results = await Promise.all(
     cleanQueries.map((query) => recallArchive(query, { ...options, maxHits: Math.max(4, options.maxHits ?? 0) })),
@@ -181,6 +184,19 @@ export async function recallArchiveQueries(
       if (!current || candidate.score > current.score) unique.set(hit.chunkId, candidate)
     })
   })
+  // 语义命中：同一块已被关键词找到就加分（两路都中排更前），否则作为新候选
+  for (const extra of extras) {
+    const current = unique.get(extra.chunkId)
+    if (current) {
+      unique.set(extra.chunkId, {
+        ...current,
+        score: current.score + extra.score,
+        reasons: [...current.reasons, ...extra.reasons.filter((r) => !current.reasons.includes(r))],
+      })
+    } else {
+      unique.set(extra.chunkId, extra)
+    }
+  }
   const hits = [...unique.values()]
     .sort((a, b) => b.score - a.score || (b.endedAt ?? '').localeCompare(a.endedAt ?? ''))
     .slice(0, options.maxHits ?? 5)
@@ -188,7 +204,7 @@ export async function recallArchiveQueries(
     query: cleanQueries.join('\n'),
     hits,
     prompt: buildArchivePrompt(cleanQueries, hits, options.maxChars ?? 4200),
-    candidateCount: results.reduce((sum, result) => sum + result.candidateCount, 0),
+    candidateCount: results.reduce((sum, result) => sum + result.candidateCount, 0) + extras.length,
   }
 }
 

@@ -40,6 +40,8 @@ export const STORAGE_KEYS = {
   charLib: `${NS}:char-lib`,
   pet: `${NS}:pet`,
   music: `${NS}:music`,
+  semantic: `${NS}:semantic-recall`,
+  semanticBackoff: `${NS}:semantic-backoff`,
 } as const
 
 /** 本设备 ID（多端同步用）—— 生成一次后持久化在本地 */
