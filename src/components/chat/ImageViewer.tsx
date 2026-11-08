@@ -1,5 +1,6 @@
-import { useEffect, useState, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import IdbImg from '@/components/ui/IdbImg'
+import { attachPinchZoom } from '@/lib/pinchZoom'
 
 // 聊天里的图片：单独一块（不进文字气泡）。多张时像几张照片歪着叠在一起，点开再左右翻。
 const TILTS = [-7, 5, 0]
@@ -155,11 +156,11 @@ export function ImageViewer({
       >
         {urls.map((url, i) => (
           <div key={i} className="flex h-full w-full shrink-0 snap-center items-center justify-center px-7 py-6">
-            <img
+            <ZoomImg
               src={url}
-              alt="大图"
               onClick={(e) => e.stopPropagation()}
-              className={`max-h-full max-w-full rounded-[26px] object-contain shadow-[0_18px_50px_rgba(0,0,0,0.28)] transition-transform duration-300 ${shown ? 'scale-100' : 'scale-95'}`}
+              track={scrollRef}
+              className={`max-h-full max-w-full touch-pan-x select-none rounded-[26px] object-contain shadow-[0_18px_50px_rgba(0,0,0,0.28)] transition-transform duration-300 ${shown ? 'scale-100' : 'scale-95'}`}
             />
           </div>
         ))}
@@ -168,8 +169,28 @@ export function ImageViewer({
         className="shrink-0 text-center text-[11px] text-white/85"
         style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}
       >
-        {urls.length > 1 ? '左右滑动 · ' : ''}长按或点右上角保存 · 点空白关闭
+        {urls.length > 1 ? '左右滑动 · ' : ''}双指放大 · 点右上角保存 · 点空白关闭
       </div>
     </div>
   )
+}
+
+function ZoomImg({
+  src,
+  track,
+  className,
+  onClick,
+}: {
+  src: string
+  track: RefObject<HTMLDivElement>
+  className: string
+  onClick: (e: React.MouseEvent) => void
+}) {
+  const ref = useRef<HTMLImageElement>(null)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    return attachPinchZoom(el, track.current)
+  }, [track])
+  return <img ref={ref} src={src} alt="大图" draggable={false} onClick={onClick} className={className} />
 }
