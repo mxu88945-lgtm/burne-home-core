@@ -149,7 +149,7 @@
   --shadow: rgba(60,72,80,.1); --on-accent: #fff; --bar: rgba(248,247,243,.72);
 }
 [data-theme='mistnote'] {
-  --bg-to: #dfe8ed; --bg-mesh: linear-gradient(155deg,#f7f9fa,#eef3f5 54%,#dfe8ed);
+  --bg-to: #f3f6f7; --bg-mesh: radial-gradient(circle at 78% 8%,rgba(205,218,225,.55),transparent 28%),#f3f6f7;
   --top-fade: linear-gradient(180deg,#f3f6f7 0%,rgba(243,246,247,0) 16%);
   --text: #35424b; --text-soft: #74828b; --label: #8c9ca6; --accent: #647d8d; --accent-2: #91a6b2;
   --card: rgba(251,252,252,.7); --card-strong: rgba(251,252,252,.91); --card-border: rgba(203,215,222,.9);
@@ -501,8 +501,25 @@ html[data-standalone='true'][data-keyboard] .bw-composer-dock {
 [data-theme='letter'] .bw-chat-quote { display: inline-block; padding: .17em .55em; border: 1px solid #d0d8dc; border-radius: 12px 12px 12px 3px; background: #e9eff2; color: #4d6676; }
 
 /* 雾蓝长笺 */
-[data-theme='mistnote'] .bw-shell-mistnote { padding: 16px; border: 1px solid #cbd7de; border-radius: 28px; background: rgba(251,252,252,.86); box-shadow: 0 13px 30px rgba(59,80,92,.08); }
-[data-theme='mistnote'] .bw-shell-message .bw-message-bubble { border: 0 !important; border-top: 1px solid #d2dde2 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; color: #35424b !important; }
+/* 和顾祁砚一致：抬头一张卡（雾蓝渐变 + 圆头像），正文另一张卡；我的消息正文是靠右的气泡 */
+[data-theme='mistnote'] .bw-shell-mistnote { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+[data-theme='mistnote'] .bw-shell-mistnote.bw-message-companion { width: 100%; }
+[data-theme='mistnote'] .bw-shell-mistnote.bw-message-me { width: min(88%, 520px); }
+[data-theme='mistnote'] .bw-shell-mistnote .bw-shell-heading { position: relative; box-sizing: border-box; margin-bottom: 12px; padding: 30px 20px 18px; border: 1px solid #cbd7de; border-radius: 24px; background: linear-gradient(135deg,#e8eff3,#f8fafb); box-shadow: 0 12px 28px rgba(59,80,92,.09); overflow: hidden; }
+[data-theme='mistnote'] .bw-shell-mistnote .bw-shell-kicker { position: absolute; top: 12px; left: 16px; right: 16px; margin: 0; color: #85959f; font: 8px/1.2 Georgia, serif; letter-spacing: .18em; }
+[data-theme='mistnote'] .bw-shell-mistnote.bw-message-companion .bw-shell-kicker { text-align: right; }
+[data-theme='mistnote'] .bw-shell-mistnote.bw-message-me .bw-shell-kicker { text-align: left; }
+[data-theme='mistnote'] .bw-shell-mistnote .bw-shell-heading-row { gap: 15px; }
+[data-theme='mistnote'] .bw-shell-mistnote .bw-shell-portrait { width: 66px; height: 66px; padding: 4px; box-sizing: border-box; border: 1px solid #b8c8d1; border-radius: 50%; background: #fafcfc; box-shadow: 0 6px 16px rgba(55,75,87,.12); object-fit: cover; }
+[data-theme='mistnote'] .bw-shell-mistnote .bw-shell-portrait img { border-radius: 50%; }
+[data-theme='mistnote'] .bw-shell-mistnote .bw-shell-name { color: #34434c; font-size: 22px; font-weight: 800; line-height: 1.18; }
+[data-theme='mistnote'] .bw-shell-mistnote .bw-shell-subtitle { margin-top: 5px; color: #71838e; font-size: 10px; letter-spacing: .12em; }
+[data-theme='mistnote'] .bw-shell-mistnote .bw-shell-stamp { position: absolute; top: 9px; font-size: 12px; color: #85959f; }
+[data-theme='mistnote'] .bw-shell-mistnote.bw-message-companion .bw-shell-stamp { left: 16px; }
+[data-theme='mistnote'] .bw-shell-mistnote.bw-message-me .bw-shell-stamp { right: 16px; }
+[data-theme='mistnote'] .bw-shell-message .bw-message-bubble { box-sizing: border-box; padding: 18px 17px !important; border: 1px solid #d2dde2 !important; border-radius: 24px !important; background: rgba(251,252,252,.95) !important; box-shadow: 0 13px 30px rgba(59,80,92,.08) !important; color: #35424b !important; line-height: 2 !important; }
+[data-theme='mistnote'] .bw-shell-message.bw-message-companion .bw-message-bubble { width: 100%; }
+[data-theme='mistnote'] .bw-shell-message.bw-message-me .bw-message-bubble { width: fit-content; min-width: 72px; max-width: 100%; margin-left: auto; padding: 14px 20px !important; text-align: left; }
 [data-theme='mistnote'] .bw-chat-quote { display: inline-block; padding: .12em .6em; border-radius: 999px; background: #dfe9ee; color: #476677; }
 
 /* 暗夜流光 */
