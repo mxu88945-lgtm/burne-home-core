@@ -23,7 +23,7 @@ export function ImageStack({
           src={list[0]}
           alt="图片"
           onClick={() => onOpen(list, 0)}
-          className="block max-h-64 max-w-[min(240px,70vw)] cursor-pointer rounded-[18px] border-[3px] border-white/90 object-cover shadow-[0_8px_24px_rgba(0,0,0,0.16)]"
+          className="block max-h-[190px] max-w-[min(150px,44vw)] cursor-pointer rounded-[16px] border-[3px] border-white/90 object-cover shadow-[0_8px_24px_rgba(0,0,0,0.16)]"
         />
       </div>
     )
@@ -34,7 +34,7 @@ export function ImageStack({
     <button
       type="button"
       onClick={() => onOpen(list, 0)}
-      className={`bw-image-stack relative z-[1] my-3 block h-[200px] w-[190px] shrink-0 ${me ? 'ml-auto mr-2' : 'ml-2'}`}
+      className={`bw-image-stack relative z-[1] my-3 block h-[165px] w-[150px] shrink-0 ${me ? 'ml-auto mr-2' : 'ml-2'}`}
       aria-label={`${list.length} 张图片`}
     >
       {shown.map((ref, i) => {
