@@ -127,9 +127,9 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
                   onClick={refreshModels}
                   disabled={loading}
                   aria-label="刷新模型列表"
-                  className="rounded-full px-1.5 py-0.5 text-[12px] text-accent disabled:opacity-40"
+                  className="rounded-full px-1.5 py-0.5 text-[15px] leading-none text-accent disabled:opacity-40"
                 >
-                  {loading ? '刷新中' : '↻ 刷新'}
+                  {loading ? '…' : '↻'}
                 </button>
               </span>
               {showInput ? (
