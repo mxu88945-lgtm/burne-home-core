@@ -102,7 +102,7 @@ export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high'
  * 开了思考就在用户设的字数上再加一份思考预算（顾祁砚 Claude 线路同样处理）。
  */
 export function withThinkingRoom(maxTokens: number, opts: ChatOptions): number {
-  if (!opts.reasoning) return maxTokens
+  if (!opts.reasoning || maxTokens <= 0) return maxTokens // 0 = 不限，不发 max_tokens
   const budget = ({ auto: 8000, low: 2048, medium: 4096, high: 8192 } as const)[opts.reasoningEffort || 'auto']
   return Math.max(maxTokens, maxTokens + budget)
 }
@@ -218,7 +218,7 @@ export async function chatCompleteStream(
       body: JSON.stringify({
         model,
         messages: full,
-        max_tokens: effectiveMaxTokens,
+        ...(effectiveMaxTokens > 0 ? { max_tokens: effectiveMaxTokens } : {}),
         stream: true,
         ...(isOpenRouter ? { stream_options: { include_usage: true } } : {}),
         ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
@@ -328,7 +328,7 @@ export async function chatComplete(
       baseUrl: ch.baseUrl,
       apiKey: ch.apiKey,
       temperature: opts.temperature,
-      maxTokens,
+      maxTokens: maxTokens > 0 ? maxTokens : 8192,
     })
     return { text }
   }
@@ -336,7 +336,7 @@ export async function chatComplete(
   // 浏览器直连
   if (ch.provider === 'anthropic') {
     const res = await fetchWithinAffordableTokenBudget(
-      maxTokens,
+      maxTokens > 0 ? maxTokens : 8192, // Anthropic 必须带上限
       (effectiveMaxTokens) => fetch(`${trim(ch.baseUrl)}/v1/messages`, {
         method: 'POST',
         signal: opts.signal,
@@ -348,7 +348,7 @@ export async function chatComplete(
         },
         body: JSON.stringify({
           model: ch.model,
-          max_tokens: effectiveMaxTokens,
+          ...(effectiveMaxTokens > 0 ? { max_tokens: effectiveMaxTokens } : {}),
           // 开思考时 anthropic 要求不传 temperature
           ...(opts.reasoning ? {} : opts.temperature != null ? { temperature: opts.temperature } : {}),
           ...(opts.reasoning
@@ -406,7 +406,7 @@ export async function chatComplete(
       body: JSON.stringify({
         model,
         messages: full,
-        max_tokens: effectiveMaxTokens,
+        ...(effectiveMaxTokens > 0 ? { max_tokens: effectiveMaxTokens } : {}),
         ...(opts.temperature != null ? { temperature: opts.temperature } : {}),
         // 思考过程：自动 / 低中高（OpenRouter 写法 + 官方 reasoning_effort）
         ...openaiReasoningFields(opts, isOpenRouter),

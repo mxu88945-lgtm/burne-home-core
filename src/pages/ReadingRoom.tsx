@@ -157,7 +157,7 @@ export default function ReadingRoom() {
         .map((m) => ({ role: m.role === 'me' ? 'user' : 'assistant', content: m.text }))
       const r = await chatComplete(activeChannel, history, buildSys(cur, text), {
         temperature: persona.temperature,
-        maxTokens: Math.min(persona.maxTokens, 1500),
+        maxTokens: persona.maxTokens > 0 ? Math.min(persona.maxTokens, 1500) : 1500,
         workerUrl: config.workerUrl?.trim(),
         syncKey: config.syncKey,
       })

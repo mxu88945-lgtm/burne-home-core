@@ -10,7 +10,8 @@ export function affordableTokenLimitFromError(message: string, requested: number
     return null
   }
 
-  const current = Math.max(1, Math.floor(requested))
+  // requested 为 0 表示「不限」（没发 max_tokens），按服务商说的可用额度来
+  const current = requested > 0 ? Math.floor(requested) : Number.POSITIVE_INFINITY
   const next = Math.min(current - 1, Math.floor(affordable))
   return next >= 1 ? next : null
 }

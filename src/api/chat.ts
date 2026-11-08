@@ -28,7 +28,7 @@ const LONG_STORY_SUMMARY_SYS =
   '如果信息很多，宁可写得稍长，也不要丢掉人物关系、关键线索和当前处境。建议 900 到 1400 字。'
 
 function normalizeSummaryRequest(system: string | undefined, maxTokens: number | undefined) {
-  const tokenBudget = maxTokens ?? 1024
+  const tokenBudget = maxTokens === 0 ? 8192 : maxTokens ?? 1024
   if (
     system?.includes('角色扮演剧情记录助手') ||
     system?.includes('角色扮演剧情档案助手')

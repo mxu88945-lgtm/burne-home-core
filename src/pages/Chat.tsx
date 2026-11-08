@@ -1461,7 +1461,7 @@ export default function Chat() {
               })
             }
             collapseThink() // 万一没有正文增量也要确保收起
-            if (r.truncated) showMemToast('✂️ 这条写到字数上限被截断了，可在人设里调大「最大回复 Tokens」')
+            if (r.truncated) showMemToast('✂️ 这条写到字数上限被截断了，可在人设里把「最大回复 Tokens」清空（不限）或调大')
             let finalText = saveMemoryTags(cleanReply(r.text), replyId)
             const taskMsgs: Msg[] = []
             if (allowTasks && finalText) {

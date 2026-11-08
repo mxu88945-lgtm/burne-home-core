@@ -26,4 +26,10 @@ describe('affordable token retry', () => {
     expect(response.ok).toBe(true)
     expect(budgets).toEqual([2048, 1670])
   })
+
+  it('uses the affordable amount when no limit was sent', () => {
+    expect(
+      affordableTokenLimitFromError('You requested up to 65536 tokens, but can only afford 9000.', 0),
+    ).toBe(9000)
+  })
 })

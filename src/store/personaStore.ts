@@ -52,7 +52,8 @@ const DEFAULT_PERSONA: Persona = {
   status: 'thinking quietly',
   systemPrompt: '',
   temperature: 0.8,
-  maxTokens: 4096,
+  /** 0 = 不限（像顾祁砚留空那样，不给模型设回复上限） */
+  maxTokens: 0,
   reasoning: false,
 }
 
@@ -62,8 +63,15 @@ function loadPersona(): Persona {
   try {
     const MIG = `${STORAGE_KEYS.persona}-mtmig`
     if (!localStorage.getItem(MIG)) {
-      if (!p.maxTokens || p.maxTokens <= 1024) p.maxTokens = DEFAULT_PERSONA.maxTokens
+      if (p.maxTokens && p.maxTokens <= 1024) p.maxTokens = DEFAULT_PERSONA.maxTokens
       localStorage.setItem(MIG, '1')
+      writeJSON(STORAGE_KEYS.persona, p)
+    }
+    // 2026-11-08：旧默认 4096 会截断思考模型的回复，改成「不限」（之后自己填数字仍然生效）
+    const MIG2 = `${STORAGE_KEYS.persona}-mtmig2`
+    if (!localStorage.getItem(MIG2)) {
+      if (p.maxTokens === 4096) p.maxTokens = 0
+      localStorage.setItem(MIG2, '1')
       writeJSON(STORAGE_KEYS.persona, p)
     }
   } catch {

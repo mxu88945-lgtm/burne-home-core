@@ -252,10 +252,11 @@ export default function Persona() {
           <span className="text-sm text-ink">最大回复 Tokens</span>
           <input
             type="number"
-            min={64}
-            max={32000}
-            value={persona.maxTokens}
-            onChange={(e) => setPersona({ maxTokens: Number(e.target.value) || 1024 })}
+            min={0}
+            max={64000}
+            placeholder="不限"
+            value={persona.maxTokens > 0 ? persona.maxTokens : ''}
+            onChange={(e) => setPersona({ maxTokens: Math.max(0, Number(e.target.value) || 0) })}
             className="w-28 rounded-xl border border-line bg-white/40 px-3 py-1.5 text-right text-sm text-ink outline-none focus:border-accent"
           />
         </label>
