@@ -23,6 +23,13 @@ import { generateImage } from '@/api/imagegen'
 import { useVisionStore } from '@/store/visionStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { useMemoryStore } from '@/store/memoryStore'
+import {
+  REFERENCE_FILE_FIRST_BUDGET,
+  REFERENCE_FILE_FOLLOWUP_BUDGET,
+  REFERENCE_FILE_SYSTEM_NOTE,
+  filePromptText,
+  messageWithFile,
+} from '@/lib/referenceFile'
 import { MEMORY_TAG_PROMPT, buildRecentStateNote, extractMemoryTags, hideMemoryTagsWhileStreaming } from '@/lib/memoryTags'
 import { recallMemories } from '@/lib/memoryRecall'
 import { buildArchiveQuery, recallArchiveQueries } from '@/lib/archiveRecall'
@@ -1212,6 +1219,8 @@ export default function Chat() {
           }
         }),
     )
+    // 最新一份文件第一次读给足篇幅，之后的轮次只带缩略，别把剧情上下文挤掉
+    const latestFileMsgId = [...apiHistory].reverse().find((m) => m.file?.text)?.id
     const apiMsgs: ChatApiMessage[] = apiHistory
       .filter((m) => m.text.trim() || m.image || m.file || m.task)
       .map((m) => {
@@ -1232,10 +1241,18 @@ export default function Chat() {
         // 文本（含文件信息：文本文件带内容，二进制只附说明）
         let textPart = m.text.trim()
         if (m.file) {
-          textPart += m.file.text
-            ? `\n\n[文件 ${m.file.name} 的内容]：\n${m.file.text}`
-            : `\n\n[用户发送了文件：${m.file.name}（${humanSize(m.file.size)}，无法读取内容）]`
-          textPart = textPart.trim()
+          // 对齐顾祁砚：文件是只读参考资料，包起来放在前面，她的话放后面，防止伯恩把剧本/角色卡当成新人设
+          textPart = m.file.text
+            ? messageWithFile(
+                textPart,
+                filePromptText(
+                  m.file.name,
+                  humanSize(m.file.size),
+                  m.file.text,
+                  m.id === latestFileMsgId ? REFERENCE_FILE_FIRST_BUDGET : REFERENCE_FILE_FOLLOWUP_BUDGET,
+                ),
+              )
+            : `${textPart}\n\n[她发送了文件：${m.file.name}（${humanSize(m.file.size)}，无法读取内容）]`.trim()
         }
         if (m.image) {
           const urls = [m.image, ...(m.images ?? [])]
@@ -1363,6 +1380,7 @@ export default function Chat() {
     }
     system += buildRecentStateNote(history, new Set(apiHistory.map((m) => m.id)), profile.nameA || '她')
     system += MEMORY_TAG_PROMPT
+    if (apiHistory.some((m) => m.file?.text)) system += REFERENCE_FILE_SYSTEM_NOTE
     if (allowTasks) {
       system +=
         `\n\n【任务提醒功能 · 请理解并善用】\n` +
