@@ -85,6 +85,8 @@ export interface MemoryItem {
   /** 召回统计，仅作诊断，不参与内容语义。 */
   lastUsedAt?: string
   useCount?: number
+  /** 被召回注入提示的次数（越用越记得：打分时加一点小权重）。 */
+  hitCount?: number
 }
 
 /** 新建记忆时的输入（id / 时间戳由系统生成） */

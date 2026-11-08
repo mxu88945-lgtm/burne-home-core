@@ -60,6 +60,28 @@ function recencyScore(memory: MemoryItem, now: Date): number {
   return Math.max(0, 18 - Math.min(18, ageDays))
 }
 
+/** 越用越记得：被召回过的记忆加一点分，对数增长、上限 4，远小于关键词相关度（最多 36+45+32）。 */
+export const USAGE_BOOST_CAP = 4
+
+export function usageBoost(memory: Pick<MemoryItem, 'hitCount'>): number {
+  const hits = Math.max(0, memory.hitCount ?? 0)
+  return Math.min(USAGE_BOOST_CAP, Math.log2(1 + hits) * 1.5)
+}
+
+/** 记一次召回：hitCount +1、lastUsedAt；旧记忆只会因近期度降权，从不因此删除。 */
+export function markMemoriesUsed(memories: MemoryItem[], ids: string[], now: Date = new Date()): MemoryItem[] {
+  const set = new Set(ids)
+  if (!set.size) return memories
+  const iso = now.toISOString()
+  let changed = false
+  const next = memories.map((m) => {
+    if (!set.has(m.id)) return m
+    changed = true
+    return { ...m, hitCount: (m.hitCount ?? 0) + 1, lastUsedAt: iso }
+  })
+  return changed ? next : memories
+}
+
 function scoreMemory(memory: MemoryItem, queryTokens: Set<string>, query: string, now: Date): { score: number; reason: string } {
   const layer = layerOf(memory)
   const title = memory.title.toLocaleLowerCase()
@@ -83,6 +105,11 @@ function scoreMemory(memory: MemoryItem, queryTokens: Set<string>, query: string
     reasons.push('当前话题相关')
   }
   score += recencyScore(memory, now)
+  const boost = usageBoost(memory)
+  if (boost > 0) {
+    score += boost
+    if (overlap) reasons.push('常被想起')
+  }
   if (layer === 'recent') reasons.push('近期状态')
   if (layer === 'core') reasons.push('核心记忆')
   if (!reasons.length) reasons.push(layer === 'long' ? '长期目录' : '可用记忆')
@@ -152,7 +179,7 @@ export function recallMemories(options: MemoryRecallOptions): MemoryRecallResult
       continue
     }
     // 没有相关词时，长期/近期只作为目录候选；核心仍然保持高优先级。
-    if (!query && layer !== 'core' && candidate.score < 18) {
+    if (!query && layer !== 'core' && candidate.score - usageBoost(candidate.memory) < 18) {
       skipped.push(diagItem(candidate.memory, candidate.score, '无当前话题命中', 0))
       continue
     }

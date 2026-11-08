@@ -34,6 +34,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
     items: [
       { to: '/settings/api', Icon: ChipIcon, title: 'API · 模型', sub: '渠道与模型管理' },
       { to: '/settings/memory-model', Icon: DatabaseIcon, title: '记忆模型', sub: '单独模型记记忆 · 不占主模型' },
+      { to: '/settings/people', Icon: PersonIcon, title: '记忆 · 人物', sub: '人物档案 · 背景与近事' },
       { to: '/settings/vision', Icon: EyeIcon, title: '读图模型', sub: '主模型不支持图时用' },
       { to: '/settings/imagegen', Icon: ImageSparkIcon, title: '生成图片', sub: '文生图渠道' },
       { to: '/settings/tts', Icon: SpeakerWaveIcon, title: '语音朗读', sub: 'MiniMax 海螺 TTS · 声音克隆' },

@@ -120,6 +120,9 @@ export default function MemoryLibrary() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link to="/settings/people" className="text-[12px] text-accent hover:underline">
+            人物
+          </Link>
           <Link to="/memory-archive" className="text-[12px] text-accent hover:underline">
             旧日原文
           </Link>

@@ -6,6 +6,7 @@
  * 有界注入 system。只读原消息，不改存储、不调模型、不花额外 token 请求。
  */
 import type { ChatMsg, ChatSession } from '@/store/chatStore'
+import { QUOTE_RULE, quoteLine } from '@/lib/quoteFormat'
 
 export interface CrossRecallOptions {
   sessions: ChatSession[]
@@ -19,6 +20,10 @@ export interface CrossRecallOptions {
   now?: Date
   maxHits?: number
   maxChars?: number
+  /** 命中最低分；模型主动 [搜索:] 的短关键词用 1，默认 2。 */
+  minScore?: number
+  /** 标题（默认「跨窗口回忆 · 之前的原话」） */
+  heading?: string
 }
 
 export interface CrossRecallResult {
@@ -78,10 +83,8 @@ function clip(text: string, n: number): string {
   return chars.length > n ? `${chars.slice(0, n - 1).join('')}…` : chars.join('')
 }
 
-function stamp(msg: ChatMsg, session: ChatSession): string {
-  const d = msg.ts ? new Date(msg.ts) : new Date(session.updatedAt || session.createdAt)
-  const date = Number.isNaN(d.getTime()) ? '' : `${d.getMonth() + 1}月${d.getDate()}日`
-  return msg.ts ? `${date} ${msg.at || ''}`.trim() : `${date}前后 ${msg.at || ''}`.trim()
+function when(msg: ChatMsg, session: ChatSession): { at: number | string | undefined; approximate: boolean } {
+  return msg.ts ? { at: msg.ts, approximate: false } : { at: session.updatedAt || session.createdAt, approximate: true }
 }
 
 export function recallCrossSessions(opts: CrossRecallOptions): CrossRecallResult {
@@ -115,7 +118,7 @@ export function recallCrossSessions(opts: CrossRecallOptions): CrossRecallResult
       if (dates.size && msg.ts && dates.has(dayKey(new Date(msg.ts)))) score += intent ? 3 : 2
       // 用户自己说过的话更可信，略加权
       if (msg.role === 'me') score *= 1.15
-      if (score >= 2) hits.push({ session, index, score })
+      if (score >= (opts.minScore ?? 2)) hits.push({ session, index, score })
     })
   }
   if (!hits.length) return { text: '', hits: 0 }
@@ -136,12 +139,14 @@ export function recallCrossSessions(opts: CrossRecallOptions): CrossRecallResult
   let used = 0
   for (const { session, idx } of picked.values()) {
     const same = session.id === opts.activeId
-    const head = same ? '本窗口更早的对话' : `窗口「${clip(session.title || '对话', 16)}」`
+    const head = same
+      ? `本窗口更早的对话（她=${opts.meName}，他=${opts.aiName}）`
+      : `窗口「${clip(session.title || '对话', 16)}」（她=${opts.meName}，他=当时的助手（身份按原文判断））`
     const lines: string[] = []
     for (const i of [...idx].sort((a, b) => a - b)) {
       const m = session.messages[i]
-      const who = m.role === 'me' ? opts.meName : same ? `${opts.aiName}（当时）` : '当时的助手（身份按原文判断）'
-      const line = `[${stamp(m, session)}] ${who}：${clip(m.text, 160)}`
+      const w = when(m, session)
+      const line = quoteLine(w.at, m.role === 'me' ? 'me' : 'companion', m.text, { approximate: w.approximate })
       if (used + line.length > maxChars) break
       lines.push(line)
       used += line.length
@@ -151,9 +156,10 @@ export function recallCrossSessions(opts: CrossRecallOptions): CrossRecallResult
   }
   if (!blocks.length) return { text: '', hits: 0 }
   const text =
-    `\n\n【跨窗口回忆 · 之前的原话】\n${blocks.join('\n')}\n` +
+    `\n\n【${opts.heading ?? '跨窗口回忆 · 之前的原话'}】\n${blocks.join('\n')}\n` +
     '这些是其他聊天窗口或本窗口更早时候的原话，用来接上之前聊过的事；' +
     '当前对话、人设和用户此刻的说法优先。其他窗口的“当时的助手”不自动等于当前角色；' +
-    '若原文在讨论或扮演第三方，必须保留第三方归属，不得据为自己的经历。自然地记得就好，不要生硬复述，也不要提「窗口」「检索」这些词。'
+    '若原文在讨论或扮演第三方，必须保留第三方归属，不得据为自己的经历。自然地记得就好，不要生硬复述，也不要提「窗口」「检索」这些词。' +
+    QUOTE_RULE
   return { text, hits: Math.min(hits.length, maxHits) }
 }

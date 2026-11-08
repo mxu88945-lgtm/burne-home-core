@@ -29,6 +29,8 @@ export const STORAGE_KEYS = {
   chatprefs: `${NS}:chatprefs`,
   memoryOverview: `${NS}:memory-overview`,
   memoryDiagnostics: `${NS}:memory-diagnostics`,
+  people: `${NS}:people`,
+  peopleSeeded: `${NS}:people-seeded`,
   reading: `${NS}:reading`,
   period: `${NS}:period`,
   readingApi: `${NS}:reading-api`,

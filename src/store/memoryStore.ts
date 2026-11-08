@@ -14,6 +14,7 @@ import type {
 } from '@/types/memory'
 import { readJSON, writeJSON } from '@/api/storage'
 import { STORAGE_KEYS, CURRENT_WINDOW_ID } from '@/lib/constants'
+import { markMemoriesUsed } from '@/lib/memoryRecall'
 
 interface MemoryState {
   memories: MemoryItem[]
@@ -29,6 +30,8 @@ interface MemoryState {
   replaceAll: (memories: MemoryItem[]) => void
   setOverview: (text: string) => void
   recordDiagnostic: (diagnostic: MemoryDiagnostic) => void
+  /** 本轮被召回注入的记忆：hitCount +1、记录 lastUsedAt（不改 updatedAt，不影响排序/近期度） */
+  markUsed: (ids: string[]) => void
   clearDiagnostics: () => void
   getSummary: () => MemorySummary
 }
@@ -128,6 +131,13 @@ export const useMemoryStore = create<MemoryState>((set, get) => ({
     const next = [diagnostic, ...get().diagnostics].slice(0, 40)
     writeJSON(STORAGE_KEYS.memoryDiagnostics, next)
     set({ diagnostics: next })
+  },
+
+  markUsed: (ids) => {
+    const next = markMemoriesUsed(get().memories, ids)
+    if (next === get().memories) return
+    persist(next)
+    set({ memories: next })
   },
 
   clearDiagnostics: () => {

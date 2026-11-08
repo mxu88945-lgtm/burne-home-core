@@ -33,6 +33,10 @@ import {
 } from '@/lib/referenceFile'
 import { MEMORY_TAG_PROMPT, buildRecentStateNote, extractMemoryTags, hideMemoryTagsWhileStreaming } from '@/lib/memoryTags'
 import { recallMemories } from '@/lib/memoryRecall'
+import { PERSON_TAG_PROMPT, extractPersonTags } from '@/lib/people'
+import { recallPeople } from '@/lib/peopleRecall'
+import { MAX_SEARCH_ROUNDS, SEARCH_TAG_PROMPT, extractSearchTag, runModelSearch } from '@/lib/modelSearch'
+import { usePeopleStore } from '@/store/peopleStore'
 import { buildArchiveQuery, recallArchiveQueries } from '@/lib/archiveRecall'
 import {
   buildArchivePlannerPrompt,
@@ -275,8 +279,17 @@ export default function Chat() {
   const recordMemoryDiagnostic = useMemoryStore((s) => s.recordDiagnostic)
   /** 伯恩在回复里写的 [记忆:…]：藏起来、存进记忆库、弹提示（对齐顾祁砚）。 */
   function saveMemoryTags(text: string, sourceId?: string): string {
-    const { clean, saves } = extractMemoryTags(text)
-    if (!saves.length) return text
+    // [人物:名字|内容] → 人物档案；残留的 [搜索:] 一并藏掉
+    const personPart = extractPersonTags(extractSearchTag(text).clean)
+    if (personPart.tags.length) {
+      const r = usePeopleStore.getState().applyTags(personPart.tags)
+      if (r.created || r.events) {
+        const who = personPart.tags.map((t) => t.name).filter((n, i, a) => a.indexOf(n) === i).join('、')
+        showMemToast(`👤 记下了：${who}`)
+      }
+    }
+    const { clean, saves } = extractMemoryTags(personPart.clean)
+    if (!saves.length) return clean
     const existing = useMemoryStore.getState().memories
     let saved = 0
     let last = ''
@@ -1348,6 +1361,29 @@ export default function Chat() {
       }
     }
 
+    // 人物档案：她最近 1–2 条消息提到谁，就带上谁的背景、近事、带日期的原话和相关长期记忆
+    let peopleText = ''
+    const usedMemoryIds = memoryContext.diagnostic.used.map((u) => u.id)
+    try {
+      const st = useChatStore.getState()
+      const peopleRecall = await recallPeople({
+        people: usePeopleStore.getState().people,
+        userTexts: history.filter((m) => m.role === 'me').slice(-2).map((m) => m.text || ''),
+        sessions: st.sessions.map((s) => (s.id === st.activeId ? { ...s, messages: history } : s)),
+        inContextIds: new Set(apiHistory.map((m) => m.id)),
+        memories: memState.memories,
+      })
+      peopleText = peopleRecall.text
+      if (peopleRecall.personIds.length) {
+        usePeopleStore.getState().markUsed(peopleRecall.personIds, peopleRecall.eventIds)
+        usedMemoryIds.push(...peopleRecall.memoryIds)
+      }
+    } catch {
+      // 人物档案失败不影响正常聊天
+    }
+    // 越用越记得：本轮注入的长期记忆 hitCount +1
+    if (usedMemoryIds.length) useMemoryStore.getState().markUsed(usedMemoryIds)
+
     // 独立旧日档案：保留用户原话直搜，再让伯恩依据最近双方对话/全局记忆主动规划联想查询。
     // 规划器只产出搜索词；真正注入的仍然只能是 IndexedDB 里可核对的旧日原文。
     try {
@@ -1369,6 +1405,7 @@ export default function Chat() {
     if (memoryContext.text) system += memoryContext.text
     // 跨窗口全局回忆：其他聊天窗口 + 本窗口滑出上下文的更早原话，按用户最近原话找回（不额外请求模型）
     if (crossRecallText) system += crossRecallText
+    if (peopleText) system += peopleText
     // 天气与位置（首页天气卡的缓存）+ 距上次说话多久
     system += buildWeatherNote(useChatPrefsStore.getState().locationAware)
     {
@@ -1381,6 +1418,35 @@ export default function Chat() {
     }
     system += buildRecentStateNote(history, new Set(apiHistory.map((m) => m.id)), profile.nameA || '她')
     system += MEMORY_TAG_PROMPT
+    system += PERSON_TAG_PROMPT
+    system += SEARCH_TAG_PROMPT
+
+    // [搜索:关键词]：模型记不清旧事时先搜；查到的原话作为工具结果附进 system，再生成一次（最多 1 轮）
+    let searchRounds = 0
+    async function takeSearch(raw: string): Promise<string> {
+      if (searchRounds >= MAX_SEARCH_ROUNDS || stopped()) return ''
+      const { query } = extractSearchTag(cleanReply(raw))
+      if (!query) return ''
+      searchRounds += 1
+      showMemToast(`🔎 翻旧账：${query}`)
+      try {
+        const st = useChatStore.getState()
+        const found = await runModelSearch({
+          query,
+          sessions: st.sessions.map((s) => (s.id === st.activeId ? { ...s, messages: history } : s)),
+          activeId: st.activeId,
+          inContextIds: new Set(apiHistory.map((m) => m.id)),
+          memories: useMemoryStore.getState().memories,
+          people: usePeopleStore.getState().people,
+          meName: profile.nameA || '她',
+          aiName: name,
+        })
+        if (found.memoryIds.length) useMemoryStore.getState().markUsed(found.memoryIds)
+        return found.text
+      } catch {
+        return `\n\n【工具结果 · [搜索:${query}]】这次没能翻到。不要编造，也不要说没有这回事；坦白说一时没翻到，请她提示一下。现在直接回答，不要再输出 [搜索:]。`
+      }
+    }
     if (apiHistory.some((m) => m.file?.text)) system += REFERENCE_FILE_SYSTEM_NOTE
     if (allowTasks) {
       system +=
@@ -1479,6 +1545,18 @@ export default function Chat() {
                 cost: r.usage.cost,
               })
             }
+            {
+              const searchExtra = await takeSearch(r.text)
+              if (searchExtra) {
+                system += searchExtra
+                gotContent = false
+                anyDelta = false
+                streamRaw = ''
+                patch((m) => ({ ...m, text: '', reasoning: '', thinkMs: undefined }))
+                setOpenReasoning((prev) => new Set(prev).add(replyId))
+                continue // 带着翻到的结果再流式生成一次
+              }
+            }
             collapseThink() // 万一没有正文增量也要确保收起
             if (r.truncated) showMemToast('✂️ 这条写到字数上限被截断了，可在人设里把「最大回复 Tokens」清空（不限）或调大')
             let finalText = saveMemoryTags(cleanReply(r.text), replyId)
@@ -1540,26 +1618,32 @@ export default function Chat() {
             // 流式还没收到任何增量就失败 → 多半是端点不支持 SSE，回退非流式再试一次
             if (!anyDelta) {
               try {
-                const r = await chatComplete(channel!, apiMsgs, system, {
-                  workerUrl,
-                  syncKey: config.syncKey,
-                  temperature: persona.temperature,
-                  maxTokens: persona.maxTokens,
-                  reasoning: persona.reasoning,
-                reasoningEffort: persona.reasoningEffort,
-                  webSearch: usePublicWebSearch,
-                signal: abortCtl.signal,
-                })
-                if (r.usage) {
-                  addUsage({
-                    at: new Date().toISOString(),
-                    provider: channel!.provider,
-                    model: r.usage.model,
-                    promptTokens: r.usage.promptTokens,
-                    completionTokens: r.usage.completionTokens,
-                    totalTokens: r.usage.totalTokens,
-                    cost: r.usage.cost,
+                let r: Awaited<ReturnType<typeof chatComplete>>
+                while (true) {
+                  r = await chatComplete(channel!, apiMsgs, system, {
+                    workerUrl,
+                    syncKey: config.syncKey,
+                    temperature: persona.temperature,
+                    maxTokens: persona.maxTokens,
+                    reasoning: persona.reasoning,
+                  reasoningEffort: persona.reasoningEffort,
+                    webSearch: usePublicWebSearch,
+                  signal: abortCtl.signal,
                   })
+                  if (r.usage) {
+                    addUsage({
+                      at: new Date().toISOString(),
+                      provider: channel!.provider,
+                      model: r.usage.model,
+                      promptTokens: r.usage.promptTokens,
+                      completionTokens: r.usage.completionTokens,
+                      totalTokens: r.usage.totalTokens,
+                      cost: r.usage.cost,
+                    })
+                  }
+                  const searchExtra = await takeSearch(r.text)
+                  if (!searchExtra) break
+                  system += searchExtra
                 }
                 if (r.reasoning) patch((m) => ({ ...m, reasoning: r.reasoning }))
                 collapseThink()
@@ -1674,6 +1758,13 @@ export default function Chat() {
               temperature: persona.temperature,
               maxTokens: persona.maxTokens,
             })
+          }
+          {
+            const searchExtra = await takeSearch(reply)
+            if (searchExtra) {
+              system += searchExtra
+              continue // 带着翻到的结果再生成一次
+            }
           }
           break // 成功
         } catch (err) {
