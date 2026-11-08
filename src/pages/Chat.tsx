@@ -23,6 +23,7 @@ import { generateImage } from '@/api/imagegen'
 import { useVisionStore } from '@/store/visionStore'
 import { useChatPrefsStore } from '@/store/chatPrefsStore'
 import { useMemoryStore } from '@/store/memoryStore'
+import { MEMORY_TAG_PROMPT, buildRecentStateNote, extractMemoryTags, hideMemoryTagsWhileStreaming } from '@/lib/memoryTags'
 import { recallMemories } from '@/lib/memoryRecall'
 import { buildArchiveQuery, recallArchiveQueries } from '@/lib/archiveRecall'
 import {
@@ -264,6 +265,31 @@ export default function Chat() {
   const updateMemory = useMemoryStore((s) => s.updateMemory)
   const memoriesRef = useMemoryStore((s) => s.memories)
   const recordMemoryDiagnostic = useMemoryStore((s) => s.recordDiagnostic)
+  /** 伯恩在回复里写的 [记忆:…]：藏起来、存进记忆库、弹提示（对齐顾祁砚）。 */
+  function saveMemoryTags(text: string, sourceId?: string): string {
+    const { clean, saves } = extractMemoryTags(text)
+    if (!saves.length) return text
+    const existing = useMemoryStore.getState().memories
+    let saved = 0
+    let last = ''
+    for (const content of saves) {
+      if (existing.some((m) => m.content.trim() === content)) continue
+      addMemory({
+        title: [...content].slice(0, 16).join(''),
+        content,
+        kind: 'long',
+        source: 'auto',
+        ...(sourceId ? { sourceMessageIds: [sourceId] } : {}),
+      })
+      saved += 1
+      last = content
+    }
+    if (saved) {
+      const brief = [...last].length > 18 ? `${[...last].slice(0, 18).join('')}…` : last
+      showMemToast(saved > 1 ? `🧠 记住了（${saved}条）` : `🧠 记住了：${brief}`)
+    }
+    return clean
+  }
   const memoryModelCfg = useMemoryModelStore((s) => s.config)
   const sttCfg = useSttStore((s) => s.config)
   // 自动记忆降频计数：每隔几轮才跑一次记忆维护（force 时立即跑），省 token
@@ -1311,6 +1337,8 @@ export default function Chat() {
       const gap = elapsedNote(history)
       if (gap) system += `\n\n${gap}`
     }
+    system += buildRecentStateNote(history, new Set(apiHistory.map((m) => m.id)), profile.nameA || '她')
+    system += MEMORY_TAG_PROMPT
     if (allowTasks) {
       system +=
         `\n\n【任务提醒功能 · 请理解并善用】\n` +
@@ -1336,6 +1364,7 @@ export default function Chat() {
         thinkStartRef.current[replyId] = startedAt
         let gotContent = false
         let anyDelta = false
+        let streamRaw = ''
         let replyForMem = ''
         // 先放占位气泡并展开思考框
         setMessages((prev) => [
@@ -1389,7 +1418,9 @@ export default function Chat() {
                     gotContent = true
                     collapseThink() // 思考结束→出正文：记用时、自动收起思考框
                   }
-                  patch((m) => ({ ...m, text: (m.text || '') + d }))
+                  streamRaw += d
+                  const shown = hideMemoryTagsWhileStreaming(streamRaw)
+                  patch((m) => ({ ...m, text: shown }))
                 },
               },
             )
@@ -1406,7 +1437,7 @@ export default function Chat() {
               })
             }
             collapseThink() // 万一没有正文增量也要确保收起
-            let finalText = cleanReply(r.text)
+            let finalText = saveMemoryTags(cleanReply(r.text), replyId)
             const taskMsgs: Msg[] = []
             if (allowTasks && finalText) {
               const { tasks: parsed, clean } = parseTasks(finalText)
@@ -1456,6 +1487,7 @@ export default function Chat() {
               attempt++
               gotContent = false
               anyDelta = false
+              streamRaw = ''
               patch((m) => ({ ...m, text: '', reasoning: '', thinkMs: undefined }))
               setOpenReasoning((prev) => new Set(prev).add(replyId))
               await waitUntilVisible() // 回前台重新流式
@@ -1487,7 +1519,7 @@ export default function Chat() {
                 }
                 if (r.reasoning) patch((m) => ({ ...m, reasoning: r.reasoning }))
                 collapseThink()
-                let finalText = cleanReply(r.text)
+                let finalText = saveMemoryTags(cleanReply(r.text), replyId)
                 const taskMsgs: Msg[] = []
                 if (allowTasks && finalText) {
                   const { tasks: parsed, clean } = parseTasks(finalText)
@@ -1617,7 +1649,7 @@ export default function Chat() {
         }
       }
       // 清掉思考/工具调用模型漏出来的标签（<think>/<arg_value> 等）
-      reply = cleanReply(reply)
+      reply = saveMemoryTags(cleanReply(reply))
       // 解析 TA 下的任务标记 → 生成对话内倒计时任务卡，并从正文移除标记
       const taskMsgs: Msg[] = []
       if (allowTasks && reply) {
