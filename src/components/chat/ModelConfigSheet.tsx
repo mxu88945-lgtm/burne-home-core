@@ -28,17 +28,19 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
   const [loadErr, setLoadErr] = useState('')
   const [manual, setManual] = useState(false)
 
+  // reloadTick 变了就跳过缓存重新拉（「刷新」按钮）
+  const [reloadTick, setReloadTick] = useState(0)
+
   useEffect(() => {
     if (!channel) return
     setManual(false)
     setLoadErr('')
     const cached = modelCache[channel.id]
-    if (cached) {
+    if (cached && reloadTick === 0) {
       setModels(cached)
       return
     }
     let alive = true
-    setModels([])
     setLoading(true)
     listModels(channel, { workerUrl, syncKey })
       .then((list) => {
@@ -51,9 +53,15 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
     return () => {
       alive = false
     }
-    // 只在换渠道时重新拉
+    // 只在换渠道或点刷新时重新拉
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channel?.id])
+  }, [channel?.id, reloadTick])
+
+  function refreshModels() {
+    if (!channel || loading) return
+    delete modelCache[channel.id]
+    setReloadTick((n) => n + 1)
+  }
 
   const effort: Effort = persona.reasoning ? persona.reasoningEffort || 'auto' : 'off'
   function setEffort(v: Effort) {
@@ -61,6 +69,8 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
     else setPersona({ reasoning: true, reasoningEffort: v })
   }
 
+  // 拉到了列表但当前模型不在里面 → 多半是渠道下架了
+  const currentMissing = !!channel?.model && models.length > 0 && !models.includes(channel.model)
   const options = channel?.model && !models.includes(channel.model) ? [channel.model, ...models] : models
   const showInput = manual || (!loading && options.length === 0)
 
@@ -110,7 +120,18 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
             )}
 
             <div className={rowCls}>
-              <span className="shrink-0 text-[15px] text-ink">模型</span>
+              <span className="flex shrink-0 items-center gap-1.5">
+                <span className="text-[15px] text-ink">模型</span>
+                <button
+                  type="button"
+                  onClick={refreshModels}
+                  disabled={loading}
+                  aria-label="刷新模型列表"
+                  className="rounded-full px-1.5 py-0.5 text-[12px] text-accent disabled:opacity-40"
+                >
+                  {loading ? '刷新中' : '↻ 刷新'}
+                </button>
+              </span>
               {showInput ? (
                 <input
                   className="min-w-0 flex-1 bg-transparent text-right text-[15px] text-ink outline-none placeholder:text-muted"
@@ -132,7 +153,7 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
                   >
                     {options.map((m) => (
                       <option key={m} value={m}>
-                        {m}
+                        {m === channel.model && currentMissing ? `${m}（列表里没有了）` : m}
                       </option>
                     ))}
                     <option value="__manual">手动填写…</option>
@@ -141,6 +162,14 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
                 </span>
               )}
             </div>
+
+            {(currentMissing || (loadErr && !loading)) && (
+              <div className="px-4 py-2 text-[12px] leading-snug text-muted">
+                {currentMissing
+                  ? `当前模型「${channel.model}」已不在渠道列表里，可能下架了，换一个吧。`
+                  : `列表获取失败：${loadErr}`}
+              </div>
+            )}
 
             <label className={rowCls}>
               <span className="shrink-0 text-[15px] text-ink">思考强度</span>
