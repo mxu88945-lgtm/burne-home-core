@@ -842,3 +842,30 @@ html[data-chat-fw] .bw-chat-messages .bw-message-content .bw-chat-quote { font-w
 [data-theme='nightglow'] .bw-chat-messages .bw-chat-quote { padding: 0 1px !important; border-radius: 0 !important; background: none; color: #a8383c; }
 /* 整行对白卡里的字也用主题对白色 */
 .bw-chat-messages .bw-quote-line > .bw-chat-quote { color: inherit; }
+
+/* 2026-11-08 她对比顾祁砚 Claude 官端：括号旁白不该斜体，颜色和正文一样；对白是灰色小胶囊；
+   平铺时不显示头像名字；我的消息是 20px 圆角浅灰气泡。素白、极简白同理。 */
+.bw-chat-narration { font-style: normal; }
+:is([data-theme='claude'],[data-theme='ink'],[data-theme='white']) .bw-chat-messages .bw-chat-narration { color: inherit; }
+:is([data-theme='claude'],[data-theme='ink'],[data-theme='white']) .bw-chat-messages .bw-chat-quote {
+  padding: .02em .52em !important;
+  border: 1px solid color-mix(in srgb, var(--card-border) 78%, transparent) !important;
+  border-radius: 9px !important;
+  background: color-mix(in srgb, var(--text) 8%, transparent) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.42);
+  color: inherit;
+}
+:is([data-theme='claude'],[data-theme='ink'],[data-theme='white']) .bw-chat-messages .bw-rich-line.bw-quote-line {
+  width: auto; margin: 0 0 .86em; padding: 0; border: 0; border-radius: 0; background: transparent;
+}
+:is([data-theme='claude'],[data-theme='ink'],[data-theme='white']) .bw-chat-messages .bw-quote-line > .bw-chat-quote {
+  padding: .02em .52em !important; border-radius: 9px !important;
+  background: color-mix(in srgb, var(--text) 8%, transparent) !important;
+}
+[data-theme='claude'] .bw-chat-messages .bw-message-body > .mb-1.flex:first-child { display: none; }
+:is([data-theme='claude'],[data-theme='ink'],[data-theme='white']) .bw-chat-messages .bw-message-me .bw-message-bubble {
+  width: fit-content; max-width: min(88vw, 610px);
+  padding: 10px 15px !important; border: 0 !important; border-radius: 20px !important;
+  line-height: 1.58;
+}
+[data-theme='claude'] .bw-chat-messages .bw-message-me .bw-message-bubble { background: #eeeeec !important; }
