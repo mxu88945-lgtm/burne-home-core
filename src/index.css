@@ -404,8 +404,9 @@ html[data-standalone='true'][data-keyboard] .bw-composer-dock {
 [data-theme='mistnote'] .bw-message-me .bw-message-bubble { background: linear-gradient(135deg,#e5edf1,#d7e3e9) !important; color: #35424b !important; }
 
 [data-theme='nightglow'] .bw-chat-messages,
-[data-theme='nightglow'] .bw-message-bubble { font-family: 'Songti SC','STSong','Noto Serif SC',serif; }
-[data-theme='nightglow'] .bw-message { padding-bottom: 20px; border-bottom: 1px solid rgba(168,56,60,.14); }
+[data-theme='nightglow'] .bw-message-bubble,
+[data-theme='nightglow'] .bw-message-bubble * { font-family: 'Huiwen-mincho','Songti SC','STSong','Noto Serif SC',serif !important; }
+[data-theme='nightglow'] .bw-message:not(.bw-shell-message) { padding-bottom: 20px; border-bottom: 1px solid rgba(168,56,60,.14); }
 [data-theme='nightglow'] .bw-message-companion .bw-message-bubble { background: transparent !important; border: 0 !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; line-height: 2 !important; }
 [data-theme='nightglow'] .bw-message-me .bw-message-bubble { background: rgba(239,231,225,.9) !important; color: #2b2522 !important; }
 
@@ -510,8 +511,7 @@ html[data-standalone='true'][data-keyboard] .bw-composer-dock {
 [data-theme='mistnote'] .bw-shell-mistnote.bw-message-companion .bw-shell-kicker { text-align: right; }
 [data-theme='mistnote'] .bw-shell-mistnote.bw-message-me .bw-shell-kicker { text-align: left; }
 [data-theme='mistnote'] .bw-shell-mistnote .bw-shell-heading-row { gap: 15px; }
-[data-theme='mistnote'] .bw-shell-mistnote .bw-shell-portrait { width: 66px; height: 66px; padding: 4px; box-sizing: border-box; border: 1px solid #b8c8d1; border-radius: 50%; background: #fafcfc; box-shadow: 0 6px 16px rgba(55,75,87,.12); object-fit: cover; }
-[data-theme='mistnote'] .bw-shell-mistnote .bw-shell-portrait img { border-radius: 50%; }
+[data-theme='mistnote'] .bw-shell-mistnote .bw-shell-portrait { width: 66px; height: 66px; box-sizing: border-box; border: 4px solid #fafcfc; border-radius: 50%; box-shadow: 0 0 0 1px #b8c8d1, 0 6px 16px rgba(55,75,87,.12); }
 [data-theme='mistnote'] .bw-shell-mistnote .bw-shell-name { color: #34434c; font-size: 22px; font-weight: 800; line-height: 1.18; }
 [data-theme='mistnote'] .bw-shell-mistnote .bw-shell-subtitle { margin-top: 5px; color: #71838e; font-size: 10px; letter-spacing: .12em; }
 [data-theme='mistnote'] .bw-shell-mistnote .bw-shell-stamp { position: absolute; top: 9px; font-size: 12px; color: #85959f; }
@@ -523,10 +523,25 @@ html[data-standalone='true'][data-keyboard] .bw-composer-dock {
 [data-theme='mistnote'] .bw-chat-quote { display: inline-block; padding: .12em .6em; border-radius: 999px; background: #dfe9ee; color: #476677; }
 
 /* 暗夜流光 */
-[data-theme='nightglow'] .bw-shell-nightglow { padding: 17px; border: 1px solid rgba(168,56,60,.2); border-radius: 22px; background: linear-gradient(150deg,rgba(250,247,244,.88),rgba(239,231,225,.82)); box-shadow: 0 14px 34px rgba(87,53,49,.09); }
-[data-theme='nightglow'] .bw-shell-portrait { border-radius: 50%; box-shadow: 0 0 0 4px rgba(168,56,60,.08), 0 8px 18px rgba(63,42,39,.14); }
-[data-theme='nightglow'] .bw-shell-message .bw-message-bubble { border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; color: #2b2522 !important; }
-[data-theme='nightglow'] .bw-chat-quote { background: rgba(168,56,60,.11); color: #8d2d31; }
+/* 暗夜流光：对齐顾祁砚——没有卡片，相片框头像 + 宋体名字，正文直接铺在底上，消息之间一道淡金细线 */
+[data-theme='nightglow'] .bw-shell-nightglow { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+[data-theme='nightglow'] .bw-shell-nightglow.bw-message { width: 100%; max-width: 100%; padding-bottom: 0; border-bottom: 0; }
+[data-theme='nightglow'] .bw-shell-nightglow::after { content: ''; display: block; width: 72%; height: 1px; margin: 26px auto 4px; background: linear-gradient(90deg,transparent,#e3cfc0 30%,#e3cfc0 70%,transparent); }
+[data-theme='nightglow'] .bw-shell-nightglow .bw-shell-heading { margin: 0 0 16px; padding: 0; }
+[data-theme='nightglow'] .bw-shell-nightglow .bw-shell-kicker,
+[data-theme='nightglow'] .bw-shell-nightglow .bw-shell-subtitle,
+[data-theme='nightglow'] .bw-shell-nightglow .bw-shell-stamp { display: none; }
+[data-theme='nightglow'] .bw-shell-nightglow .bw-shell-heading-row { align-items: flex-end; gap: 14px; }
+[data-theme='nightglow'] .bw-shell-nightglow.bw-message-me .bw-shell-heading-row { flex-direction: row-reverse; }
+[data-theme='nightglow'] .bw-shell-nightglow .bw-shell-copy { flex: 0 1 auto; margin-bottom: 2px; }
+[data-theme='nightglow'] .bw-shell-portrait { box-sizing: border-box; width: 62px; height: 74px; border: solid #fff; border-width: 5px 5px 9px; border-radius: 2px; box-shadow: 0 6px 16px rgba(122,80,64,.1); }
+[data-theme='nightglow'] .bw-shell-nightglow .bw-shell-name { color: #231c19; font-family: 'Huiwen-mincho','Songti SC','STSong','Noto Serif SC',serif; font-size: 19px; font-weight: 800; letter-spacing: .04em; line-height: 1.2; }
+[data-theme='nightglow'] .bw-shell-message .bw-message-bubble { padding: 0 2px !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; box-shadow: none !important; color: #2b2522 !important; line-height: 2 !important; letter-spacing: .02em; }
+[data-theme='nightglow'] .bw-shell-message.bw-message-companion .bw-message-bubble { width: 100%; }
+[data-theme='nightglow'] .bw-shell-message.bw-message-me .bw-message-bubble { width: fit-content; min-width: 60px; max-width: 100%; margin-left: auto; text-align: left; }
+[data-theme='nightglow'] .bw-chat-messages .bw-chat-narration { color: #7a6e68; font-style: normal !important; }
+[data-theme='nightglow'] .bw-chat-messages .bw-quote-line { margin: 0; padding: 0; border: 0 !important; background: transparent !important; color: #a8383c; }
+[data-theme='nightglow'] .bw-chat-quote { background: none; color: #a8383c; font-weight: 500; }
 
 /* 青橙唱片 */
 [data-theme='vinyl'] .bw-shell-vinyl { padding: 16px; border: 1px solid #c8d9df; border-radius: 5px 24px 24px 5px; background: rgba(255,255,255,.82); box-shadow: 0 13px 30px rgba(49,88,104,.1); }
