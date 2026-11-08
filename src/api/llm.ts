@@ -97,6 +97,16 @@ export type ReasoningEffort = 'auto' | 'low' | 'medium' | 'high'
  * - 低/中/高：OpenRouter 用 reasoning.effort；其他（官方 / 中转）再附上官方字段
  *   reasoning_effort，两种写法都带上，哪个被认就生效哪个。
  */
+/**
+ * 思考模型的思考过程也算在 max_tokens 里，思考一长正文就被截断。
+ * 开了思考就在用户设的字数上再加一份思考预算（顾祁砚 Claude 线路同样处理）。
+ */
+export function withThinkingRoom(maxTokens: number, opts: ChatOptions): number {
+  if (!opts.reasoning) return maxTokens
+  const budget = ({ auto: 8000, low: 2048, medium: 4096, high: 8192 } as const)[opts.reasoningEffort || 'auto']
+  return Math.max(maxTokens, maxTokens + budget)
+}
+
 export function openaiReasoningFields(opts: ChatOptions, isOpenRouter: boolean): Record<string, unknown> {
   if (!opts.reasoning) return {}
   const effort = opts.reasoningEffort || 'auto'
@@ -134,6 +144,8 @@ export interface ChatResult {
   usage?: UsageInfo
   /** 思考过程（开启 reasoning 时） */
   reasoning?: string
+  /** 服务商说回复写到字数上限被截断（finish_reason=length / max_tokens） */
+  truncated?: boolean
 }
 
 const LONG_STORY_SUMMARY_SYS =
@@ -187,7 +199,7 @@ export async function chatCompleteStream(
   }
 
   const normalized = normalizeSummaryRequest(system, opts.maxTokens ?? 1024)
-  const maxTokens = normalized.maxTokens
+  const maxTokens = withThinkingRoom(normalized.maxTokens, opts)
   system = normalized.system
   const isOpenRouter = /openrouter\.ai/i.test(ch.baseUrl)
   const model =
@@ -224,6 +236,7 @@ export async function chatCompleteStream(
   let text = ''
   let reasoning = ''
   let usage: UsageInfo | undefined
+  let truncated = false
 
   for (;;) {
     const { done, value } = await reader.read()
@@ -237,7 +250,10 @@ export async function chatCompleteStream(
       const payload = line.slice(5).trim()
       if (!payload || payload === '[DONE]') continue
       let json: {
-        choices?: { delta?: { content?: string; reasoning?: string; reasoning_content?: string } }[]
+        choices?: {
+          delta?: { content?: string; reasoning?: string; reasoning_content?: string }
+          finish_reason?: string | null
+        }[]
         usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; cost?: number }
       }
       try {
@@ -245,6 +261,8 @@ export async function chatCompleteStream(
       } catch {
         continue
       }
+      const fr = json.choices?.[0]?.finish_reason
+      if (fr === 'length' || fr === 'max_tokens' || fr === 'MAX_TOKENS') truncated = true
       const delta = json.choices?.[0]?.delta
       // 思考增量：不同服务商字段名不同（reasoning / reasoning_content）
       const rd = delta?.reasoning ?? delta?.reasoning_content
@@ -269,7 +287,7 @@ export async function chatCompleteStream(
     }
   }
 
-  return { text, usage, reasoning: reasoning.trim() || undefined }
+  return { text, usage, reasoning: reasoning.trim() || undefined, truncated }
 }
 
 /** 发起一次对话，返回回复文本与用量 */
@@ -377,7 +395,7 @@ export async function chatComplete(
     ? [{ role: 'system' as const, content: system }, ...messages]
     : messages
   const res = await fetchWithinAffordableTokenBudget(
-    maxTokens,
+    withThinkingRoom(maxTokens, opts),
     (effectiveMaxTokens) => fetch(`${trim(ch.baseUrl)}/chat/completions`, {
       method: 'POST',
       signal: opts.signal,

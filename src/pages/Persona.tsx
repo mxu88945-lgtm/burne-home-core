@@ -253,7 +253,7 @@ export default function Persona() {
           <input
             type="number"
             min={64}
-            max={8192}
+            max={32000}
             value={persona.maxTokens}
             onChange={(e) => setPersona({ maxTokens: Number(e.target.value) || 1024 })}
             className="w-28 rounded-xl border border-line bg-white/40 px-3 py-1.5 text-right text-sm text-ink outline-none focus:border-accent"

@@ -344,7 +344,31 @@ export default function Chat() {
   const [plusOpen, setPlusOpen] = useState(false)
   const [pendingImages, setPendingImages] = useState<string[]>([])
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null)
-  const [lightbox, setLightbox] = useState('')
+  // 大图查看：一组图可左右滑动（单张时就是一张）
+  const [gallery, setGallery] = useState<{ urls: string[]; index: number } | null>(null)
+  const [galleryAt, setGalleryAt] = useState(0)
+  const galleryRef = useRef<HTMLDivElement | null>(null)
+  const setLightbox = (url: string) => {
+    if (!url) {
+      setGallery(null)
+      return
+    }
+    setGalleryAt(0)
+    setGallery({ urls: [url], index: 0 })
+  }
+  async function openGallery(refs: string[], index: number) {
+    const urls = await Promise.all(refs.map((ref) => resolveImgRef(ref).catch(() => '')))
+    const ok = urls.map((u, i) => ({ u, i })).filter((x) => !!x.u)
+    if (!ok.length) return
+    const at = Math.max(0, ok.findIndex((x) => x.i === index))
+    setGalleryAt(at)
+    setGallery({ urls: ok.map((x) => x.u), index: at })
+  }
+  useEffect(() => {
+    if (!gallery) return
+    const el = galleryRef.current
+    if (el) el.scrollLeft = gallery.index * el.clientWidth
+  }, [gallery])
   const [imgErr, setImgErr] = useState('')
   const [selectMode, setSelectMode] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -1437,6 +1461,7 @@ export default function Chat() {
               })
             }
             collapseThink() // 万一没有正文增量也要确保收起
+            if (r.truncated) showMemToast('✂️ 这条写到字数上限被截断了，可在人设里调大「最大回复 Tokens」')
             let finalText = saveMemoryTags(cleanReply(r.text), replyId)
             const taskMsgs: Msg[] = []
             if (allowTasks && finalText) {
@@ -1946,16 +1971,18 @@ export default function Chat() {
                   />
                 )}
                 {m.image && !!m.images?.length && (
-                  <div className={`grid max-w-[260px] gap-1.5 ${me ? 'ml-auto' : ''} ${m.images.length === 1 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-                    {[m.image, ...m.images].map((ref) => (
+                  <div
+                    className={`relative z-[1] my-3 grid w-[min(270px,78%)] gap-1.5 ${me ? 'ml-auto' : ''} ${m.images.length === 1 ? 'grid-cols-2' : 'grid-cols-3'}`}
+                  >
+                    {[m.image, ...m.images].map((ref, i, all) => (
                       <IdbImg
                         key={ref}
                         src={ref}
                         alt="图片"
                         onClick={() => {
-                          if (!selectMode) void resolveImgRef(ref).then((u) => u && setLightbox(u))
+                          if (!selectMode) void openGallery(all, i)
                         }}
-                        className="aspect-square w-full cursor-pointer rounded-xl object-cover"
+                        className="aspect-square w-full cursor-pointer rounded-2xl border border-black/5 bg-white/60 object-cover shadow-sm"
                       />
                     ))}
                   </div>
@@ -2234,7 +2261,15 @@ export default function Chat() {
           <div className="mb-2 flex items-center gap-2 overflow-x-auto px-2 pt-1.5">
             {pendingImages.map((url, i) => (
               <div key={i} className="relative shrink-0">
-                <img src={url} alt="待发送" className="h-16 w-16 rounded-xl object-cover" />
+                <img
+                  src={url}
+                  alt="待发送"
+                  onClick={() => {
+                    setGalleryAt(i)
+                    setGallery({ urls: pendingImages, index: i })
+                  }}
+                  className="h-16 w-16 cursor-pointer rounded-xl object-cover"
+                />
                 <button
                   type="button"
                   onClick={() => setPendingImages((prev) => prev.filter((_, j) => j !== i))}
@@ -2533,13 +2568,30 @@ export default function Chat() {
       )}
 
       {/* 图片大图预览（长图导出后也走这里，iOS 长按可存相册） */}
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/80 p-4"
-          onClick={() => setLightbox('')}
-        >
-          <img src={lightbox} alt="大图" className="max-h-[85%] max-w-full rounded-xl" />
-          <span className="text-[12px] text-white/80">长按图片可保存到相册 · 点击空白关闭</span>
+      {gallery && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/90" onClick={() => setGallery(null)}>
+          <div
+            ref={galleryRef}
+            onScroll={(e) => {
+              const el = e.currentTarget
+              setGalleryAt(Math.round(el.scrollLeft / Math.max(1, el.clientWidth)))
+            }}
+            className="flex min-h-0 flex-1 snap-x snap-mandatory overflow-x-auto overscroll-contain [scrollbar-width:none]"
+          >
+            {gallery.urls.map((url, i) => (
+              <div key={i} className="flex h-full w-full shrink-0 snap-center items-center justify-center p-4">
+                <img
+                  src={url}
+                  alt="大图"
+                  onClick={(e) => e.stopPropagation()}
+                  className="max-h-full max-w-full rounded-xl object-contain"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="pb-[max(1rem,env(safe-area-inset-bottom))] text-center text-[12px] text-white/80">
+            {gallery.urls.length > 1 ? `${galleryAt + 1} / ${gallery.urls.length} · 左右滑动 · ` : ''}长按图片可保存 · 点空白关闭
+          </div>
         </div>
       )}
 
