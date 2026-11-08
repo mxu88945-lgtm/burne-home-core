@@ -137,6 +137,12 @@ function writeBackoff(until: number) {
 
 let running = false
 let pending = false
+/** 限速（429 / TPM / RPM）只歇 1 分钟，到点自动续建；其他错误仍歇 30 分钟。 */
+export const RATE_LIMIT_BACKOFF_MS = 60 * 1000
+export function isRateLimited(msg: string): boolean {
+  return /429|rate.?limit|TPM|RPM|TPD|RPD/i.test(msg)
+}
+
 let timer: ReturnType<typeof setTimeout> | undefined
 
 async function runOnce(): Promise<void> {
@@ -166,9 +172,11 @@ async function runOnce(): Promise<void> {
       onRemove: (keys) => cacheRemove(model, keys),
     })
     if (result.error) {
-      const until = Date.now() + INDEX_BACKOFF_MS
+      const limited = isRateLimited(result.error)
+      const until = Date.now() + (limited ? RATE_LIMIT_BACKOFF_MS : INDEX_BACKOFF_MS)
       writeBackoff(until)
       set({ error: result.error, backoffUntil: until })
+      if (limited) setTimeout(() => scheduleSemanticIndex(0), RATE_LIMIT_BACKOFF_MS + 1000)
     } else {
       writeBackoff(0)
       set({ backoffUntil: undefined })
