@@ -12,14 +12,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#f4f1ec" />
     <script>
-      // 首帧前预热：恢复当前主题并同步刘海颜色。旧版 liquid/aurora 统一迁到 plush。
+      // 首帧前预热：恢复当前主题并同步刘海颜色。已删除的主题（黛绿/毛玻璃/磨砂气泡/暖光琥珀等）统一落到 claude。
       (function () {
         try {
           var raw = localStorage.getItem('burne-home-core:theme')
-          var id = raw ? JSON.parse(raw).id : 'plush'
-          if (id === 'aurora' || id === 'liquid') id = 'plush'
+          var id = raw ? JSON.parse(raw).id : 'claude'
+          if (['aurora','liquid','sage','plush','frostbubble','amberglow'].indexOf(id) >= 0) id = 'claude'
           var themes = ['sage','plush','ink','claude','white','frostbubble','amberglow','liquidglass','paper','scrapbook','academy','mobile','letter','mistnote','nightglow','vinyl']
-          if (themes.indexOf(id) < 0) id = 'plush'
+          if (themes.indexOf(id) < 0) id = 'claude'
           document.documentElement.dataset.theme = id
           var bar = {
             sage:'#f4f1ec',plush:'#f4f1ec',ink:'#f4f1ec',claude:'#f8f8f6',white:'#ffffff',

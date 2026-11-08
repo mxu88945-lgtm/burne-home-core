@@ -7,7 +7,7 @@ describe('顾祁砚主聊天主题移植', () => {
   it('keeps every active source theme available in the Burne picker', () => {
     const store = readFileSync(new URL('src/store/themeStore.ts', rootUrl), 'utf8')
     for (const id of [
-      'claude', 'white', 'frostbubble', 'amberglow', 'liquidglass', 'paper',
+      'claude', 'white', 'liquidglass', 'paper',
       'scrapbook', 'academy', 'mobile', 'letter', 'mistnote', 'nightglow', 'vinyl',
     ]) {
       expect(store).toContain(`id: '${id}'`)
