@@ -376,12 +376,12 @@ html[data-standalone='true'][data-keyboard] .bw-composer-dock {
 [data-theme='liquidglass'] .bw-message-me .bw-message-bubble { background: rgba(228,221,207,.62) !important; color: #34352f !important; }
 
 [data-theme='paper'] .bw-chat-messages { padding-inline: 12px; }
-[data-theme='paper'] .bw-message { width: 100%; padding: 20px 18px; border: 1px solid #cedce5; background: rgba(252,252,249,.88); box-shadow: 0 10px 25px rgba(71,93,108,.08); }
+[data-theme='paper'] .bw-message:not(.gq-flat) { width: 100%; padding: 20px 18px; border: 1px solid #cedce5; background: rgba(252,252,249,.88); box-shadow: 0 10px 25px rgba(71,93,108,.08); }
 [data-theme='paper'] .bw-message-body { width: 100% !important; max-width: 100% !important; align-items: stretch !important; }
 [data-theme='paper'] .bw-message-bubble { width: 100%; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: repeating-linear-gradient(to bottom,transparent 0 calc(1.95em - 1px),rgba(111,140,159,.12) calc(1.95em - 1px) 1.95em) !important; color: #3e4c57 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; line-height: 1.95 !important; }
-[data-theme='paper'] .bw-message > :first-child:not(.bw-message-body) { display: none; }
+[data-theme='paper'] .bw-message:not(.gq-flat) > :first-child:not(.bw-message-body) { display: none; }
 
-[data-theme='scrapbook'] .bw-message { position: relative; width: 100%; padding: 18px; border: 3px double rgba(151,72,71,.34); border-radius: 4px; background: rgba(255,251,244,.86); box-shadow: 0 12px 28px rgba(101,68,55,.1); }
+[data-theme='scrapbook'] .bw-message:not(.gq-flat) { position: relative; width: 100%; padding: 18px; border: 3px double rgba(151,72,71,.34); border-radius: 4px; background: rgba(255,251,244,.86); box-shadow: 0 12px 28px rgba(101,68,55,.1); }
 [data-theme='scrapbook'] .bw-message-body { width: 100% !important; max-width: 100% !important; }
 [data-theme='scrapbook'] .bw-message-companion .bw-message-bubble { background: transparent !important; border: 0 !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
 [data-theme='scrapbook'] .bw-message-me .bw-message-bubble { background: #8c2935 !important; color: #fffaf5 !important; }

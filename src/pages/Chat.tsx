@@ -117,6 +117,19 @@ function ArchiveHeading({ theme, me, name, avatarImg, avatarEmoji }: {
   )
 }
 
+/** 雾蓝纸笺 / 莓红剪贴簿：顾祁砚 flat 版式（.msg-head 头像+名字+时间，.bubble 正文） */
+const FLAT_GQ_THEMES = new Set<ThemeId>(['paper', 'scrapbook'])
+
+function FlatGqHead({ name, time, avatarImg, avatarEmoji }: { name: string; time: string; avatarImg?: string; avatarEmoji: string }) {
+  const src = useImgSrc(avatarImg)
+  return (
+    <div className="msg-head">
+      <div className="avatar">{src ? <img src={src} alt="" /> : <span>{avatarEmoji || String(name || '角').slice(0, 1)}</span>}</div>
+      <span className="name">{name}{time ? <span className="msg-time">{time}</span> : null}</span>
+    </div>
+  )
+}
+
 function ThemeMessageHeading({
   theme,
   me,
@@ -1749,7 +1762,8 @@ export default function Chat() {
         {messages.map((m) => {
           const me = m.role === 'me'
           const archived = ARCHIVE_THEMES.has(theme)
-          const shelled = SHELL_THEMES.has(theme) && !archived
+          const gqFlat = FLAT_GQ_THEMES.has(theme)
+          const shelled = SHELL_THEMES.has(theme) && !archived && !gqFlat
           const picked = selectMode && selected.has(m.id)
 
           // 任务卡：进行中的在右上角悬浮卡显示；完成/取消后落进对话成记录
@@ -1808,13 +1822,14 @@ export default function Chat() {
                 me ? 'bw-message-me' : 'bw-message-companion',
                 shelled ? `bw-shell-message bw-shell-${theme}` : '',
                 archived ? `archive-row archive-${theme}${me ? ' user' : ''}` : '',
+                gqFlat ? `gq-flat gq-${theme}${me ? ' user' : ''}` : '',
                 flat ? 'flex flex-col' : 'flex items-start gap-2',
                 !flat && me ? 'flex-row-reverse' : '',
                 selectMode ? 'cursor-pointer rounded-2xl p-1' : '',
                 picked ? 'bg-white/25 ring-2 ring-accent' : '',
               ].join(' ')}
             >
-              {!flat && !shelled && !archived && (
+              {!flat && !shelled && !archived && !gqFlat && (
                 <Avatar
                   img={me ? profile.avatarAImg : profile.avatarBImg}
                   emoji={me ? profile.avatarA : profile.avatarB}
@@ -1824,12 +1839,12 @@ export default function Chat() {
               )}
               <div
                 className={
-                  flat || shelled || archived
+                  flat || shelled || archived || gqFlat
                     ? `bw-message-body flex w-full min-w-0 flex-col ${me ? 'items-end' : ''}`
                     : `bw-message-body flex min-w-0 max-w-[78%] flex-col ${me ? 'items-end' : 'items-start'}`
                 }
               >
-                {flat && !shelled && !archived && (
+                {flat && !shelled && !archived && !gqFlat && (
                   <div className={`mb-1 flex items-center gap-2 ${me ? 'flex-row-reverse' : ''}`}>
                     <Avatar
                       img={me ? profile.avatarAImg : profile.avatarBImg}
@@ -1841,6 +1856,14 @@ export default function Chat() {
                       {me ? profile.nameA || '我' : name}
                     </span>
                   </div>
+                )}
+                {gqFlat && (
+                  <FlatGqHead
+                    name={me ? profile.nameA || '我' : name}
+                    time={m.at}
+                    avatarImg={me ? profile.avatarAImg : profile.avatarBImg}
+                    avatarEmoji={me ? profile.avatarA : profile.avatarB}
+                  />
                 )}
                 {archived && (
                   <ArchiveHeading
@@ -1911,7 +1934,7 @@ export default function Chat() {
                 ) : (
                   (m.text || (!me && (m.reasoning || streamingIds.has(m.id)))) && (
                     <div
-                      className={archived ? 'archive-body' : [
+                      className={archived ? 'archive-body' : gqFlat ? 'bubble' : [
                         'bw-message-bubble',
                         'max-w-full overflow-hidden text-sm leading-relaxed [overflow-wrap:anywhere]',
                         m.image || m.file ? 'mt-1' : '',
