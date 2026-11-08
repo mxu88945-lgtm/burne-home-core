@@ -442,3 +442,9 @@
 }
 
 /* Mist Letter: a pale social-profile page with flat narration and quoted speech capsules. */
+/* 09:40 她反馈用户卡被上下两张“三明治”：tailwind space-y-4 的 margin-top 盖掉了顾祁砚的 26px/38px 外边距，
+   且头/正文/操作在 .bw-message-body 里，外层 gap:20px 不生效。 */
+.bw-chat-messages > .gq-flat { margin-top: 30px !important; margin-bottom: 40px !important; }
+.bw-chat-messages > .gq-flat:first-child { margin-top: 18px !important; }
+.bw-chat-messages .gq-flat .bw-message-body { gap: 16px; }
+.bw-chat-messages .gq-paper.user { padding-top: 28px; padding-bottom: 18px; }
