@@ -1853,7 +1853,7 @@ export default function Chat() {
       )}
 
       {/* 消息列表 */}
-      <div className="bw-chat-messages space-y-4 px-4 pt-3" style={{ paddingBottom: selectMode ? 8 : dockH + 12 }}>
+      <div className="bw-chat-messages space-y-4 px-4 pt-3" style={{ paddingBottom: selectMode ? 8 : Math.max(0, dockH - 4) }}>
         {messages.map((m) => {
           const me = m.role === 'me'
           const archived = ARCHIVE_THEMES.has(theme)
