@@ -94,6 +94,10 @@ type PendingFile = NonNullable<Msg['file']>
 const MAX_IMAGES = 9 // 一次最多发 9 张图
 const MAX_FILE = 1.5 * 1024 * 1024 // 1.5MB（dataURL 存 localStorage，避免超额）
 
+/** 流式：多久收不到第一个字（含思考）就判卡死；之后两段之间最多等多久 */
+const STREAM_FIRST_BYTE_MS = 90_000
+const STREAM_IDLE_MS = 60_000
+
 const SHELL_THEMES = new Set<ThemeId>([
   'paper', 'scrapbook', 'academy', 'mobile', 'letter', 'mistnote', 'nightglow', 'vinyl',
 ])
@@ -1584,6 +1588,19 @@ export default function Chat() {
             if (typeof document !== 'undefined' && document.hidden) hiddenDuringReq = true
           }
           document.addEventListener('visibilitychange', markHidden)
+          // 卡死看门狗：一直「深度思考中」却一个字都不来 → 掐掉这次流式，走下面的非流式重试/报错，不再无限转圈
+          const attemptCtl = new AbortController()
+          const relayAbort = () => attemptCtl.abort()
+          abortCtl.signal.addEventListener('abort', relayAbort)
+          let idleTimer: ReturnType<typeof setTimeout> | undefined
+          const kick = (ms: number) => {
+            if (idleTimer) clearTimeout(idleTimer)
+            idleTimer = setTimeout(() => {
+              if (!document.hidden) attemptCtl.abort()
+              else kick(ms)
+            }, ms)
+          }
+          kick(STREAM_FIRST_BYTE_MS)
           try {
             const r = await chatCompleteStream(
               channel!,
@@ -1597,13 +1614,15 @@ export default function Chat() {
                 reasoning: persona.reasoning,
                 reasoningEffort: persona.reasoningEffort,
                 webSearch: usePublicWebSearch,
-                signal: abortCtl.signal,
+                signal: attemptCtl.signal,
               },
               {
                 onReasoning: (d) => {
+                  kick(STREAM_IDLE_MS)
                   patch((m) => ({ ...m, reasoning: (m.reasoning || '') + d }))
                 },
                 onContent: (d) => {
+                  kick(STREAM_IDLE_MS)
                   if (!gotContent) {
                     gotContent = true
                     collapseThink() // 思考结束→出正文：记用时、自动收起思考框
@@ -1773,6 +1792,8 @@ export default function Chat() {
             })
             break
           } finally {
+            if (idleTimer) clearTimeout(idleTimer)
+            abortCtl.signal.removeEventListener('abort', relayAbort)
             document.removeEventListener('visibilitychange', markHidden)
           }
         }
