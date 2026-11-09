@@ -45,6 +45,8 @@ export interface ChatMsg {
     status: 'active' | 'done' | 'cancelled'
     /** 完成时间戳 ms */
     doneAt?: number
+    /** 取消时间戳 ms */
+    cancelledAt?: number
   }
 }
 

@@ -1,3 +1,4 @@
+import { lateTaskReports, taskAssignedNote, taskResultNote } from '@/lib/taskReport'
 import { ImageStack, ImageViewer } from '@/components/chat/ImageViewer'
 import { buildMusicNote } from '@/lib/lyrics'
 import { useMusicStore } from '@/store/musicStore'
@@ -675,7 +676,7 @@ export default function Chat() {
   }
   function cancelTask(id: string) {
     const updated = messages.map((m) =>
-      m.id === id && m.task ? { ...m, task: { ...m.task, status: 'cancelled' as const } } : m,
+      m.id === id && m.task ? { ...m, task: { ...m.task, status: 'cancelled' as const, cancelledAt: Date.now() } } : m,
     )
     setMessages(updated)
     reportTask(updated)
@@ -1296,21 +1297,15 @@ export default function Chat() {
     )
     // 最新一份文件第一次读给足篇幅，之后的轮次只带缩略，别把剧情上下文挤掉
     const latestFileMsgId = [...apiHistory].reverse().find((m) => m.file?.text)?.id
+    const lateReportIds = lateTaskReports(apiHistory)
     const apiMsgs: ChatApiMessage[] = apiHistory
       .filter((m) => m.text.trim() || m.image || m.file || m.task)
       .map((m) => {
         const role = m.role === 'me' ? ('user' as const) : ('assistant' as const)
         // 任务消息 → 以「我向 TA 汇报」的用户口吻表达，让模型自然接话
         if (m.task) {
-          const tk = m.task
-          let note = `（你给我下了任务：${tk.text}，限时${tk.minutes}分钟，我还在进行。）`
-          if (tk.status === 'done' && tk.doneAt) {
-            const used = Math.round((tk.doneAt - tk.startedAt) / 1000)
-            const diff = Math.round((tk.deadline - tk.doneAt) / 1000)
-            note = `（我完成了你下的任务：${tk.text}，用时${used}秒，${diff >= 0 ? `提前${diff}秒` : `超时${-diff}秒`}。）`
-          } else if (tk.status === 'cancelled') {
-            note = `（我取消了你下的任务：${tk.text}。）`
-          }
+          // 中途聊过几句才点完成/取消的：原位只写「下了任务」，结果挪到末尾单独汇报
+          const note = lateReportIds.includes(m.id) ? taskAssignedNote(m.task) : taskResultNote(m.task)
           return { role: 'user' as const, content: note }
         }
         // 文本（含文件信息：文本文件带内容，二进制只附说明）
@@ -1342,6 +1337,10 @@ export default function Chat() {
         return { role, content: textPart }
       })
     while (apiMsgs.length && apiMsgs[0].role !== 'user') apiMsgs.shift()
+    for (const id of lateReportIds) {
+      const tk = apiHistory.find((m) => m.id === id)?.task
+      if (tk) apiMsgs.push({ role: 'user', content: `${taskResultNote(tk)}（这是刚刚发生的，请接着回应我。）` })
+    }
 
     // 含图片且开了「读图模型」→ 这次用支持视觉的模型回复（主文本模型可能不支持图）
     const hasImage = apiMsgs.some((m) => Array.isArray(m.content))
