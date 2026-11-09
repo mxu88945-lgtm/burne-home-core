@@ -2092,7 +2092,7 @@ export default function Chat() {
                 <Avatar
                   img={me ? profile.avatarAImg : profile.avatarBImg}
                   emoji={me ? profile.avatarA : profile.avatarB}
-                  className="h-7 w-7 shrink-0 rounded-full bg-white/50 text-sm"
+                  className="bw-message-avatar h-7 w-7 shrink-0 rounded-full bg-white/50 text-sm"
                   textCls="text-sm"
                 />
               )}
@@ -2108,7 +2108,7 @@ export default function Chat() {
                     <Avatar
                       img={me ? profile.avatarAImg : profile.avatarBImg}
                       emoji={me ? profile.avatarA : profile.avatarB}
-                      className="h-6 w-6 shrink-0 rounded-full bg-white/50 text-xs"
+                      className="bw-message-avatar h-6 w-6 shrink-0 rounded-full bg-white/50 text-xs"
                       textCls="text-xs"
                     />
                     <span className="text-[12px] font-medium text-ink">
@@ -2298,7 +2298,7 @@ export default function Chat() {
             <Avatar
               img={profile.avatarBImg}
               emoji={profile.avatarB}
-              className="h-7 w-7 shrink-0 rounded-full bg-white/50 text-sm"
+              className="bw-message-avatar h-7 w-7 shrink-0 rounded-full bg-white/50 text-sm"
               textCls="text-sm"
             />
             <div className="glass flex items-center gap-2 rounded-2xl rounded-bl-md px-4 py-2.5 text-sm text-muted">

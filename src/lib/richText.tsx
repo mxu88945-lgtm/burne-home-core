@@ -67,7 +67,9 @@ function renderInline(text: string, keyPrefix: string): ReactNode[] {
       // *动作*：行内旁白
       nodes.push(<span key={`${keyPrefix}-em-${i++}`} className="bw-chat-narration chat-narration">{renderInline(m[5], `${keyPrefix}-em${i}`)}</span>)
     } else {
-      nodes.push(<span key={`${keyPrefix}-quote-${i++}`} className="bw-chat-quote chat-quote">{m[0]}</span>)
+      // 「」『』直角引号额外带 bw-chat-quote--corner，主题可单独装饰；没写这个类的主题看起来和以前一样
+      const corner = m[0][0] === '「' || m[0][0] === '『'
+      nodes.push(<span key={`${keyPrefix}-quote-${i++}`} className={`bw-chat-quote chat-quote${corner ? ' bw-chat-quote--corner' : ''}`}>{m[0]}</span>)
     }
     last = m.index + m[0].length
   }

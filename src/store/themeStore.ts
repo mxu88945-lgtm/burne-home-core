@@ -14,7 +14,7 @@ export type ThemeId =
   | 'sage' | 'plush' | 'aurora' | 'ink'
   | 'claude' | 'white' | 'frostbubble' | 'amberglow' | 'liquidglass'
   | 'paper' | 'scrapbook' | 'academy' | 'mobile' | 'letter' | 'mistnote'
-  | 'nightglow' | 'vinyl'
+  | 'nightglow' | 'vinyl' | 'warmtea'
 
 export interface ThemeMeta {
   id: Exclude<ThemeId, 'aurora'>
@@ -40,6 +40,7 @@ export const THEMES: ThemeMeta[] = [
   { id: 'mistnote', name: '雾蓝长笺', emoji: '≋', desc: '长笺卡片 · 雾蓝对白', swatches: ['#f3f6f7', '#fbfcfc', '#cbd7de', '#647d8d', '#35424b'] },
   { id: 'nightglow', name: '暗夜流光', emoji: '◉', desc: '暖灰纸面 · 暗红流光', swatches: ['#f6f1ee', '#faf7f4', '#e8dfd8', '#a8383c', '#2b2522'] },
   { id: 'vinyl', name: '青橙唱片', emoji: '●', desc: '清透青灰 · 唱片橙光', swatches: ['#ffffff', '#f8fbfc', '#c8d9df', '#416978', '#d98b52'] },
+  { id: 'warmtea', name: '暖茶笺', emoji: '☕', desc: '奶油纸笺 · 焦糖暖光', swatches: ['#FBF4EA', '#F5E8D6', '#E8D5BF', '#C27A45', '#4A3426'] },
 ]
 
 const DEFAULT_THEME: ThemeId = 'claude'
@@ -63,6 +64,7 @@ export const BAR_COLORS: Record<ThemeId, string> = {
   mistnote: '#f3f6f7',
   nightglow: '#f6f1ee',
   vinyl: '#ffffff',
+  warmtea: '#FBF4EA',
 }
 
 function normalizeThemeId(v: unknown): ThemeId | null {

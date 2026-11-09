@@ -30,6 +30,14 @@ describe('rich chat text semantics', () => {
     expect(html.match(/bw-chat-quote/g)?.length).toBe(2)
   })
 
+  it('marks 「直角引号」 dialogue with a corner hook, leaving “” quotes unchanged', () => {
+    const html = renderToStaticMarkup(
+      <div>{renderRichText('「别走。」他说，“我在。”\n**「加粗里的」**')}</div>,
+    )
+    expect(html.match(/bw-chat-quote--corner/g)?.length).toBe(2)
+    expect(html).toContain('class="bw-chat-quote chat-quote">“我在。”')
+  })
+
   it('keeps links clickable inside formatted paragraphs', () => {
     const html = renderToStaticMarkup(
       <div>{renderRichText('资料：[OpenAI](https://openai.com)')}</div>,

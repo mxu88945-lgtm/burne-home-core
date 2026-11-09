@@ -169,6 +169,14 @@
   --card: rgba(255,255,255,.68); --card-strong: rgba(255,255,255,.9); --card-border: rgba(200,217,223,.9);
   --shadow: rgba(49,88,104,.1); --on-accent: #fff; --bar: rgba(248,251,252,.72);
 }
+/* ☕ 暖茶笺 —— 奶油纸笺 + 焦糖暖光（干净、不加装饰物） */
+[data-theme='warmtea'] {
+  --bg-to: #F5E8D6; --bg-mesh: linear-gradient(180deg,#FBF4EA,#F5E8D6);
+  --top-fade: linear-gradient(180deg,#FBF4EA 0%,rgba(251,244,234,0) 16%);
+  --text: #4A3426; --text-soft: #8C6F5A; --label: #A88B74; --accent: #C27A45; --accent-2: #B5573B;
+  --card: rgba(255,251,245,.78); --card-strong: rgba(255,251,245,.94); --card-border: #E8D5BF;
+  --shadow: rgba(150,100,60,.1); --on-accent: #fff; --bar: rgba(255,250,243,.84);
+}
 
 :root {
   color-scheme: light;
@@ -874,3 +882,63 @@ html[data-chat-fw] .bw-chat-messages .bw-message-content .bw-chat-quote { font-w
   line-height: 1.58;
 }
 [data-theme='claude'] .bw-chat-messages .bw-message-me .bw-message-bubble { background: #eeeeec !important; }
+
+/* 2026-11-09 暖茶笺：普通气泡布局（不走纸页壳），消息区不做背景模糊（全局规则已关），顶栏磨砂只在 ::before。 */
+[data-theme='warmtea'] .bw-chat-messages .bw-message-companion .bw-message-bubble {
+  background: #FFFBF5 !important;
+  border: 1px solid #EBD9C4 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 2px 8px rgba(150,100,60,.08) !important;
+  color: #4A3426 !important;
+}
+[data-theme='warmtea'] .bw-chat-messages .bw-message-me .bw-message-bubble {
+  background: linear-gradient(135deg,#F6E2CC,#EFCFB0) !important;
+  border: 0 !important;
+  border-radius: 18px !important;
+  box-shadow: 0 2px 8px rgba(150,100,60,.08) !important;
+  color: #4A3426 !important;
+}
+[data-theme='warmtea'] .bw-chat-messages .glass { background: #FFFBF5; border-color: #EBD9C4; box-shadow: 0 2px 8px rgba(150,100,60,.08); }
+[data-theme='warmtea'] .bw-chat-messages .bw-chat-narration { color: #8C6F5A; }
+/* 头像：圆形 + 2px 奶油间隙 + 2px 焦糖环 + 暖光 */
+[data-theme='warmtea'] .bw-message-avatar {
+  border-radius: 9999px;
+  background-color: #FBF4EA;
+  box-shadow: 0 0 0 2px #FBF4EA, 0 0 0 4px #E2B98A, 0 3px 10px rgba(194,122,69,.28);
+}
+/* “双引号”对白：荧光笔下划高亮 */
+[data-theme='warmtea'] .bw-chat-messages .bw-chat-quote {
+  padding: 0 2px !important;
+  border: 0 !important;
+  border-radius: 3px !important;
+  color: #9A4F2E;
+  font-weight: 600;
+  background: linear-gradient(transparent 60%, rgba(232,177,120,.35) 60%) !important;
+  box-shadow: none;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+/* 「直角引号」对白：左侧焦糖细线 + 淡底 */
+[data-theme='warmtea'] .bw-chat-messages .bw-chat-quote.bw-chat-quote--corner {
+  padding: 0 4px 0 6px !important;
+  border: 0 !important;
+  border-left: 2px solid #C27A45 !important;
+  border-radius: 0 4px 4px 0 !important;
+  color: #7A5A44;
+  font-weight: inherit;
+  background: rgba(194,122,69,.08) !important;
+}
+/* 整行对白不再套卡片，直接显示上面的对白样式 */
+[data-theme='warmtea'] .bw-chat-messages .bw-rich-line.bw-quote-line {
+  width: auto; margin: 0 0 .86em; padding: 0; border: 0; border-radius: 0; background: transparent;
+}
+[data-theme='warmtea'] .bw-chat-messages .bw-quote-line > .bw-chat-quote { padding: 0 2px !important; border-radius: 3px !important; background: linear-gradient(transparent 60%, rgba(232,177,120,.35) 60%) !important; color: #9A4F2E; }
+[data-theme='warmtea'] .bw-chat-messages .bw-quote-line > .bw-chat-quote.bw-chat-quote--corner { padding: 0 4px 0 6px !important; border-radius: 0 4px 4px 0 !important; background: rgba(194,122,69,.08) !important; color: #7A5A44; }
+/* 顶栏、输入栏：奶油色 */
+[data-theme='warmtea'] .bw-chat-header::before { background: rgba(255,250,243,.86); }
+[data-theme='warmtea'] .bw-chat-composer {
+  background: rgba(255,250,243,.95) !important;
+  border: 1px solid #E8D5BF !important;
+  box-shadow: 0 4px 16px rgba(150,100,60,.08) !important;
+}
+[data-theme='warmtea'] .bw-chat-composer button.bg-neutral-800 { background: #C27A45 !important; color: #fff !important; }

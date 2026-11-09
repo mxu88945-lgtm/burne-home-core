@@ -31,4 +31,15 @@ describe('顾祁砚主聊天主题移植', () => {
     expect(css).toContain("[data-theme='vinyl'] .bw-shell-vinyl")
     expect(css).toContain('.bw-chat-quote')
   })
+
+  it('adds 暖茶笺 as a selectable theme without touching the default', () => {
+    const store = readFileSync(new URL('src/store/themeStore.ts', rootUrl), 'utf8')
+    const css = readFileSync(new URL('src/index.css', rootUrl), 'utf8')
+    expect(store).toContain("id: 'warmtea', name: '暖茶笺'")
+    expect(store).toContain("warmtea: '#FBF4EA'")
+    expect(store).toContain("const DEFAULT_THEME: ThemeId = 'claude'")
+    expect(css).toContain("[data-theme='warmtea'] {")
+    expect(css).toContain("[data-theme='warmtea'] .bw-chat-messages .bw-chat-quote.bw-chat-quote--corner")
+    expect(css).toContain("[data-theme='warmtea'] .bw-message-avatar")
+  })
 })
