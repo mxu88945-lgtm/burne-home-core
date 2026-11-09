@@ -5,7 +5,7 @@ import { useChatStore } from '@/store/chatStore'
 import { usePeriodStore } from '@/store/periodStore'
 import { computeStat } from '@/lib/period'
 import { EditIcon } from '@/components/ui/icons'
-import { PhoneIcon, ChatIcon, DatabaseIcon, BookIcon, GearIcon, HeartIcon } from '@/components/ui/navIcons'
+import { PhoneIcon, ChatIcon, DatabaseIcon, BookIcon, GearIcon, HeartIcon, ImageIcon, NotebookIcon } from '@/components/ui/navIcons'
 import Avatar from '@/components/ui/Avatar'
 import WeatherClock from '@/components/home/WeatherClock'
 import { useMusicStore } from '@/store/musicStore'
@@ -198,6 +198,8 @@ export default function Home() {
       <section className="grid grid-cols-2 gap-2.5">
         <QuickEntry to="/memories" Icon={DatabaseIcon} title="我们的记忆" sub="摘要 · 核心 · 全部" tint="#b191e0" />
         <QuickEntry to="/reading" Icon={BookIcon} title="一起看书" sub="和 TA 共读一本书" tint="#e6a760" />
+        <QuickEntry to="/settings/album" Icon={ImageIcon} title="我们的相册" sub="他随时能翻来看" tint="#e58e7a" />
+        <QuickEntry to="/settings/diary" Icon={NotebookIcon} title="他的日记" sub="私人日记 · 有感才写" tint="#7aa6c9" />
         <div className="col-span-2 grid">
           <QuickEntry to="/settings" Icon={GearIcon} title="设置" sub="同步 · 备份 · 隐私" tint="#5cb6a6" />
         </div>

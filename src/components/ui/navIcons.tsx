@@ -231,3 +231,14 @@ export function HeartIcon({ className }: P) {
     </svg>
   )
 }
+
+/** 私人日记 · 带书签的本子 */
+export function NotebookIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M9 3v18" />
+      <path d="M12 8h4M12 12h4" />
+    </svg>
+  )
+}
