@@ -321,13 +321,13 @@ export default function MusicPlayer() {
   if (!slot) {
     if (!active || (!playing && pos <= 0)) return null
     return createPortal(
-      <div className="music-float" role="group" aria-label="音乐小浮窗">
+      <div className={mini ? 'music-float music-float-mini' : 'music-float'} role="group" aria-label="音乐小浮窗">
         <button onClick={toggleMini} aria-label={mini ? '展开' : '收起'} className="shrink-0">
           <span className="music-disc" style={{ animationPlayState: playing ? 'running' : 'paused' }} aria-hidden />
         </button>
         {!mini && (
           <>
-            <span className="music-float-text text-ink">{curLine?.text || active.name}</span>
+            <button type="button" onClick={toggleMini} aria-label="收起成唱片" className="music-float-text text-left text-ink">{curLine?.text || active.name}</button>
             <button onClick={() => void step(-1)} aria-label="上一首" className="text-muted disabled:opacity-40" disabled={tracks.length < 2}>
               <SkipPrevIcon className="h-[15px] w-[15px]" />
             </button>

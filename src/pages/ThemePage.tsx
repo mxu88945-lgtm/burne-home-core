@@ -47,10 +47,14 @@ export default function ThemePage() {
         <label className="block">
           <div className="flex justify-between text-[12px] text-muted">
             <span>正文字号</span>
-            <span>{chatFont.size ? `${chatFont.size}px` : '跟随主题'}</span>
+            <span className="flex items-center gap-2">
+              <button type="button" aria-label="小 0.5" onClick={(e) => { e.preventDefault(); setChatFont({ size: Math.max(12, shownSize - 0.5) }) }} className="glass rounded-md px-2 leading-5 text-ink">−</button>
+              <span className="min-w-[52px] text-center">{chatFont.size ? `${chatFont.size}px` : '跟随主题'}</span>
+              <button type="button" aria-label="大 0.5" onClick={(e) => { e.preventDefault(); setChatFont({ size: Math.min(24, shownSize + 0.5) }) }} className="glass rounded-md px-2 leading-5 text-ink">＋</button>
+            </span>
           </div>
           <input
-            type="range" min={12} max={24} step={1} value={shownSize}
+            type="range" min={12} max={24} step={0.5} value={shownSize}
             onChange={(e) => setChatFont({ size: Number(e.target.value) })}
             className="w-full accent-[var(--accent)]"
           />

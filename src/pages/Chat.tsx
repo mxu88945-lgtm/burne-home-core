@@ -536,6 +536,33 @@ export default function Chat() {
   // 选中的消息（保持时间顺序）
   const selectedMsgs = messages.filter((m) => selected.has(m.id))
 
+  // 贴底跟随：她停在底部时，内容变高（流式出字、思考框展开、任务卡落下）就继续贴底，不让最后几行钻到输入栏下面
+  const listRef = useRef<HTMLDivElement>(null)
+  const pinnedRef = useRef(true)
+  useEffect(() => {
+    const box = scrollRef.current
+    const list = listRef.current
+    if (!box || !list) return
+    const onScroll = () => {
+      pinnedRef.current = box.scrollHeight - box.scrollTop - box.clientHeight < 80
+    }
+    box.addEventListener('scroll', onScroll, { passive: true })
+    let raf = 0
+    const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
+      if (!pinnedRef.current) return
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        box.scrollTop = box.scrollHeight
+      })
+    })
+    ro?.observe(list)
+    return () => {
+      box.removeEventListener('scroll', onScroll)
+      ro?.disconnect()
+      cancelAnimationFrame(raf)
+    }
+  }, [selectMode, activeId])
+
   // 进入/切换会话时直接落在最新一条（不平滑，避免先看到顶部空白再滑下去）
   const jumpedForRef = useRef('')
   useEffect(() => {
@@ -552,7 +579,10 @@ export default function Chat() {
       }, 300)
       return
     }
-    if (box) box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' })
+    if (box) {
+      if (pinnedRef.current) box.scrollTop = box.scrollHeight
+      else box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' })
+    }
     else endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, [messages, sending, activeId])
 
@@ -615,6 +645,25 @@ export default function Chat() {
   const mmss = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
+  // 他正在回话时点了完成/取消：先记下，等这条说完再把任务结果告诉他（以前直接丢掉，回报就没了）
+  const taskReportPendingRef = useRef(false)
+  function reportTask(updated: Msg[]) {
+    if (!connected) return
+    if (sending) {
+      taskReportPendingRef.current = true
+      showMemToast('收到，等他说完这句就告诉他')
+      return
+    }
+    void respond(updated)
+  }
+  useEffect(() => {
+    if (sending || !taskReportPendingRef.current) return
+    taskReportPendingRef.current = false
+    const st = useChatStore.getState()
+    const latest = st.sessions.find((x) => x.id === st.activeId)?.messages
+    if (latest?.length && connected) void respond(latest)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sending])
   function completeTask(id: string) {
     const updated = messages.map((m) =>
       m.id === id && m.task
@@ -622,14 +671,14 @@ export default function Chat() {
         : m,
     )
     setMessages(updated)
-    if (connected && !sending) void respond(updated)
+    reportTask(updated)
   }
   function cancelTask(id: string) {
     const updated = messages.map((m) =>
       m.id === id && m.task ? { ...m, task: { ...m.task, status: 'cancelled' as const } } : m,
     )
     setMessages(updated)
-    if (connected && !sending) void respond(updated)
+    reportTask(updated)
   }
 
   function copyText(id: string, text: string) {
@@ -1968,7 +2017,7 @@ export default function Chat() {
       )}
 
       {/* 消息列表 */}
-      <div className="bw-chat-messages space-y-4 px-4 pt-3" style={{ paddingBottom: selectMode ? 8 : Math.max(0, dockH - 4) }}>
+      <div ref={listRef} className="bw-chat-messages space-y-4 px-4 pt-3" style={{ paddingBottom: selectMode ? 8 : dockH + 12 }}>
         {messages.map((m) => {
           const me = m.role === 'me'
           const archived = ARCHIVE_THEMES.has(theme)

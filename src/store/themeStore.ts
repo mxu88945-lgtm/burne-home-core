@@ -118,7 +118,7 @@ export function readStoredChatFont(): ChatFont {
   const size = Number(raw.size)
   const weight = Number(raw.weight)
   return {
-    size: size >= 12 && size <= 24 ? Math.round(size) : 0,
+    size: size >= 12 && size <= 24 ? Math.round(size * 2) / 2 : 0,
     weight: weight >= 300 && weight <= 700 ? Math.round(weight / 100) * 100 : 0,
   }
 }

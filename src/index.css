@@ -730,6 +730,8 @@ html[data-standalone='true'][data-keyboard] .bw-composer-dock {
 /* 悬浮音乐播放器：小唱片（播放时转圈） */
 @keyframes music-spin { to { transform: rotate(360deg); } }
 .music-disc {
+  /* 必须是块级：放进浮窗的 <button> 里时，行内 span 的宽高不生效，唱片会消失、点不到 */
+  display: block;
   width: 26px;
   height: 26px;
   border-radius: 9999px;
@@ -761,6 +763,9 @@ html[data-standalone='true'][data-keyboard] .bw-composer-dock {
   box-shadow: 0 6px 20px var(--shadow);
 }
 .music-float:has(> button:only-child) { padding: 5px; }
+/* 收起：只剩一张小唱片（照顾祁砚），点唱片再展开 */
+.music-float-mini { padding: 4px; gap: 0; }
+.music-float-mini .music-disc { width: 34px; height: 34px; }
 .music-float-text {
   min-width: 0;
   flex: 1;
