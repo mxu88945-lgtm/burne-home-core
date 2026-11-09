@@ -33,7 +33,7 @@ export default function ThemePage() {
 
       <div className="glass space-y-3 rounded-2xl p-4">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-ink">聊天文字</span>
+          <span className="text-sm font-medium text-ink">聊天文字<span className="ml-1 text-[11px] font-normal text-muted">只改当前主题</span></span>
           <button type="button" onClick={resetChatFont} className="text-[12px] text-muted">
             跟随主题
           </button>

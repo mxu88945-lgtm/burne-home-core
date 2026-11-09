@@ -104,6 +104,10 @@ export const useThemeStore = create<ThemeState>((set) => ({
     writeJSON(STORAGE_KEYS.theme, { id })
     applyTheme(id)
     set({ theme: id })
+    // 2026-11-09 字号/字重按主题各存一份：换主题时换成该主题自己的设置（没设过就跟随主题）
+    const font = readStoredChatFont(id)
+    applyChatFont(font)
+    useChatFontStore.setState({ chatFont: font })
   },
 }))
 
@@ -115,14 +119,23 @@ export interface ChatFont {
 const CHAT_FONT_KEY = `${STORAGE_KEYS.theme}:chat-font`
 const DEFAULT_CHAT_FONT: ChatFont = { size: 0, weight: 0 }
 
-export function readStoredChatFont(): ChatFont {
-  const raw = readJSON<Partial<ChatFont>>(CHAT_FONT_KEY, {})
+const chatFontKey = (themeId: ThemeId) => `${CHAT_FONT_KEY}:${themeId}`
+
+function cleanChatFont(raw: Partial<ChatFont>): ChatFont {
   const size = Number(raw.size)
   const weight = Number(raw.weight)
   return {
     size: size >= 12 && size <= 24 ? Math.round(size * 2) / 2 : 0,
     weight: weight >= 300 && weight <= 700 ? Math.round(weight / 100) * 100 : 0,
   }
+}
+
+/** 读某个主题自己的字号/字重。旧版只有一份全局设置：字号沿用给没单独设过的主题，字重改回跟随主题（她嫌字重压过了主题）。 */
+export function readStoredChatFont(themeId: ThemeId = readStoredTheme()): ChatFont {
+  const own = readJSON<Partial<ChatFont> | null>(chatFontKey(themeId), null)
+  if (own) return cleanChatFont(own)
+  const legacy = readJSON<Partial<ChatFont> | null>(CHAT_FONT_KEY, null)
+  return legacy ? { ...cleanChatFont(legacy), weight: 0 } : { ...DEFAULT_CHAT_FONT }
 }
 
 export function applyChatFont(f: ChatFont) {
@@ -153,12 +166,12 @@ export const useChatFontStore = create<ChatFontState>((set, get) => ({
   chatFont: readStoredChatFont(),
   setChatFont: (patch) => {
     const next = { ...get().chatFont, ...patch }
-    writeJSON(CHAT_FONT_KEY, next)
+    writeJSON(chatFontKey(useThemeStore.getState().theme), next)
     applyChatFont(next)
     set({ chatFont: next })
   },
   resetChatFont: () => {
-    writeJSON(CHAT_FONT_KEY, DEFAULT_CHAT_FONT)
+    writeJSON(chatFontKey(useThemeStore.getState().theme), DEFAULT_CHAT_FONT)
     applyChatFont(DEFAULT_CHAT_FONT)
     set({ chatFont: DEFAULT_CHAT_FONT })
   },
