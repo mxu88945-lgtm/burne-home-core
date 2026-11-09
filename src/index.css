@@ -949,3 +949,7 @@ html[data-chat-fw] .bw-chat-messages .bw-message-content .bw-chat-quote { font-w
   box-shadow: 0 4px 16px rgba(150,100,60,.08) !important;
 }
 [data-theme='warmtea'] .bw-chat-composer button.bg-neutral-800 { background: #C27A45 !important; color: #fff !important; }
+
+/* 2026-11-09 暖茶笺正文统一用苹方（和惟境/顾祁砚的暖茶笺一致），不走宋体 */
+[data-theme='warmtea'] .bw-chat-messages .bw-message-bubble,
+[data-theme='warmtea'] .bw-chat-messages .bw-message-bubble * { font-family: 'PingFang SC','Microsoft YaHei',system-ui,sans-serif !important; }
