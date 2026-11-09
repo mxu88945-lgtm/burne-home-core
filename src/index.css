@@ -890,8 +890,13 @@ html[data-chat-fw] .bw-chat-messages .bw-message-content .bw-chat-quote { font-w
   border-radius: 18px !important;
   box-shadow: 0 2px 8px rgba(150,100,60,.08) !important;
   color: #4A3426 !important;
+  padding: 14px 18px !important;
+  line-height: 1.75;
+  box-sizing: border-box;
 }
+[data-theme='warmtea'] .bw-chat-messages .bw-message-companion .bw-message-bubble > :first-child { margin-top: 0; }
 [data-theme='warmtea'] .bw-chat-messages .bw-message-me .bw-message-bubble {
+  padding: 9px 15px !important;
   background: linear-gradient(135deg,#F6E2CC,#EFCFB0) !important;
   border: 0 !important;
   border-radius: 18px !important;
