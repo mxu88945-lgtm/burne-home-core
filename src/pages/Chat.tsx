@@ -1343,9 +1343,22 @@ export default function Chat() {
     }
 
     // 含图片且开了「读图模型」→ 这次用支持视觉的模型回复（主文本模型可能不支持图）
-    const hasImage = apiMsgs.some((m) => Array.isArray(m.content))
+    // 只有「最新一条她的话」带图才切读图模型；以前历史里任何一张旧图都会让之后每轮都走读图渠道
+    //（读图渠道余额用完时，换了主渠道也照样报错、回复消失）。旧图在主渠道下改成文字占位。
+    const lastUserIdx = apiMsgs.map((m) => m.role).lastIndexOf('user')
+    const hasImage = lastUserIdx >= 0 && Array.isArray(apiMsgs[lastUserIdx].content)
     const useVision =
       hasImage && visionCfg.enabled && visionCfg.apiKey.trim() && visionCfg.model.trim()
+    if (visionCfg.enabled) {
+      apiMsgs.forEach((m, i) => {
+        if (i === lastUserIdx || !Array.isArray(m.content)) return
+        const text = m.content
+          .map((p) => (p.type === 'text' ? p.text : ''))
+          .filter(Boolean)
+          .join('\n')
+        m.content = `${text}${text ? '\n' : ''}［之前发过图片］`
+      })
+    }
     const channel: ApiChannel | undefined = useVision
       ? {
           id: 'vision',
