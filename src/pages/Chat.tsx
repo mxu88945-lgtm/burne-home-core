@@ -1349,9 +1349,11 @@ export default function Chat() {
     const hasImage = lastUserIdx >= 0 && Array.isArray(apiMsgs[lastUserIdx].content)
     const useVision =
       hasImage && visionCfg.enabled && visionCfg.apiKey.trim() && visionCfg.model.trim()
-    if (visionCfg.enabled) {
+    // 真图只带最近一条带图的消息，更早的一律换成文字占位：每轮重发好几张旧照片会让思考变得很慢
+    const lastImgIdx = apiMsgs.map((m) => Array.isArray(m.content)).lastIndexOf(true)
+    {
       apiMsgs.forEach((m, i) => {
-        if (i === lastUserIdx || !Array.isArray(m.content)) return
+        if (i === lastImgIdx || !Array.isArray(m.content)) return
         const text = m.content
           .map((p) => (p.type === 'text' ? p.text : ''))
           .filter(Boolean)
