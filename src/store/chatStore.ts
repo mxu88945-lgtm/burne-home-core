@@ -19,6 +19,8 @@ export interface ChatMsg {
   image?: string
   /** 同一条消息里的其余图片（第一张仍在 image 里，旧数据兼容） */
   images?: string[]
+  /** 回复中途失败（留着给她看原因，不发给模型） */
+  failed?: boolean
   /** 这条 AI 回复消耗的总 token（有就显示） */
   tokens?: number
   /** 思考过程（开启 reasoning 时，折叠展示） */

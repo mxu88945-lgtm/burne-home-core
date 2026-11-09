@@ -1299,7 +1299,7 @@ export default function Chat() {
     const latestFileMsgId = [...apiHistory].reverse().find((m) => m.file?.text)?.id
     const lateReportIds = lateTaskReports(apiHistory)
     const apiMsgs: ChatApiMessage[] = apiHistory
-      .filter((m) => m.text.trim() || m.image || m.file || m.task)
+      .filter((m) => !m.failed && (m.text.trim() || m.image || m.file || m.task))
       .map((m) => {
         const role = m.role === 'me' ? ('user' as const) : ('assistant' as const)
         // 任务消息 → 以「我向 TA 汇报」的用户口吻表达，让模型自然接话
@@ -1684,8 +1684,8 @@ export default function Chat() {
               await waitUntilVisible() // 回前台重新流式
               continue
             }
-            // 流式还没收到任何增量就失败 → 多半是端点不支持 SSE，回退非流式再试一次
-            if (!anyDelta) {
+            // 流式没出正文就失败（没增量=端点不支持 SSE；只吐了思考=中途断流）→ 回退非流式再试一次
+            if (!gotContent) {
               try {
                 let r: Awaited<ReturnType<typeof chatComplete>>
                 while (true) {
@@ -1748,7 +1748,13 @@ export default function Chat() {
                 // 回退也失败，落到下面统一报错
               }
             }
-            setMessages((prev) => prev.filter((m) => m.id !== replyId))
+            // 不再把气泡整个撤掉（以前思考完一断就「直接没了」）：留着思考，正文写明原因，点 ↻ 可重来
+            collapseThink()
+            patch((m) => ({
+              ...m,
+              failed: true,
+              text: cleanReply(m.text || '') || `（这条没接上：${msg || '连接中断'}。点 ↻ 重新生成）`,
+            }))
             showMemToast(`发送失败：${msg}`)
             setOpenReasoning((prev) => {
               const n = new Set(prev)
