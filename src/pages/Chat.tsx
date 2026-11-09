@@ -1541,7 +1541,6 @@ export default function Chat() {
         const startedAt = Date.now()
         thinkStartRef.current[replyId] = startedAt
         let gotContent = false
-        let anyDelta = false
         let streamRaw = ''
         let replyForMem = ''
         // 先放占位气泡并展开思考框
@@ -1587,11 +1586,9 @@ export default function Chat() {
               },
               {
                 onReasoning: (d) => {
-                  anyDelta = true
                   patch((m) => ({ ...m, reasoning: (m.reasoning || '') + d }))
                 },
                 onContent: (d) => {
-                  anyDelta = true
                   if (!gotContent) {
                     gotContent = true
                     collapseThink() // 思考结束→出正文：记用时、自动收起思考框
@@ -1619,7 +1616,6 @@ export default function Chat() {
               if (searchExtra) {
                 system += searchExtra
                 gotContent = false
-                anyDelta = false
                 streamRaw = ''
                 patch((m) => ({ ...m, text: '', reasoning: '', thinkMs: undefined }))
                 setOpenReasoning((prev) => new Set(prev).add(replyId))
@@ -1677,7 +1673,6 @@ export default function Chat() {
             if (interrupted && attempt < 4) {
               attempt++
               gotContent = false
-              anyDelta = false
               streamRaw = ''
               patch((m) => ({ ...m, text: '', reasoning: '', thinkMs: undefined }))
               setOpenReasoning((prev) => new Set(prev).add(replyId))
