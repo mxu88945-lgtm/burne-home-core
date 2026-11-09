@@ -335,6 +335,8 @@ html[data-standalone='true'][data-keyboard] .bw-composer-dock {
 .bw-rich-line { display: block; margin-bottom: .86em; }
 .bw-rich-line:last-child { margin-bottom: 0; }
 .bw-rich-spacer { display: block; height: .62em; }
+/* 2026-11-09 空行不再叠在段距上（之前段距 .86em + 空行 .62em，段落间隔太宽），连续空行也只算一次 */
+.bw-rich-line + .bw-rich-spacer, .bw-rich-hr + .bw-rich-spacer, .bw-rich-spacer + .bw-rich-spacer { display: none; }
 .bw-chat-quote {
   display: inline;
   padding: .12em .34em;
@@ -891,7 +893,7 @@ html[data-chat-fw] .bw-chat-messages .bw-message-content .bw-chat-quote { font-w
   box-shadow: 0 2px 8px rgba(150,100,60,.08) !important;
   color: #4A3426 !important;
   padding: 14px 18px !important;
-  line-height: 1.75;
+  line-height: 1.65;
   box-sizing: border-box;
 }
 [data-theme='warmtea'] .bw-chat-messages .bw-message-companion .bw-message-bubble > :first-child { margin-top: 0; }
