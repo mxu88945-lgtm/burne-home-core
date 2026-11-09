@@ -24,6 +24,8 @@ import ImageGenPage from '@/pages/settings/ImageGenPage'
 import VisionPage from '@/pages/settings/VisionPage'
 import MemoryModelPage from '@/pages/settings/MemoryModelPage'
 import PeoplePage from '@/pages/settings/PeoplePage'
+import AlbumPage from '@/pages/settings/AlbumPage'
+import DiaryPage from '@/pages/settings/DiaryPage'
 import SemanticPage from '@/pages/settings/SemanticPage'
 import SttPage from '@/pages/settings/SttPage'
 import NotFound from '@/pages/NotFound'
@@ -53,6 +55,8 @@ export const router = createHashRouter([
       { path: 'settings/vision', element: <VisionPage /> },
       { path: 'settings/memory-model', element: <MemoryModelPage /> },
       { path: 'settings/people', element: <PeoplePage /> },
+      { path: 'settings/album', element: <AlbumPage /> },
+      { path: 'settings/diary', element: <DiaryPage /> },
       { path: 'settings/semantic', element: <SemanticPage /> },
       { path: 'settings/stt', element: <SttPage /> },
       { path: 'settings/appearance', element: <AppearancePage /> },

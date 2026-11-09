@@ -37,6 +37,10 @@ import { recallMemories } from '@/lib/memoryRecall'
 import { PERSON_TAG_PROMPT, extractPersonTags } from '@/lib/people'
 import { recallPeople } from '@/lib/peopleRecall'
 import { MAX_SEARCH_ROUNDS, SEARCH_TAG_PROMPT, extractSearchTag, runModelSearch } from '@/lib/modelSearch'
+import { ALBUM_TAG_PROMPT, MAX_ALBUM_IMAGES, MAX_ALBUM_ROUNDS, buildAlbumResult, extractAlbumTag, searchAlbum } from '@/lib/album'
+import { DIARY_TAG_PROMPT, buildDiaryBlock, extractDiaryTags } from '@/lib/diary'
+import { useAlbumStore } from '@/store/albumStore'
+import { useDiaryStore } from '@/store/diaryStore'
 import { usePeopleStore } from '@/store/peopleStore'
 import { buildArchiveQuery, recallArchiveQueries } from '@/lib/archiveRecall'
 import { isSemanticReady, scheduleSemanticIndex, semanticLookup } from '@/lib/semanticRuntime'
@@ -292,8 +296,14 @@ export default function Chat() {
   const recordMemoryDiagnostic = useMemoryStore((s) => s.recordDiagnostic)
   /** 伯恩在回复里写的 [记忆:…]：藏起来、存进记忆库、弹提示（对齐顾祁砚）。 */
   function saveMemoryTags(text: string, sourceId?: string): string {
-    // [人物:名字|内容] → 人物档案；残留的 [搜索:] 一并藏掉
-    const personPart = extractPersonTags(extractSearchTag(text).clean)
+    // [私记:…] → 私人日记（藏起来，只存一页）
+    const diaryPart = extractDiaryTags(text)
+    if (diaryPart.saves.length) {
+      const ok = useDiaryStore.getState().addEntry(diaryPart.saves[0], sourceId)
+      if (ok) showMemToast('📔 他写了一页私人日记')
+    }
+    // [人物:名字|内容] → 人物档案；残留的 [搜索:] / [相册:] 一并藏掉
+    const personPart = extractPersonTags(extractAlbumTag(extractSearchTag(diaryPart.clean).clean).clean)
     if (personPart.tags.length) {
       const r = usePeopleStore.getState().applyTags(personPart.tags)
       if (r.created || r.events) {
@@ -1493,6 +1503,19 @@ export default function Chat() {
     // 跨窗口全局回忆：其他聊天窗口 + 本窗口滑出上下文的更早原话，按用户最近原话找回（不额外请求模型）
     if (crossRecallText) system += crossRecallText
     if (peopleText) system += peopleText
+    // 私人日记：最新 1–2 页 + 和最近几句话相关的旧页（约 850 字），标明是他当时的主观感受
+    try {
+      const diaryQuery = history
+        .filter((m) => m.role === 'me' || m.role === 'companion')
+        .slice(-6)
+        .map((m) => (m.text || '').slice(0, 420))
+        .join('\n')
+        .slice(-1800)
+      const diaryBlock = buildDiaryBlock(useDiaryStore.getState().entries, diaryQuery)
+      if (diaryBlock.text) system += diaryBlock.text
+    } catch {
+      // 日记读不出来不影响聊天
+    }
     // 天气与位置（首页天气卡的缓存）+ 距上次说话多久
     system += buildWeatherNote(useChatPrefsStore.getState().locationAware)
     {
@@ -1507,6 +1530,8 @@ export default function Chat() {
     system += MEMORY_TAG_PROMPT
     system += PERSON_TAG_PROMPT
     system += SEARCH_TAG_PROMPT
+    system += DIARY_TAG_PROMPT
+    if (useAlbumStore.getState().entries.length) system += ALBUM_TAG_PROMPT
 
     // [搜索:关键词]：模型记不清旧事时先搜；查到的原话作为工具结果附进 system，再生成一次（最多 1 轮）
     let searchRounds = 0
@@ -1534,6 +1559,49 @@ export default function Chat() {
       } catch {
         return `\n\n【工具结果 · [搜索:${query}]】这次没能翻到。不要编造，也不要说没有这回事；坦白说一时没翻到，请她提示一下。现在直接回答，不要再输出 [搜索:]。`
       }
+    }
+    // [相册:关键词]：按标题/备注/日期找最匹配的照片，文字结果附进 system，照片（最多 3 张）附到她最后一条消息上，再生成一次
+    let albumRounds = 0
+    async function takeAlbum(raw: string): Promise<string> {
+      if (albumRounds >= MAX_ALBUM_ROUNDS || stopped()) return ''
+      const { query } = extractAlbumTag(cleanReply(raw))
+      if (!query) return ''
+      albumRounds += 1
+      showMemToast(`🖼 翻相册：${query}`)
+      const all = useAlbumStore.getState().entries
+      const matches = searchAlbum(all, query, MAX_ALBUM_IMAGES)
+      const urls: string[] = []
+      for (const e of matches) {
+        try {
+          const url = await resolveImgRef(e.src)
+          if (url) urls.push(url)
+          else break // 保持「前 N 张」与列表顺序一致
+        } catch {
+          break
+        }
+      }
+      if (urls.length) {
+        const idx = apiMsgs.map((m) => m.role).lastIndexOf('user')
+        const label = `［应用附上：相册里和「${query}」匹配的照片，按结果列表顺序，不是她新发的］`
+        const imgParts = urls.map((url) => ({ type: 'image_url' as const, image_url: { url } }))
+        if (idx >= 0) {
+          const m = apiMsgs[idx]
+          const parts: Exclude<ChatApiMessage['content'], string> = Array.isArray(m.content)
+            ? [...m.content]
+            : m.content
+              ? [{ type: 'text', text: m.content }]
+              : []
+          parts.push({ type: 'text', text: label }, ...imgParts)
+          apiMsgs[idx] = { ...m, content: parts }
+        } else {
+          apiMsgs.push({ role: 'user', content: [{ type: 'text', text: label }, ...imgParts] })
+        }
+      }
+      return buildAlbumResult({ query, matches, attached: urls.length, total: all.length })
+    }
+    /** 工具标记：先看 [搜索:]，再看 [相册:]；有结果就返回要附进 system 的文字 */
+    async function takeTools(raw: string): Promise<string> {
+      return (await takeSearch(raw)) || (await takeAlbum(raw))
     }
     if (apiHistory.some((m) => m.file?.text)) system += REFERENCE_FILE_SYSTEM_NOTE
     if (allowTasks) {
@@ -1646,7 +1714,7 @@ export default function Chat() {
               })
             }
             {
-              const searchExtra = await takeSearch(r.text)
+              const searchExtra = await takeTools(r.text)
               if (searchExtra) {
                 system += searchExtra
                 gotContent = false
@@ -1739,7 +1807,7 @@ export default function Chat() {
                       cost: r.usage.cost,
                     })
                   }
-                  const searchExtra = await takeSearch(r.text)
+                  const searchExtra = await takeTools(r.text)
                   if (!searchExtra) break
                   system += searchExtra
                 }
@@ -1866,7 +1934,7 @@ export default function Chat() {
             })
           }
           {
-            const searchExtra = await takeSearch(reply)
+            const searchExtra = await takeTools(reply)
             if (searchExtra) {
               system += searchExtra
               continue // 带着翻到的结果再生成一次

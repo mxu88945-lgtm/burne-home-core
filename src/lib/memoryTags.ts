@@ -4,6 +4,7 @@
  * 正在做的事、项目进展）作为短期近况带上，不写进永久记忆。
  */
 import type { ChatMsg } from '@/store/chatStore'
+import { hideDiaryWhileStreaming } from '@/lib/diary'
 
 const TAG = /\[\s*(?:记忆|记住|存记忆|memory)\s*[:：]\s*([^\]\n]+)\]/gi
 
@@ -25,15 +26,15 @@ export function extractMemoryTags(text: string): { clean: string; saves: string[
   return { clean: saves.length ? tidy(clean) : clean, saves }
 }
 
-/** 其他同样要藏起来的隐藏标签：[人物:名字|内容]、[搜索:关键词]。 */
-const OTHER_HIDDEN = /\[\s*(?:人物|搜索|搜|search)\s*[:：][^\]\n]*\]/gi
+/** 其他同样要藏起来的隐藏标签：[人物:名字|内容]、[搜索:关键词]、[相册:关键词]。 */
+const OTHER_HIDDEN = /\[\s*(?:人物|搜索|搜|search|相册|album)\s*[:：][^\]\n]*\]/gi
 
-/** 流式显示用：完整标记和末尾写了一半的标记（记忆 / 人物 / 搜索）都不露出来。 */
+/** 流式显示用：完整标记和末尾写了一半的标记（记忆 / 人物 / 搜索 / 相册 / 私记）都不露出来。 */
 export function hideMemoryTagsWhileStreaming(text: string): string {
-  const out = text.replace(new RegExp(TAG.source, 'gi'), '').replace(new RegExp(OTHER_HIDDEN.source, 'gi'), '')
+  const out = hideDiaryWhileStreaming(text).replace(new RegExp(TAG.source, 'gi'), '').replace(new RegExp(OTHER_HIDDEN.source, 'gi'), '')
   return out
     .replace(
-      /\[\s*(?:记(?:忆|住)?|存(?:记(?:忆)?)?|m(?:e(?:m(?:o(?:r(?:y)?)?)?)?)?|人(?:物)?|搜(?:索)?|s(?:e(?:a(?:r(?:c(?:h)?)?)?)?)?)?\s*(?:[:：][^\]\n]*)?$/i,
+      /\[\s*(?:记(?:忆|住)?|存(?:记(?:忆)?)?|m(?:e(?:m(?:o(?:r(?:y)?)?)?)?)?|人(?:物)?|搜(?:索)?|相(?:册)?|私(?:记|人(?:日(?:记)?)?)?|a(?:l(?:b(?:u(?:m)?)?)?)?|s(?:e(?:a(?:r(?:c(?:h)?)?)?)?)?)?\s*(?:[:：][^\]\n]*)?$/i,
       '',
     )
     .trimEnd()

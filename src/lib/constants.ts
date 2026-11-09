@@ -31,6 +31,8 @@ export const STORAGE_KEYS = {
   memoryDiagnostics: `${NS}:memory-diagnostics`,
   people: `${NS}:people`,
   peopleSeeded: `${NS}:people-seeded`,
+  album: `${NS}:album`,
+  diary: `${NS}:diary`,
   reading: `${NS}:reading`,
   period: `${NS}:period`,
   readingApi: `${NS}:reading-api`,

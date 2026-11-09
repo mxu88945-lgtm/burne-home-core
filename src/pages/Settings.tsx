@@ -15,6 +15,7 @@ import {
   LockIcon,
   BookIcon,
   DatabaseIcon,
+  HeartIcon,
 } from '@/components/ui/navIcons'
 
 type IconType = ComponentType<{ className?: string }>
@@ -35,6 +36,8 @@ const GROUPS: { label: string; items: Item[] }[] = [
       { to: '/settings/api', Icon: ChipIcon, title: 'API · 模型', sub: '渠道与模型管理' },
       { to: '/settings/memory-model', Icon: DatabaseIcon, title: '记忆模型', sub: '单独模型记记忆 · 不占主模型' },
       { to: '/settings/people', Icon: PersonIcon, title: '记忆 · 人物', sub: '人物档案 · 背景与近事' },
+      { to: '/settings/album', Icon: ImageIcon, title: '相册', sub: '他聊天时能翻的照片' },
+      { to: '/settings/diary', Icon: HeartIcon, title: '私人日记', sub: '他自己写下的感受' },
       { to: '/settings/semantic', Icon: DatabaseIcon, title: '语义召回', sub: '向量 · 换了说法也能想起旧事' },
       { to: '/settings/vision', Icon: EyeIcon, title: '读图模型', sub: '主模型不支持图时用' },
       { to: '/settings/imagegen', Icon: ImageSparkIcon, title: '生成图片', sub: '文生图渠道' },

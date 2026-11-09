@@ -16,7 +16,10 @@ describe('main chat memory retrieval wiring', () => {
     expect(chatSource).toContain('system += PERSON_TAG_PROMPT');
     expect(chatSource).toContain('system += SEARCH_TAG_PROMPT');
     expect(chatSource).toContain('if (peopleText) system += peopleText');
-    expect(chatSource.match(/await takeSearch\(/g)).toHaveLength(3);
+    expect(chatSource.match(/await takeTools\(/g)).toHaveLength(3);
+    expect(chatSource).toContain('(await takeSearch(raw)) || (await takeAlbum(raw))');
+    expect(chatSource).toContain('system += DIARY_TAG_PROMPT');
+    expect(chatSource).toContain('if (diaryBlock.text) system += diaryBlock.text');
     expect(chatSource).toContain('useMemoryStore.getState().markUsed(usedMemoryIds)');
   });
 });
