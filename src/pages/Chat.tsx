@@ -724,13 +724,17 @@ export default function Chat() {
     setEditDraft(m.text)
   }
 
-  /** 保存编辑后的用户消息并重发（删除其后的所有消息，重新请求） */
+  /** 保存编辑后的用户消息并重发（删除其后的所有消息，重新请求）；他的话只原地改字，不重发、不动后面的 */
   async function saveEdit(id: string) {
     const text = editDraft.trim()
     setEditingId('')
     if (!text) return
     const idx = messages.findIndex((m) => m.id === id)
     if (idx < 0) return
+    if (messages[idx].role === 'companion') {
+      setMessages(messages.map((m) => (m.id === id ? { ...m, text, failed: undefined } : m)))
+      return
+    }
     const edited: Msg = { ...messages[idx], text }
     const history = [...messages.slice(0, idx), edited]
     setMessages(history)
@@ -2274,7 +2278,7 @@ export default function Chat() {
                     <textarea
                       value={editDraft}
                       onChange={(e) => setEditDraft(e.target.value)}
-                      className="min-h-[72px] w-full rounded-2xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent"
+                      className={`${me ? 'min-h-[72px]' : 'min-h-[40vh]'} w-full rounded-2xl border border-line bg-white/60 px-3 py-2 text-sm text-ink outline-none focus:border-accent`}
                     />
                     <div className="mt-1 flex justify-end gap-2">
                       <button
@@ -2289,7 +2293,7 @@ export default function Chat() {
                         onClick={() => saveEdit(m.id)}
                         className="btn-primary rounded-full px-3 py-1 text-[12px]"
                       >
-                        保存并重发
+                        {me ? '保存并重发' : '保存'}
                       </button>
                     </div>
                   </div>
@@ -2378,7 +2382,7 @@ export default function Chat() {
                         {copiedId === m.id ? <span className="text-[11px]">已复制</span> : <CopyIcon />}
                       </button>
                     )}
-                    {me && m.text.trim() && (
+                    {m.text.trim() && (
                       <button type="button" onClick={() => startEdit(m)} aria-label="编辑" className="hover:text-accent">
                         <EditIcon />
                       </button>
