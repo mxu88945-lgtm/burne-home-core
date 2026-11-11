@@ -44,7 +44,22 @@ interface MusicState extends Persisted {
   setNow: (n: NowPlaying | null) => void
   lyrics: LyricLine[]
   setLyrics: (l: LyricLine[]) => void
+  /** 他点歌 / 点歌小条：请播放器切到某首并播放（nonce 每次不同；auto=回复收尾自动切，被拦就安静失败） */
+  playRequest: PlayRequest | null
+  requestPlay: (trackId: string, msgId?: string, auto?: boolean) => void
+  /** 每条点歌消息的播放结果（不持久化）：blocked=浏览器没让自动播（显示「点一下播放」） */
+  pickState: Record<string, PickState>
+  setPickState: (msgId: string, st: PickState) => void
 }
+
+export type PickState = 'playing' | 'blocked' | 'error'
+export interface PlayRequest {
+  trackId: string
+  msgId?: string
+  auto: boolean
+  nonce: number
+}
+let playNonce = 0
 
 export const useMusicStore = create<MusicState>((set, get) => {
   const persist = (patch: Partial<Persisted>) => {
@@ -80,6 +95,10 @@ export const useMusicStore = create<MusicState>((set, get) => {
     setNow: (n) => set({ now: n }),
     lyrics: [],
     setLyrics: (l) => set({ lyrics: l }),
+    playRequest: null,
+    requestPlay: (trackId, msgId, auto = false) => set({ playRequest: { trackId, msgId, auto, nonce: ++playNonce } }),
+    pickState: {},
+    setPickState: (msgId, st) => set({ pickState: { ...get().pickState, [msgId]: st } }),
   }
 })
 

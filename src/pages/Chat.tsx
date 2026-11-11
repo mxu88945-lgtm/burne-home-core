@@ -39,6 +39,8 @@ import { recallPeople } from '@/lib/peopleRecall'
 import { MAX_SEARCH_ROUNDS, SEARCH_TAG_PROMPT, extractSearchTag, runModelSearch } from '@/lib/modelSearch'
 import { ALBUM_TAG_PROMPT, MAX_ALBUM_IMAGES, MAX_ALBUM_ROUNDS, buildAlbumResult, extractAlbumTag, searchAlbum } from '@/lib/album'
 import { DIARY_TAG_PROMPT, buildDiaryBlock, extractDiaryTags } from '@/lib/diary'
+import { buildSongPickPrompt, extractSongTag, findTrackByTitle, stripSongTags } from '@/lib/songPick'
+import { importMusicFiles } from '@/lib/musicImport'
 import { useAlbumStore } from '@/store/albumStore'
 import { useDiaryStore } from '@/store/diaryStore'
 import { usePeopleStore } from '@/store/peopleStore'
@@ -296,8 +298,8 @@ export default function Chat() {
   const recordMemoryDiagnostic = useMemoryStore((s) => s.recordDiagnostic)
   /** 伯恩在回复里写的 [记忆:…]：藏起来、存进记忆库、弹提示（对齐顾祁砚）。 */
   function saveMemoryTags(text: string, sourceId?: string): string {
-    // [私记:…] → 私人日记（藏起来，只存一页）
-    const diaryPart = extractDiaryTags(text)
+    // [私记:…] → 私人日记（藏起来，只存一页）；残留的 [点歌:] 也不进记忆
+    const diaryPart = extractDiaryTags(stripSongTags(text))
     if (diaryPart.saves.length) {
       const ok = useDiaryStore.getState().addEntry(diaryPart.saves[0], sourceId)
       if (ok) showMemToast('📔 他写了一页私人日记')
@@ -333,6 +335,56 @@ export default function Chat() {
       showMemToast(saved > 1 ? `🧠 记住了（${saved}条）` : `🧠 记住了：${brief}`)
     }
     return clean
+  }
+  // ---- 他自己点歌 ----
+  const songPickState = useMusicStore((s) => s.pickState)
+  const musicTracks = useMusicStore((s) => s.tracks)
+  const songPickedRef = useRef(new Set<string>()) // 每条消息最多自动切一次
+  const songFileRef = useRef<HTMLInputElement>(null)
+  const songImportForRef = useRef<{ msgId: string; title: string } | null>(null)
+  /** 回复收尾时调用（只对刚生成完的这条，渲染历史不会走到这里）：对上歌单就切过去放 */
+  function autoPlaySongPick(msgId: string, title: string) {
+    if (!useChatPrefsStore.getState().songPick) return
+    if (songPickedRef.current.has(msgId)) return
+    songPickedRef.current.add(msgId)
+    const mu = useMusicStore.getState()
+    if (!mu.enabled) return
+    const t = findTrackByTitle(mu.tracks, title)
+    if (!t) return
+    if (mu.activeId === t.id && mu.now?.playing) {
+      mu.setPickState(msgId, 'playing') // 已经在放这首，不打断
+      return
+    }
+    mu.requestPlay(t.id, msgId, true)
+  }
+  /** 点「🎵 他点了《X》」：歌单里有就放，没有就打开导入 */
+  function tapSongPick(msgId: string, title: string) {
+    const mu = useMusicStore.getState()
+    const t = findTrackByTitle(mu.tracks, title)
+    if (t) {
+      if (mu.activeId === t.id && mu.now?.playing) return
+      mu.requestPlay(t.id, msgId, false)
+      return
+    }
+    songImportForRef.current = { msgId, title }
+    songFileRef.current?.click()
+  }
+  async function onSongImport(files: File[]) {
+    const want = songImportForRef.current
+    songImportForRef.current = null
+    if (!files?.length) return
+    try {
+      const { tracks: added } = await importMusicFiles(files)
+      if (!want || !added.length) {
+        if (added.length) showMemToast(`🎵 导入了 ${added.length} 首`)
+        return
+      }
+      const t = findTrackByTitle(added, want.title) ?? findTrackByTitle(useMusicStore.getState().tracks, want.title)
+      if (t) useMusicStore.getState().requestPlay(t.id, want.msgId, true)
+      else showMemToast(`🎵 导入了 ${added.length} 首，但没对上《${want.title}》`)
+    } catch (e) {
+      showMemToast(`导入失败：${(e as Error).message}`)
+    }
   }
   const memoryModelCfg = useMemoryModelStore((s) => s.config)
   const sttCfg = useSttStore((s) => s.config)
@@ -1087,7 +1139,7 @@ export default function Chat() {
     const memName = profile.nameA || '她'
     const recent = history.slice(-14)
     const transcript = recent
-      .map((m) => `${m.role === 'me' ? memName : name}：${m.text}${m.image ? '［图片］' : ''}`)
+      .map((m) => `${m.role === 'me' ? memName : name}：${stripSongTags(m.text)}${m.image ? '［图片］' : ''}`)
       .join('\n')
     // 已有记忆：带一小段内容，管家才判断得出重复、过时和被纠正；仍截断省 token。
     const memList = memoriesRef.slice(0, 60)
@@ -1327,7 +1379,7 @@ export default function Chat() {
           return { role: 'user' as const, content: note }
         }
         // 文本（含文件信息：文本文件带内容，二进制只附说明）
-        let textPart = m.text.trim()
+        let textPart = stripSongTags(m.text).trim()
         if (m.file) {
           // 对齐顾祁砚：文件是只读参考资料，包起来放在前面，她的话放后面，防止伯恩把剧本/角色卡当成新人设
           textPart = m.file.text
@@ -1536,6 +1588,11 @@ export default function Chat() {
     system += SEARCH_TAG_PROMPT
     system += DIARY_TAG_PROMPT
     if (useAlbumStore.getState().entries.length) system += ALBUM_TAG_PROMPT
+    {
+      // 让他自己点歌：歌单不空才告诉他有哪些歌
+      const mu = useMusicStore.getState()
+      if (mu.enabled && useChatPrefsStore.getState().songPick && mu.tracks.length) system += buildSongPickPrompt(mu.tracks.map((t) => t.name))
+    }
 
     // [搜索:关键词]：模型记不清旧事时先搜；查到的原话作为工具结果附进 system，再生成一次（最多 1 轮）
     let searchRounds = 0
@@ -1730,7 +1787,8 @@ export default function Chat() {
             }
             collapseThink() // 万一没有正文增量也要确保收起
             if (r.truncated) showMemToast('✂️ 这条写到字数上限被截断了，可在人设里把「最大回复 Tokens」清空（不限）或调大')
-            let finalText = saveMemoryTags(cleanReply(r.text), replyId)
+            const song = extractSongTag(cleanReply(r.text))
+            let finalText = saveMemoryTags(song.clean, replyId)
             const taskMsgs: Msg[] = []
             if (allowTasks && finalText) {
               const { tasks: parsed, clean } = parseTasks(finalText)
@@ -1756,8 +1814,10 @@ export default function Chat() {
               text: finalText || (taskMsgs.length ? '' : '……'),
               ...(tokens ? { tokens } : {}),
               ...(r.reasoning ? { reasoning: r.reasoning } : {}),
+              ...(song.title ? { songPick: song.title } : {}),
             }))
             if (taskMsgs.length) setMessages((prev) => [...prev, ...taskMsgs])
+            if (song.title) autoPlaySongPick(replyId, song.title)
             break // 成功
           } catch (err) {
             const msg = (err as Error).message || ''
@@ -1817,7 +1877,8 @@ export default function Chat() {
                 }
                 if (r.reasoning) patch((m) => ({ ...m, reasoning: r.reasoning }))
                 collapseThink()
-                let finalText = saveMemoryTags(cleanReply(r.text), replyId)
+                const song = extractSongTag(cleanReply(r.text))
+                let finalText = saveMemoryTags(song.clean, replyId)
                 const taskMsgs: Msg[] = []
                 if (allowTasks && finalText) {
                   const { tasks: parsed, clean } = parseTasks(finalText)
@@ -1842,8 +1903,10 @@ export default function Chat() {
                   ...m,
                   text: finalText || (taskMsgs.length ? '' : '……'),
                   ...(tokens ? { tokens } : {}),
+                  ...(song.title ? { songPick: song.title } : {}),
                 }))
                 if (taskMsgs.length) setMessages((prev) => [...prev, ...taskMsgs])
+                if (song.title) autoPlaySongPick(replyId, song.title)
                 break
               } catch {
                 // 回退也失败，落到下面统一报错
@@ -1962,7 +2025,8 @@ export default function Chat() {
         }
       }
       // 清掉思考/工具调用模型漏出来的标签（<think>/<arg_value> 等）
-      reply = saveMemoryTags(cleanReply(reply))
+      const song = extractSongTag(cleanReply(reply))
+      reply = saveMemoryTags(song.clean)
       // 解析 TA 下的任务标记 → 生成对话内倒计时任务卡，并从正文移除标记
       const taskMsgs: Msg[] = []
       if (allowTasks && reply) {
@@ -2000,6 +2064,7 @@ export default function Chat() {
                 at: now(),
                 ...(tokens ? { tokens } : {}),
                 ...(reasoning ? { reasoning } : {}),
+                ...(song.title ? { songPick: song.title } : {}),
               },
             ]
           : []),
@@ -2008,6 +2073,7 @@ export default function Chat() {
           ? [{ id: newId(), role: 'companion' as const, text: '……', at: now() }]
           : []),
       ])
+      if (reply && song.title) autoPlaySongPick(replyId, song.title)
       // 自动沉淀记忆：开了开关每轮判断；或用户明确说「记一下」时必存
       const lastUser = [...history].reverse().find((m) => m.role === 'me')
       const force = !!lastUser && /记住|记一下|记下来|记下|记录|存一下|帮我记|记到/.test(lastUser.text)
@@ -2348,11 +2414,25 @@ export default function Chat() {
                           </div>
                         )
                       })()}
-                      {m.text && <div className={`bw-message-content [overflow-wrap:anywhere]${archived ? ' bubble message-plain-text' : ''}`}>{renderRichText(showLinks ? m.text : stripLinks(m.text))}</div>}
+                      {m.text && <div className={`bw-message-content [overflow-wrap:anywhere]${archived ? ' bubble message-plain-text' : ''}`}>{renderRichText(showLinks ? stripSongTags(m.text) : stripLinks(stripSongTags(m.text)))}</div>}
                     </div>
                   )
                 )}
 
+                {!me && m.songPick && !streamingIds.has(m.id) && editingId !== m.id && (() => {
+                  const inList = !!findTrackByTitle(musicTracks, m.songPick)
+                  const st = songPickState[m.id]
+                  const hint = !inList ? ' · 点这里导入' : st === 'blocked' ? ' · 点一下播放' : ''
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => tapSongPick(m.id, m.songPick!)}
+                      className="bw-song-pick mt-1.5 inline-flex self-start max-w-full items-center rounded-full border border-accent/40 bg-accent/10 px-2.5 py-0.5 text-left text-[11px] text-accent"
+                    >
+                      <span className="truncate">🎵 他点了《{m.songPick}》{hint}</span>
+                    </button>
+                  )
+                })()}
                 {!selectMode && editingId !== m.id && !streamingIds.has(m.id) && (
                   <div className="bw-message-actions mt-2 flex flex-wrap items-center gap-3.5 px-1 text-muted">
                     <span className="text-[10px]">{m.at}</span>
@@ -2597,6 +2677,18 @@ export default function Chat() {
             const files = Array.from(e.target.files ?? [])
             e.target.value = ''
             void pickImages(files)
+          }}
+        />
+        {/* 点歌小条：歌单里没有这首时导入音乐（不限类型，iOS 上 accept 会把「文件」里的音频藏起来） */}
+        <input
+          ref={songFileRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            const files = Array.from(e.target.files ?? [])
+            e.target.value = ''
+            void onSongImport(files)
           }}
         />
         <input
@@ -2982,7 +3074,7 @@ export default function Chat() {
                         wordBreak: 'break-word',
                       }}
                     >
-                      {m.text}
+                      {stripSongTags(m.text)}
                     </div>
                   )}
                 </div>

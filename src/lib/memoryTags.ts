@@ -5,6 +5,7 @@
  */
 import type { ChatMsg } from '@/store/chatStore'
 import { hideDiaryWhileStreaming } from '@/lib/diary'
+import { hideSongTagWhileStreaming } from '@/lib/songPick'
 
 const TAG = /\[\s*(?:记忆|记住|存记忆|memory)\s*[:：]\s*([^\]\n]+)\]/gi
 
@@ -31,7 +32,7 @@ const OTHER_HIDDEN = /\[\s*(?:人物|搜索|搜|search|相册|album)\s*[:：][^\
 
 /** 流式显示用：完整标记和末尾写了一半的标记（记忆 / 人物 / 搜索 / 相册 / 私记）都不露出来。 */
 export function hideMemoryTagsWhileStreaming(text: string): string {
-  const out = hideDiaryWhileStreaming(text).replace(new RegExp(TAG.source, 'gi'), '').replace(new RegExp(OTHER_HIDDEN.source, 'gi'), '')
+  const out = hideDiaryWhileStreaming(hideSongTagWhileStreaming(text)).replace(new RegExp(TAG.source, 'gi'), '').replace(new RegExp(OTHER_HIDDEN.source, 'gi'), '')
   return out
     .replace(
       /\[\s*(?:记(?:忆|住)?|存(?:记(?:忆)?)?|m(?:e(?:m(?:o(?:r(?:y)?)?)?)?)?|人(?:物)?|搜(?:索)?|相(?:册)?|私(?:记|人(?:日(?:记)?)?)?|a(?:l(?:b(?:u(?:m)?)?)?)?|s(?:e(?:a(?:r(?:c(?:h)?)?)?)?)?)?\s*(?:[:：][^\]\n]*)?$/i,

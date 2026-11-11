@@ -1,4 +1,5 @@
 import type { ChatMsg, ChatContextSummary } from '@/store/chatStore'
+import { stripSongTags } from '@/lib/songPick'
 
 /**
  * Context handling for long chats.
@@ -49,7 +50,7 @@ function messageExtraText(message: ChatMsg): string {
 }
 
 export function messagePromptText(message: ChatMsg): string {
-  const text = message.text.trim()
+  const text = stripSongTags(message.text).trim()
   const extra = messageExtraText(message)
   return [text, extra].filter(Boolean).join('\n\n')
 }

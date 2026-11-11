@@ -19,6 +19,8 @@ export interface ChatMsg {
   image?: string
   /** 同一条消息里的其余图片（第一张仍在 image 里，旧数据兼容） */
   images?: string[]
+  /** 他在这条回复里点的歌（[点歌:歌名] 标记已从正文去掉，这里留歌名给「🎵 他点了《X》」小条） */
+  songPick?: string
   /** 回复中途失败（留着给她看原因，不发给模型） */
   failed?: boolean
   /** 这条 AI 回复消耗的总 token（有就显示） */

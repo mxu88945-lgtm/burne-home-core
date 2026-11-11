@@ -8,7 +8,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { parseLyrics, lyricIndexAt, isTimed, fetchLyricCandidates, shiftLyrics, type LyricLine } from '@/lib/lyrics'
-import { useMusicStore, musicTrackId, type MusicTrack } from '@/store/musicStore'
+import { useMusicStore, type MusicTrack, type PickState } from '@/store/musicStore'
+import { importMusicFiles } from '@/lib/musicImport'
 import { idbGet, idbSet, idbDel } from '@/lib/idb'
 import { PlayIcon, PauseIcon, SkipPrevIcon, SkipNextIcon, TrashIcon } from '@/components/ui/icons'
 
@@ -23,7 +24,6 @@ export default function MusicPlayer() {
   const enabled = useMusicStore((s) => s.enabled)
   const tracks = useMusicStore((s) => s.tracks)
   const activeId = useMusicStore((s) => s.activeId)
-  const addTracks = useMusicStore((s) => s.addTracks)
   const removeTrack = useMusicStore((s) => s.removeTrack)
   const setActive = useMusicStore((s) => s.setActive)
   const setHasLyrics = useMusicStore((s) => s.setHasLyrics)
@@ -31,6 +31,8 @@ export default function MusicPlayer() {
   const setNow = useMusicStore((s) => s.setNow)
   const setLyrics = useMusicStore((s) => s.setLyrics)
   const lyrics = useMusicStore((s) => s.lyrics)
+  const playRequest = useMusicStore((s) => s.playRequest)
+  const setPickState = useMusicStore((s) => s.setPickState)
   const lyricFileRef = useRef<HTMLInputElement>(null)
   const lyricForRef = useRef('')
 
@@ -208,17 +210,34 @@ export default function MusicPlayer() {
     }
   }
 
-  async function playTrack(id: string) {
+  /** quiet：他点歌时自动切歌，iOS 没有手势会拦 play()，这时不报红字，返回 blocked 让小条显示「点一下播放」 */
+  async function playTrack(id: string, quiet = false): Promise<PickState> {
     setErr('')
     const a = await loadTrack(id)
-    if (!a) return
+    if (!a) return 'error'
     if (stateRef.current.activeId !== id) setActive(id)
     try {
       await a.play()
+      return 'playing'
     } catch (e) {
-      setErr(`播放失败：${(e as Error).message}`)
+      const blocked = (e as Error).name === 'NotAllowedError'
+      if (!(quiet && blocked)) setErr(`播放失败：${(e as Error).message}`)
+      return blocked ? 'blocked' : 'error'
     }
   }
+
+  // 聊天里他点的歌 / 点歌小条：切到那首并播放
+  const handledNonceRef = useRef(0)
+  useEffect(() => {
+    const req = playRequest
+    if (!req || handledNonceRef.current === req.nonce) return
+    handledNonceRef.current = req.nonce
+    if (!stateRef.current.tracks.some((t) => t.id === req.trackId)) return
+    void playTrack(req.trackId, req.auto).then((st) => {
+      if (req.msgId) setPickState(req.msgId, st)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playRequest?.nonce])
 
   async function toggle() {
     if (!active) return
@@ -250,27 +269,14 @@ export default function MusicPlayer() {
   async function onFiles(files: FileList | null) {
     if (!files?.length) return
     setErr('')
-    const metas: MusicTrack[] = []
-    const base = (n: string) => n.replace(/\.[^.]+$/, '')
-    const all = Array.from(files)
-    const lrcs = all.filter((f) => /\.(lrc|txt)$/i.test(f.name))
     try {
-      for (const f of all) {
-        if (/\.(lrc|txt)$/i.test(f.name)) continue
-        if (/^(image|video)\//.test(f.type)) continue
-        const id = musicTrackId()
-        await idbSet(`music:${id}`, f)
-        const lrc = lrcs.find((l) => base(l.name) === base(f.name))
-        if (lrc) await idbSet(`lyric:${id}`, await lrc.text())
-        metas.push({ id, name: base(f.name), hasLyrics: !!lrc })
-      }
-      if (!metas.length && lrcs.length && active) {
+      const { tracks: metas, lyricFiles } = await importMusicFiles(files)
+      if (!metas.length && lyricFiles.length && active) {
         // 只选了歌词文件：给当前这首配上
-        await attachLyrics(active.id, lrcs[0])
+        await attachLyrics(active.id, lyricFiles[0])
         return
       }
-      addTracks(metas)
-      setListOpen(true)
+      if (metas.length) setListOpen(true)
     } catch (e) {
       setErr(`保存失败：${(e as Error).message}`)
     }

@@ -71,6 +71,8 @@ export default function AppearanceManager() {
   const pet = usePetStore()
   const musicEnabled = useMusicStore((s) => s.enabled)
   const setMusicEnabled = useMusicStore((s) => s.setEnabled)
+  const songPick = useChatPrefsStore((s) => s.songPick)
+  const setSongPick = useChatPrefsStore((s) => s.setSongPick)
   const [err, setErr] = useState('')
   const chatBgSrc = useImgSrc(appearance.chatBg)
 
@@ -341,6 +343,26 @@ export default function AppearanceManager() {
         <p className="text-[11px] text-muted">
           首页一张音乐小卡：播放/切歌/歌单，可给每首配 .lrc 歌词。放歌时 TA 知道你在听哪首、唱到哪句，能陪你一起听；换页不断播，音乐只存本机。
         </p>
+        {musicEnabled && (
+          <div className="flex items-center justify-between border-t border-line/40 pt-2">
+            <div className="label">让他自己点歌</div>
+            <label className="relative inline-flex cursor-pointer items-center">
+              <input
+                type="checkbox"
+                checked={songPick}
+                onChange={(e) => setSongPick(e.target.checked)}
+                className="peer sr-only"
+              />
+              <span className="h-5 w-9 rounded-full bg-black/15 transition peer-checked:bg-accent" />
+              <span className="absolute left-0.5 h-4 w-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
+            </label>
+          </div>
+        )}
+        {musicEnabled && (
+          <p className="text-[11px] text-muted">
+            歌单里有歌时，他偶尔会在气氛合适的时候给你点一首，播放器自动切过去；消息下面会出一个「🎵 他点了《…》」的小条，点一下也能放。
+          </p>
+        )}
       </div>
 
 

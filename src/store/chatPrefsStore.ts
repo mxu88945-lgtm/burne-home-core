@@ -23,6 +23,8 @@ interface ChatPrefs {
   crossRecall: boolean
   /** 位置感知：首页天气卡获取的地名/天气注入聊天（默认开；关掉后也不在后台定位） */
   locationAware: boolean
+  /** 让他自己点歌：歌单不空时告诉他有哪些歌，他偶尔写 [点歌:歌名] 就自动切过去（默认开） */
+  songPick: boolean
 }
 
 const DEFAULT: ChatPrefs = {
@@ -33,6 +35,7 @@ const DEFAULT: ChatPrefs = {
   allowTasks: false,
   crossRecall: true,
   locationAware: true,
+  songPick: true,
 }
 
 interface ChatPrefsState extends ChatPrefs {
@@ -43,6 +46,7 @@ interface ChatPrefsState extends ChatPrefs {
   toggleAllowTasks: () => void
   toggleCrossRecall: () => void
   toggleLocationAware: () => void
+  setSongPick: (on: boolean) => void
 }
 
 const init = { ...DEFAULT, ...readJSON<Partial<ChatPrefs>>(STORAGE_KEYS.chatprefs, {}) }
@@ -55,6 +59,11 @@ export const useChatPrefsStore = create<ChatPrefsState>((set, get) => ({
   allowTasks: init.allowTasks,
   crossRecall: init.crossRecall,
   locationAware: init.locationAware,
+  songPick: init.songPick,
+  setSongPick: (songPick) => {
+    writeJSON(STORAGE_KEYS.chatprefs, { ...pick(get()), songPick })
+    set({ songPick })
+  },
   toggleLocationAware: () => {
     const locationAware = !get().locationAware
     writeJSON(STORAGE_KEYS.chatprefs, { ...pick(get()), locationAware })
@@ -100,5 +109,6 @@ function pick(s: ChatPrefsState): ChatPrefs {
     allowTasks: s.allowTasks,
     crossRecall: s.crossRecall,
     locationAware: s.locationAware,
+    songPick: s.songPick,
   }
 }
