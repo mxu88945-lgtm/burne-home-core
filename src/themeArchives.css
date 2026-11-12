@@ -26,19 +26,19 @@
    信纸卡用 .bw-message-body::before 画在胶囊下方（胶囊固定 124px 高 + 14px 间距），落款用 ::after，不改消息 DOM 结构；不用 backdrop-filter。 */
 .bw-chat-messages .archive-row.archive-pudding { width: min(100%,760px) !important; margin: 28px auto !important; padding: 0 !important; border: 0 !important; color: #5b4330 !important; background: transparent !important; box-shadow: none !important; }
 .bw-chat-messages .archive-pudding > .bw-message-body { position: relative; align-items: stretch !important; padding: 0 22px 18px; }
-.bw-chat-messages .archive-pudding > .bw-message-body::before { content: ''; position: absolute; inset: 138px 0 0; z-index: 0; border: 1px solid #ecd9a8; border-radius: 28px; background: linear-gradient(160deg,#fffdf5,#fdf1c8); box-shadow: 0 12px 28px rgba(151,104,49,.13); pointer-events: none; }
+.bw-chat-messages .archive-pudding > .bw-message-body::before { content: ''; position: absolute; inset: 138px 0 0; z-index: 0; border: 1px solid #f0e9cf; border-radius: 28px; background: linear-gradient(160deg,#fefefa,#fbf6e1); box-shadow: 0 12px 28px rgba(151,104,49,.13); pointer-events: none; }
 .bw-chat-messages .archive-pudding > .bw-message-body > * { position: relative; z-index: 1; }
 .bw-chat-messages .archive-pudding > .bw-message-body::after { content: 'POMPOMPURIN · SWEET LITTLE MESSAGE ♡'; position: relative; z-index: 1; display: block; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e3cfa3; color: #b99a72; font: 600 10px/1.4 -apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif; letter-spacing: .16em; text-align: center; }
 /* 名字胶囊 */
 .bw-chat-messages .archive-pudding .pudding-capsule { position: relative; flex: 0 0 auto; height: 124px; margin: 0 -22px 14px; }
-.bw-chat-messages .archive-pudding .pudding-pill { position: absolute; inset: 36px 0 0; display: flex; align-items: center; padding: 0 88px 0 116px; border: 1px solid #ecd9a8; border-radius: 44px; background: linear-gradient(135deg,#fffdf5,#fdf1c8); box-shadow: 0 10px 24px rgba(151,104,49,.14); }
+.bw-chat-messages .archive-pudding .pudding-pill { position: absolute; inset: 36px 0 0; display: flex; align-items: center; padding: 0 88px 0 116px; border: 1px solid #f0e9cf; border-radius: 44px; background: linear-gradient(135deg,#fefefa,#fbf6e1); box-shadow: 0 10px 24px rgba(151,104,49,.14); }
 .bw-chat-messages .archive-pudding .pudding-avatar { position: absolute; top: 4px; left: 8px; z-index: 2; display: grid; place-items: center; width: 96px; height: 96px; padding: 3px; overflow: hidden; border: 3px solid #5b4330; border-radius: 50%; color: #92643c; background: #fff; box-shadow: 0 6px 16px rgba(91,67,48,.22); font-size: 30px; font-weight: 800; }
 .bw-chat-messages .archive-pudding .pudding-avatar img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
-.bw-chat-messages .archive-pudding .pudding-avatar > span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: #f7e8bf; }
+.bw-chat-messages .archive-pudding .pudding-avatar > span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: #f7f2dc; }
 .bw-chat-messages .archive-pudding .pudding-name { position: absolute; top: 0; left: 116px; z-index: 2; display: block; max-width: calc(100% - 200px); overflow: hidden; color: #fff; font-size: 26px; font-weight: 800; line-height: 36px; white-space: nowrap; text-overflow: ellipsis; text-shadow: 0 1px 0 #c9b28f, 0 2px 4px rgba(91,67,48,.35); -webkit-text-stroke: .5px #d8c3a0; }
 .bw-chat-messages .archive-pudding .pudding-sign { flex: 1; min-width: 0; }
 .bw-chat-messages .archive-pudding .pudding-sign span { display: -webkit-box; overflow: hidden; color: #6b5240; font-size: 14px; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
-.bw-chat-messages .archive-pudding .pudding-sign i { position: relative; display: block; height: 1px; margin-top: 8px; background: #eadcbf; }
+.bw-chat-messages .archive-pudding .pudding-sign i { position: relative; display: block; height: 1px; margin-top: 8px; background: #f0ebdb; }
 .bw-chat-messages .archive-pudding .pudding-sign i::before { content: ''; position: absolute; top: -.5px; left: 0; width: 44px; height: 2px; border-radius: 2px; background: #c99a4a; }
 .bw-chat-messages .archive-pudding .pudding-dog { position: absolute; top: 50%; right: 14px; width: 64px; height: 64px; transform: translateY(-50%); pointer-events: none; }
 .bw-chat-messages .archive-pudding.user .pudding-pill { padding: 0 116px 0 88px; }
@@ -55,7 +55,7 @@
 .bw-chat-messages .archive-pudding .archive-body .bw-rich-line { display: block; text-align: left; }
 .bw-chat-messages .archive-pudding .archive-body .bw-rich-line + .bw-rich-line { margin-top: .72em; }
 .bw-chat-messages .archive-pudding .archive-body .bw-rich-spacer { display: block; height: .82em; }
-.bw-chat-messages .archive-row.archive-pudding .archive-body :is(.bw-chat-quote,.message-quote,.chat-quote) { display: inline !important; width: auto !important; margin: 0 .08em !important; padding: .14em .58em !important; border: 1px solid #ead7bf !important; border-radius: 12px !important; color: #7c5842 !important; background: #f4e7da !important; box-shadow: inset 0 1px 0 #ffffffc2 !important; line-height: 1.8 !important; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.bw-chat-messages .archive-row.archive-pudding .archive-body :is(.bw-chat-quote,.message-quote,.chat-quote) { display: inline !important; width: auto !important; margin: 0 .08em !important; padding: .14em .58em !important; border: 1px solid #f0ebdb !important; border-radius: 12px !important; color: #7c5842 !important; background: #f7f3ea !important; box-shadow: inset 0 1px 0 #ffffffc2 !important; line-height: 1.8 !important; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
 .bw-chat-messages .archive-pudding .bw-message-actions { align-self: flex-end !important; margin: 10px 0 0 !important; padding: 0 !important; color: #b99a72; }
 @media(max-width:420px) {
   .bw-chat-messages .archive-pudding > .bw-message-body { padding: 0 18px 16px; }
