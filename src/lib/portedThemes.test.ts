@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const rootUrl = new URL('../../', import.meta.url)
@@ -32,7 +32,16 @@ describe('顾祁砚主聊天主题移植', () => {
     expect(css).toContain("[data-theme='vinyl'] .bw-shell-vinyl")
     expect(css).toContain('.bw-chat-quote')
     expect(archives).toContain('.archive-row.archive-pudding')
-    expect(archives).toContain('.archive-pudding.user .archive-heading')
+    expect(archives).toContain('.archive-pudding .pudding-capsule')
+    expect(archives).toContain('.archive-pudding.user .pudding-avatar')
+    expect(archives).toContain('.archive-pudding .pudding-letter-top')
+    expect(archives).toContain('POMPOMPURIN · SWEET LITTLE MESSAGE ♡')
+    expect(chat).toContain('pudding-dog.svg')
+    expect(chat).toContain('pudding-bone.svg')
+    expect(chat).toContain('import.meta.env.BASE_URL')
+    expect(chat).not.toContain('ﻌ')
+    expect(existsSync(new URL('public/pudding-dog.svg', rootUrl))).toBe(true)
+    expect(existsSync(new URL('public/pudding-bone.svg', rootUrl))).toBe(true)
   })
 
   it('adds 暖茶笺 as a selectable theme without touching the default', () => {

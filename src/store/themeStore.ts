@@ -41,7 +41,7 @@ export const THEMES: ThemeMeta[] = [
   { id: 'nightglow', name: '暗夜流光', emoji: '◉', desc: '暖灰纸面 · 暗红流光', swatches: ['#f6f1ee', '#faf7f4', '#e8dfd8', '#a8383c', '#2b2522'] },
   { id: 'vinyl', name: '青橙唱片', emoji: '●', desc: '清透青灰 · 唱片橙光', swatches: ['#ffffff', '#f8fbfc', '#c8d9df', '#416978', '#d98b52'] },
   { id: 'warmtea', name: '暖茶笺', emoji: '☕', desc: '奶油纸笺 · 焦糖暖光', swatches: ['#FBF4EA', '#F5E8D6', '#E8D5BF', '#C27A45', '#4A3426'] },
-  { id: 'pudding', name: '布丁来信', emoji: '૮', desc: '奶黄信纸 · 软糖对白', swatches: ['#FFF9E9', '#FFFDF7', '#F4E7DA', '#D7A85F', '#5B4330'] },
+  { id: 'pudding', name: '布丁来信', emoji: '🍮', desc: '奶黄信纸 · 软糖对白', swatches: ['#FFF9E9', '#FFFDF7', '#F4E7DA', '#D7A85F', '#5B4330'] },
 ]
 
 const DEFAULT_THEME: ThemeId = 'claude'

@@ -971,3 +971,7 @@ html[data-chat-fw] .bw-chat-messages .bw-message-content .bw-chat-quote { font-w
 /* 2026-11-09 暖茶笺正文统一用苹方（和惟境/顾祁砚的暖茶笺一致），不走宋体 */
 [data-theme='warmtea'] .bw-chat-messages .bw-message-bubble,
 [data-theme='warmtea'] .bw-chat-messages .bw-message-bubble * { font-family: 'PingFang SC','Microsoft YaHei',system-ui,sans-serif !important; }
+
+/* 布丁来信：输入框左侧的骨头布丁狗 + 奶黄输入胶囊、发送键金棕圈 */
+[data-theme='pudding'] .bw-chat-composer { border: 1px solid #ecd9a8; background: linear-gradient(135deg,#fffdf5,#fdf1c8); }
+[data-theme='pudding'] .bw-chat-composer .pudding-input-icon { flex: 0 0 auto; width: 40px; height: 40px; margin: -4px 0 -4px -2px; pointer-events: none; }

@@ -111,6 +111,10 @@ const SHELL_THEMES = new Set<ThemeId>([
 /** 这 6 套主题与顾祁砚主聊天用同一套「档案」DOM 与样式（src/themeArchives.css 原样移植） */
 const ARCHIVE_THEMES = new Set<ThemeId>(['academy', 'vinyl', 'mobile', 'letter', 'mistnote', 'nightglow', 'pudding'])
 
+/** 布丁狗图在 public/ 下，跟随 base 路径（/burne-home-core/）以便离线与子路径部署都能取到 */
+const PUDDING_DOG = `${import.meta.env.BASE_URL}pudding-dog.svg`
+const PUDDING_BONE = `${import.meta.env.BASE_URL}pudding-bone.svg`
+
 function ArchiveHeading({ theme, me, name, avatarImg, avatarEmoji }: {
   theme: ThemeId
   me: boolean
@@ -122,7 +126,20 @@ function ArchiveHeading({ theme, me, name, avatarImg, avatarEmoji }: {
   const portrait = src ? <img src={src} alt="" /> : <span>{avatarEmoji || String(name || '角').slice(-1)}</span>
   const cover = <div className="archive-portrait"><div className="archive-cover">{portrait}</div></div>
   if (theme === 'pudding') return (
-    <div className="archive-heading"><div className="pudding-kicker" aria-hidden="true"><span>♡ POMPOM LETTER · {me ? 'FROM ME' : 'FOR YOU'}</span><i>૮ ・ﻌ・ა</i></div>{cover}<div className="archive-heading-copy"><strong className="archive-name">{name}</strong><small>{me ? '把迟到的回信，悄悄放进你的甜里。' : '把今天的心情，烤成一块软乎乎的布丁。'}</small></div><div className="pudding-caption" aria-hidden="true">POMPOMPURIN · SWEET LITTLE MESSAGE ♡</div></div>
+    <>
+      <div className="pudding-capsule">
+        <div className="pudding-pill">
+          <div className="pudding-sign"><span>{me ? '把迟到的回信，悄悄放进你的甜里。' : '把今天的心情，烤成一块软乎乎的布丁。'}</span><i aria-hidden="true" /></div>
+          <img className="pudding-dog" src={PUDDING_DOG} alt="" aria-hidden="true" />
+        </div>
+        <div className="pudding-avatar">{portrait}</div>
+        <strong className="pudding-name">{name}</strong>
+      </div>
+      <div className="pudding-letter-top" aria-hidden="true">
+        <img className="pudding-bone" src={PUDDING_BONE} alt="" />
+        <span>♡ POMPOM LETTER · {me ? 'FROM ME' : 'FOR YOU'}</span>
+      </div>
+    </>
   )
   if (theme === 'mobile') return (
     <div className="archive-heading"><div className="mobile-status" aria-hidden="true"><span>MESSAGE</span><span>⌁ ▰</span></div>{cover}<div className="archive-heading-copy"><strong className="archive-name">{name}</strong><small>{me ? '我的消息' : '他的来信'}</small></div></div>
@@ -2742,6 +2759,8 @@ export default function Chat() {
           )}
           {/* 上面输入、下面 ＋ 和模型 pill、右侧发送 */}
           <div className="bw-chat-composer glass-strong flex flex-col gap-1.5 rounded-3xl px-3 py-2">
+            <div className="bw-composer-row flex min-w-0 items-center gap-2">
+            {theme === 'pudding' && <img className="pudding-input-icon" src={PUDDING_BONE} alt="" aria-hidden="true" />}
             <textarea
               ref={inputRef}
               value={draft}
@@ -2764,6 +2783,7 @@ export default function Chat() {
               placeholder={`say something to ${name}…`}
               className="headline min-h-[24px] max-h-[120px] w-full resize-none bg-transparent px-1 py-0.5 text-sm not-italic leading-snug text-ink outline-none placeholder:italic placeholder:text-muted"
             />
+            </div>
             <div className="flex items-center gap-2">
               <button
                 type="button"
