@@ -34,6 +34,8 @@ interface MusicState extends Persisted {
   setCollapsed: (on: boolean) => void
   addTracks: (list: MusicTrack[]) => void
   removeTrack: (id: string) => void
+  /** 批量删（管理模式）：一次写盘；当前曲目被删就落到剩下的第一首 */
+  removeTracks: (ids: string[]) => void
   renameTrack: (id: string, name: string) => void
   setActive: (id: string) => void
   setHasLyrics: (id: string, on: boolean) => void
@@ -80,9 +82,11 @@ export const useMusicStore = create<MusicState>((set, get) => {
       const tracks = [...get().tracks, ...list]
       persist({ tracks, activeId: get().activeId || list[0]?.id || '' })
     },
-    removeTrack: (id) => {
-      const tracks = get().tracks.filter((t) => t.id !== id)
-      const activeId = get().activeId === id ? tracks[0]?.id ?? '' : get().activeId
+    removeTrack: (id) => get().removeTracks([id]),
+    removeTracks: (ids) => {
+      const drop = new Set(ids)
+      const tracks = get().tracks.filter((t) => !drop.has(t.id))
+      const activeId = drop.has(get().activeId) ? tracks[0]?.id ?? '' : get().activeId
       persist({ tracks, activeId })
     },
     renameTrack: (id, name) =>

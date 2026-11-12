@@ -24,7 +24,8 @@ export default function MusicPlayer() {
   const enabled = useMusicStore((s) => s.enabled)
   const tracks = useMusicStore((s) => s.tracks)
   const activeId = useMusicStore((s) => s.activeId)
-  const removeTrack = useMusicStore((s) => s.removeTrack)
+  const removeTracks = useMusicStore((s) => s.removeTracks)
+  const renameTrack = useMusicStore((s) => s.renameTrack)
   const setActive = useMusicStore((s) => s.setActive)
   const setHasLyrics = useMusicStore((s) => s.setHasLyrics)
   const slot = useMusicStore((s) => s.slot)
@@ -41,6 +42,9 @@ export default function MusicPlayer() {
   const [pos, setPos] = useState(0)
   const [dur, setDur] = useState(0)
   const [err, setErr] = useState('')
+  // 歌单「管理」：多选删除 / 改名
+  const [managing, setManaging] = useState(false)
+  const [picked, setPicked] = useState<Set<string>>(() => new Set())
   // 离开首页时的小浮窗：收起只剩唱片，记住她的选择
   const [mini, setMini] = useState(() => localStorage.getItem('bw-music-float') === 'mini')
   const toggleMini = () => {
@@ -67,8 +71,8 @@ export default function MusicPlayer() {
       a = new Audio()
       let lastPub = 0
       const publish = () => {
-        const { tracks: ts, activeId: cur } = stateRef.current
-        const t = ts.find((x) => x.id === loadedIdRef.current) ?? ts.find((x) => x.id === cur)
+        // 读 store 最新值：刚删掉的歌不会再被当成「正在听」
+        const t = loadedIdRef.current ? useMusicStore.getState().tracks.find((x) => x.id === loadedIdRef.current) : undefined
         setNow(t ? { name: t.name, playing: !a!.paused, pos: a!.currentTime, dur: isFinite(a!.duration) ? a!.duration : 0 } : null)
       }
       a.addEventListener('timeupdate', () => {
@@ -282,23 +286,70 @@ export default function MusicPlayer() {
     }
   }
 
-  function del(t: MusicTrack) {
-    if (!window.confirm(`删除「${t.name}」？`)) return
-    void idbDel(`music:${t.id}`)
-    void idbDel(`lyric:${t.id}`)
-    if (loadedIdRef.current === t.id) {
+  /** 删歌（单删和批量删共用）：音频、歌词、歌词偏移一起清；正在放的被删就干净停下 */
+  function dropTracks(ids: string[]) {
+    if (!ids.length) return
+    for (const id of ids) {
+      void idbDel(`music:${id}`)
+      void idbDel(`lyric:${id}`)
+      try { localStorage.removeItem(`bw-lyric-offset:${id}`) } catch { /* ignore */ }
+      candRef.current.delete(id)
+      triedRef.current.delete(id)
+    }
+    if (ids.includes(loadedIdRef.current)) {
       const a = ensureAudio()
+      loadedIdRef.current = ''
       a.pause()
       a.removeAttribute('src')
-      loadedIdRef.current = ''
+      a.load()
       if (urlRef.current) {
         URL.revokeObjectURL(urlRef.current)
         urlRef.current = ''
       }
+      setPlaying(false)
       setPos(0)
       setDur(0)
+      setNow(null)
+      setLyrics([])
+      setLyricHint('')
+      setErr('')
     }
-    removeTrack(t.id)
+    removeTracks(ids)
+  }
+
+  function del(t: MusicTrack) {
+    if (!window.confirm(`删除「${t.name}」？`)) return
+    dropTracks([t.id])
+  }
+
+  function exitManage() {
+    setManaging(false)
+    setPicked(new Set())
+  }
+  function togglePick(id: string) {
+    setPicked((p) => {
+      const n = new Set(p)
+      if (n.has(id)) n.delete(id)
+      else n.add(id)
+      return n
+    })
+  }
+  function delPicked() {
+    const ids = tracks.filter((t) => picked.has(t.id)).map((t) => t.id)
+    if (!ids.length) return
+    if (!window.confirm(`删除选中的 ${ids.length} 首歌？歌词也会一起删掉`)) return
+    dropTracks(ids)
+    setPicked(new Set())
+    if (ids.length >= tracks.length) setManaging(false)
+  }
+  function renamePicked() {
+    const t = tracks.find((x) => picked.has(x.id))
+    if (!t) return
+    const name = window.prompt('改个名字', t.name)
+    if (name == null || !name.trim() || name.trim() === t.name) return
+    renameTrack(t.id, name)
+    // 歌名变了，网上歌词候选按新名字重找
+    candRef.current.delete(t.id)
   }
 
   // 切到别的歌（还没开始放）时也把歌词换上，卡片显示对得上
@@ -402,7 +453,7 @@ export default function MusicPlayer() {
         <button onClick={() => void step(1)} aria-label="下一首" className="text-muted disabled:opacity-40" disabled={tracks.length < 2}>
           <SkipNextIcon className="h-[18px] w-[18px]" />
         </button>
-        <button onClick={() => setListOpen((o) => !o)} aria-label="歌单" className={`px-0.5 text-[14px] ${listOpen ? 'text-accent' : 'text-muted'}`}>
+        <button onClick={() => { setListOpen((o) => !o); exitManage() }} aria-label="歌单" className={`px-0.5 text-[14px] ${listOpen ? 'text-accent' : 'text-muted'}`}>
           ♫
         </button>
       </div>
@@ -440,8 +491,56 @@ export default function MusicPlayer() {
               <button onClick={() => void nextVersion(active.id)} className="glass ml-auto rounded-full px-2 py-0.5 text-ink">换一版歌词</button>
             </div>
           )}
+          {tracks.length > 0 && (
+            <div className="flex items-center gap-1.5 px-2 text-[11px] text-muted">
+              {managing ? (
+                <>
+                  <button
+                    onClick={() => setPicked(picked.size === tracks.length ? new Set() : new Set(tracks.map((t) => t.id)))}
+                    className="rounded-full px-1.5 py-0.5 text-ink"
+                  >
+                    {picked.size === tracks.length ? '取消全选' : '全选'}
+                  </button>
+                  {picked.size === 1 && (
+                    <button onClick={renamePicked} className="rounded-full px-1.5 py-0.5 text-ink">改名</button>
+                  )}
+                  <button
+                    onClick={delPicked}
+                    disabled={!picked.size}
+                    className="ml-auto rounded-full px-1.5 py-0.5 text-red-500 disabled:text-muted disabled:opacity-50"
+                  >
+                    删除选中（{picked.size}）
+                  </button>
+                  <button onClick={exitManage} className="rounded-full px-1.5 py-0.5 font-medium text-accent">完成</button>
+                </>
+              ) : (
+                <>
+                  <span>{tracks.length} 首</span>
+                  <button onClick={() => setManaging(true)} className="ml-auto rounded-full px-1.5 py-0.5 text-ink">管理</button>
+                </>
+              )}
+            </div>
+          )}
           <div className="max-h-48 space-y-0.5 overflow-y-auto">
-            {tracks.map((t) => (
+            {tracks.map((t) =>
+              managing ? (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={picked.has(t.id)}
+                  onClick={() => togglePick(t.id)}
+                  className={`flex w-full items-center gap-2 rounded-xl px-2 py-1.5 text-left ${picked.has(t.id) ? 'bg-accent/10' : ''}`}
+                >
+                  <span
+                    aria-hidden
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] leading-none ${picked.has(t.id) ? 'border-accent bg-accent text-white' : 'border-line'}`}
+                  >
+                    {picked.has(t.id) ? '✓' : ''}
+                  </span>
+                  <span className={`min-w-0 flex-1 truncate text-[12px] ${t.id === active?.id ? 'text-accent' : 'text-ink'}`}>{t.name}</span>
+                </button>
+              ) : (
               <div key={t.id} className={`flex items-center gap-1.5 rounded-xl px-2 py-1.5 ${t.id === active?.id ? 'bg-accent/10' : ''}`}>
                 <button onClick={() => void playTrack(t.id)} className={`min-w-0 flex-1 truncate text-left text-[12px] ${t.id === active?.id ? 'text-accent' : 'text-ink'}`}>
                   {t.name}
@@ -459,12 +558,15 @@ export default function MusicPlayer() {
                   <TrashIcon className="h-[13px] w-[13px]" />
                 </button>
               </div>
-            ))}
+              ),
+            )}
             {tracks.length === 0 && <p className="px-2 py-1 text-[11px] text-muted">上传几首喜欢的歌吧～只存在你本机 ♡</p>}
           </div>
+          {!managing && (
           <button onClick={() => fileRef.current?.click()} className="glass w-full rounded-xl py-1.5 text-[12px] text-ink">
             ＋ 添加音乐（可连同同名 .lrc 歌词一起选）
           </button>
+          )}
         </div>
       )}
     </section>,
