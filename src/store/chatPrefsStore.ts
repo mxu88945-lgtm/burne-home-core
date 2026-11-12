@@ -25,6 +25,8 @@ interface ChatPrefs {
   locationAware: boolean
   /** 让他自己点歌：歌单不空时告诉他有哪些歌，他偶尔写 [点歌:歌名] 就自动切过去（默认开） */
   songPick: boolean
+  /** 让他自己补全「他自己写的卡」：他偶尔写 [自我卡:栏目|整栏新全文] 就整栏替换（默认开） */
+  selfCardEdit: boolean
 }
 
 const DEFAULT: ChatPrefs = {
@@ -36,6 +38,7 @@ const DEFAULT: ChatPrefs = {
   crossRecall: true,
   locationAware: true,
   songPick: true,
+  selfCardEdit: true,
 }
 
 interface ChatPrefsState extends ChatPrefs {
@@ -47,6 +50,7 @@ interface ChatPrefsState extends ChatPrefs {
   toggleCrossRecall: () => void
   toggleLocationAware: () => void
   setSongPick: (on: boolean) => void
+  setSelfCardEdit: (on: boolean) => void
 }
 
 const init = { ...DEFAULT, ...readJSON<Partial<ChatPrefs>>(STORAGE_KEYS.chatprefs, {}) }
@@ -60,6 +64,11 @@ export const useChatPrefsStore = create<ChatPrefsState>((set, get) => ({
   crossRecall: init.crossRecall,
   locationAware: init.locationAware,
   songPick: init.songPick,
+  selfCardEdit: init.selfCardEdit,
+  setSelfCardEdit: (selfCardEdit) => {
+    writeJSON(STORAGE_KEYS.chatprefs, { ...pick(get()), selfCardEdit })
+    set({ selfCardEdit })
+  },
   setSongPick: (songPick) => {
     writeJSON(STORAGE_KEYS.chatprefs, { ...pick(get()), songPick })
     set({ songPick })
@@ -110,5 +119,6 @@ function pick(s: ChatPrefsState): ChatPrefs {
     crossRecall: s.crossRecall,
     locationAware: s.locationAware,
     songPick: s.songPick,
+    selfCardEdit: s.selfCardEdit,
   }
 }

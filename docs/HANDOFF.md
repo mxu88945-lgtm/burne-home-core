@@ -26,6 +26,17 @@
 
 ---
 
+## 🆕 2026-11-12 · 主聊天「他自己写的卡」（移植惟境 v211/v213 自我卡）
+
+- 伯恩在主聊天里慢慢补全自己：8 栏（性格/喜好/优点/弱点/性癖/缺陷/小毛病/习惯/其他），每栏 ≤2000、总计 ≤16000。**原卡（人设 systemPrompt）一个字不动**；自我卡拼在 system 里**紧跟原卡**（在预设/系统指令和本地时间之前），只在改卡时变。
+- 他偶尔在回复末尾写 `[自我卡:栏目|整栏新全文]` → 回复收尾整栏替换，旧版进历史（最近 20 版，可恢复）；消息下出「✎ 他改了自己的「X」」小条（点开设置页）+ 一个小 toast。
+- 标记一律藏：显示、流式预览（含写一半）、发回模型的历史、记忆（[记忆]/私记/自动记忆 transcript）、连续性压缩、语义分段、长图导出。走 `stripReplyTags`（Chat.tsx 顶部，= 点歌 + 自我卡）和 `hideMemoryTagsWhileStreaming`。
+- 代码：`src/lib/selfCard.ts`（+`selfCard.test.ts`）、`src/store/selfCardStore.ts`（localStorage `burne-home-core:self-card`，整包备份按前缀自动带上）、开关 `chatPrefsStore.selfCardEdit`（默认开）、页面 `src/pages/settings/SelfCardPage.tsx`（路由 `/settings/self-card`）。
+- 入口：**设置 → 个性化 →「他自己写的卡」**（在「角色人设 · 系统提示词」下面）。每栏可编辑（失焦/离页/切后台都会存）、展开收起、字数、历史恢复（确认框）、开关「让他自己补全」。按钮用 pointerup（iOS 键盘开着点按钮不丢），输入框 16px 防放大、聚焦后滚到中间。
+- 分支：deploy `claude/new-frontend-repo-x02o8y` + dev `claude/handoff-docs-review-yg1anl`（两个都推）。
+
+---
+
 ## 🆕 本轮新增（2026-07-02 第二窗 · 戏剧对齐 Tavo：性格修复 + 格局大改）
 
 这窗惟惟的主线是「同一张卡在 Tavo（SillyTavern 系手机端）里性格不一样」和「戏剧页面步骤别扭」。她发了 Tavo 预设/抽屉的截图当参考（照着做她超满意："靠！我就是要这个效果"）。分支注意：**这窗开发推 `claude/handoff-docs-review-yg1anl`（老 dev 分支 chat-ui-model-output-yya1h6 远端已不在），部署照旧推 `claude/new-frontend-repo-x02o8y`**。

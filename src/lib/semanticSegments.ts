@@ -7,6 +7,7 @@ import type { ArchiveChunk } from '@/types/archive'
 import type { MemoryItem } from '@/types/memory'
 import type { Person } from '@/lib/people'
 import { stripSongTags } from '@/lib/songPick'
+import { stripSelfCardTags } from '@/lib/selfCard'
 
 export type SegmentSource = 'chat' | 'archive' | 'memory' | 'person'
 
@@ -85,7 +86,7 @@ export function segmentSession(session: ChatSession, model: string, opts: { incl
     chars = 0
   }
   for (const m of session.messages) {
-    const text = stripSongTags(m.text || '').trim()
+    const text = stripSelfCardTags(stripSongTags(m.text || '')).trim()
     if (!text || len(text) < 2) continue
     const l = len(text)
     // 这条加进来会超 600 字，且已有 ≥2 条：先收段

@@ -40,6 +40,8 @@ import { MAX_SEARCH_ROUNDS, SEARCH_TAG_PROMPT, extractSearchTag, runModelSearch 
 import { ALBUM_TAG_PROMPT, MAX_ALBUM_IMAGES, MAX_ALBUM_ROUNDS, buildAlbumResult, extractAlbumTag, searchAlbum } from '@/lib/album'
 import { DIARY_TAG_PROMPT, buildDiaryBlock, extractDiaryTags } from '@/lib/diary'
 import { buildSongPickPrompt, extractSongTag, findTrackByTitle, stripSongTags } from '@/lib/songPick'
+import { buildSelfCardPrompt, extractSelfCardTag, isSelfCardKey, selfCardLabel, stripSelfCardTags, type SelfCardEdit } from '@/lib/selfCard'
+import { useSelfCardStore } from '@/store/selfCardStore'
 import { importMusicFiles } from '@/lib/musicImport'
 import { useAlbumStore } from '@/store/albumStore'
 import { useDiaryStore } from '@/store/diaryStore'
@@ -291,6 +293,16 @@ function now() {
   })
 }
 
+/** 只给应用看的回复标记（[点歌:] / [自我卡:]）：显示、历史、记忆、导出一律去掉 */
+const stripReplyTags = (text: string) => stripSelfCardTags(stripSongTags(text || ''))
+
+/** 回复收尾：先取 [自我卡:栏目|…]，再取 [点歌:]；cleanReply 清掉漏出来的机器标签 */
+function takeReplyTags(raw: string): { clean: string; title: string; selfEdit: SelfCardEdit | null } {
+  const self = extractSelfCardTag(cleanReply(raw))
+  const song = extractSongTag(self.clean)
+  return { clean: song.clean, title: song.title, selfEdit: self.edit }
+}
+
 export default function Chat() {
   const { profile } = useProfileStore()
   const { persona } = usePersonaStore()
@@ -317,7 +329,7 @@ export default function Chat() {
   /** 伯恩在回复里写的 [记忆:…]：藏起来、存进记忆库、弹提示（对齐顾祁砚）。 */
   function saveMemoryTags(text: string, sourceId?: string): string {
     // [私记:…] → 私人日记（藏起来，只存一页）；残留的 [点歌:] 也不进记忆
-    const diaryPart = extractDiaryTags(stripSongTags(text))
+    const diaryPart = extractDiaryTags(stripReplyTags(text))
     if (diaryPart.saves.length) {
       const ok = useDiaryStore.getState().addEntry(diaryPart.saves[0], sourceId)
       if (ok) showMemToast('📔 他写了一页私人日记')
@@ -374,6 +386,15 @@ export default function Chat() {
       return
     }
     mu.requestPlay(t.id, msgId, true)
+  }
+  // ---- 他自己写的卡 ----
+  /** 回复收尾时调用：开关开着就整栏替换（旧版进历史），消息下挂「✎ 他改了自己的「X」」，再飘个小提示 */
+  function applySelfCardEdit(msgId: string, edit: SelfCardEdit | null) {
+    if (!edit || !useChatPrefsStore.getState().selfCardEdit) return
+    const changed = useSelfCardStore.getState().setSection(edit.key, edit.content, 'him')
+    if (!changed) return
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, selfCardEdit: edit.key } : m)))
+    showMemToast(`✎ 他改了自己的「${selfCardLabel(edit.key)}」`)
   }
   /** 点「🎵 他点了《X》」：歌单里有就放，没有就打开导入 */
   function tapSongPick(msgId: string, title: string) {
@@ -1157,7 +1178,7 @@ export default function Chat() {
     const memName = profile.nameA || '她'
     const recent = history.slice(-14)
     const transcript = recent
-      .map((m) => `${m.role === 'me' ? memName : name}：${stripSongTags(m.text)}${m.image ? '［图片］' : ''}`)
+      .map((m) => `${m.role === 'me' ? memName : name}：${stripReplyTags(m.text)}${m.image ? '［图片］' : ''}`)
       .join('\n')
     // 已有记忆：带一小段内容，管家才判断得出重复、过时和被纠正；仍截断省 token。
     const memList = memoriesRef.slice(0, 60)
@@ -1397,7 +1418,7 @@ export default function Chat() {
           return { role: 'user' as const, content: note }
         }
         // 文本（含文件信息：文本文件带内容，二进制只附说明）
-        let textPart = stripSongTags(m.text).trim()
+        let textPart = stripReplyTags(m.text).trim()
         if (m.file) {
           // 对齐顾祁砚：文件是只读参考资料，包起来放在前面，她的话放后面，防止伯恩把剧本/角色卡当成新人设
           textPart = m.file.text
@@ -1473,7 +1494,12 @@ export default function Chat() {
       minute: '2-digit',
     })
     const extras = buildPersonaExtras(persona)
-    let system = `${base}${extras ? `\n\n${extras}` : ''}\n\n（当前用户本地时间：${localTime}，回应时可自然参考，不必刻意复述。）`
+    // 他自己写的卡：紧跟原卡（原卡不动），只在他/她改卡时才变
+    const selfCardText = (() => {
+      const sc = useSelfCardStore.getState()
+      return buildSelfCardPrompt(sc.card, useChatPrefsStore.getState().selfCardEdit, profile.nameA && profile.nameA !== '我' ? profile.nameA : '惟惟')
+    })()
+    let system = `${base}${selfCardText ? `\n\n${selfCardText}` : ''}${extras ? `\n\n${extras}` : ''}\n\n（当前用户本地时间：${localTime}，回应时可自然参考，不必刻意复述。）`
     if (rollingSummary?.text.trim()) {
       system +=
         `\n\n【较早对话·连续性档案】\n${rollingSummary.text.trim()}\n` +
@@ -1805,7 +1831,7 @@ export default function Chat() {
             }
             collapseThink() // 万一没有正文增量也要确保收起
             if (r.truncated) showMemToast('✂️ 这条写到字数上限被截断了，可在人设里把「最大回复 Tokens」清空（不限）或调大')
-            const song = extractSongTag(cleanReply(r.text))
+            const song = takeReplyTags(r.text)
             let finalText = saveMemoryTags(song.clean, replyId)
             const taskMsgs: Msg[] = []
             if (allowTasks && finalText) {
@@ -1836,6 +1862,7 @@ export default function Chat() {
             }))
             if (taskMsgs.length) setMessages((prev) => [...prev, ...taskMsgs])
             if (song.title) autoPlaySongPick(replyId, song.title)
+            applySelfCardEdit(replyId, song.selfEdit)
             break // 成功
           } catch (err) {
             const msg = (err as Error).message || ''
@@ -1895,7 +1922,7 @@ export default function Chat() {
                 }
                 if (r.reasoning) patch((m) => ({ ...m, reasoning: r.reasoning }))
                 collapseThink()
-                const song = extractSongTag(cleanReply(r.text))
+                const song = takeReplyTags(r.text)
                 let finalText = saveMemoryTags(song.clean, replyId)
                 const taskMsgs: Msg[] = []
                 if (allowTasks && finalText) {
@@ -1925,6 +1952,7 @@ export default function Chat() {
                 }))
                 if (taskMsgs.length) setMessages((prev) => [...prev, ...taskMsgs])
                 if (song.title) autoPlaySongPick(replyId, song.title)
+                applySelfCardEdit(replyId, song.selfEdit)
                 break
               } catch {
                 // 回退也失败，落到下面统一报错
@@ -2043,7 +2071,7 @@ export default function Chat() {
         }
       }
       // 清掉思考/工具调用模型漏出来的标签（<think>/<arg_value> 等）
-      const song = extractSongTag(cleanReply(reply))
+      const song = takeReplyTags(reply)
       reply = saveMemoryTags(song.clean)
       // 解析 TA 下的任务标记 → 生成对话内倒计时任务卡，并从正文移除标记
       const taskMsgs: Msg[] = []
@@ -2092,6 +2120,7 @@ export default function Chat() {
           : []),
       ])
       if (reply && song.title) autoPlaySongPick(replyId, song.title)
+      if (reply) applySelfCardEdit(replyId, song.selfEdit)
       // 自动沉淀记忆：开了开关每轮判断；或用户明确说「记一下」时必存
       const lastUser = [...history].reverse().find((m) => m.role === 'me')
       const force = !!lastUser && /记住|记一下|记下来|记下|记录|存一下|帮我记|记到/.test(lastUser.text)
@@ -2432,7 +2461,7 @@ export default function Chat() {
                           </div>
                         )
                       })()}
-                      {m.text && <div className={`bw-message-content [overflow-wrap:anywhere]${archived ? ' bubble message-plain-text' : ''}`}>{renderRichText(showLinks ? stripSongTags(m.text) : stripLinks(stripSongTags(m.text)))}</div>}
+                      {m.text && <div className={`bw-message-content [overflow-wrap:anywhere]${archived ? ' bubble message-plain-text' : ''}`}>{renderRichText(showLinks ? stripReplyTags(m.text) : stripLinks(stripReplyTags(m.text)))}</div>}
                     </div>
                   )
                 )}
@@ -2451,6 +2480,14 @@ export default function Chat() {
                     </button>
                   )
                 })()}
+                {!me && m.selfCardEdit && isSelfCardKey(m.selfCardEdit) && !streamingIds.has(m.id) && editingId !== m.id && (
+                  <Link
+                    to="/settings/self-card"
+                    className="bw-self-card-chip mt-1.5 inline-flex self-start max-w-full items-center rounded-full border border-accent/30 bg-accent/5 px-2.5 py-0.5 text-left text-[11px] text-muted"
+                  >
+                    <span className="truncate">✎ 他改了自己的「{selfCardLabel(m.selfCardEdit)}」</span>
+                  </Link>
+                )}
                 {!selectMode && editingId !== m.id && !streamingIds.has(m.id) && (
                   <div className="bw-message-actions mt-2 flex flex-wrap items-center gap-3.5 px-1 text-muted">
                     <span className="text-[10px]">{m.at}</span>
@@ -3095,7 +3132,7 @@ export default function Chat() {
                         wordBreak: 'break-word',
                       }}
                     >
-                      {stripSongTags(m.text)}
+                      {stripReplyTags(m.text)}
                     </div>
                   )}
                 </div>

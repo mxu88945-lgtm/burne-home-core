@@ -30,6 +30,7 @@ const KEY_INFO: Record<string, { label: string; hint?: string }> = {
   tasks: { label: '任务' },
   period: { label: '生理期' },
   chatprefs: { label: '聊天偏好' },
+  'self-card': { label: '他自己写的卡' },
   'memory-overview': { label: '记忆总览' },
   'memory-model': { label: '记忆模型' },
   stt: { label: '听写' },

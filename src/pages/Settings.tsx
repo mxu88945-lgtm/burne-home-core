@@ -28,6 +28,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
       { to: '/settings/appearance', Icon: ImageIcon, title: '形象 · 外观', sub: '头像 · 聊天背景' },
       { to: '/theme', Icon: PaletteIcon, title: '主题', sub: '外观配色' },
       { to: '/persona', Icon: PersonIcon, title: '角色人设 · 系统提示词', sub: '灵魂设定、系统指令、预设与参数' },
+      { to: '/settings/self-card', Icon: HeartIcon, title: '他自己写的卡', sub: '他在相处中慢慢补全自己 · 原卡不动' },
     ],
   },
   {

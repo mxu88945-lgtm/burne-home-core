@@ -26,6 +26,7 @@ import MemoryModelPage from '@/pages/settings/MemoryModelPage'
 import PeoplePage from '@/pages/settings/PeoplePage'
 import AlbumPage from '@/pages/settings/AlbumPage'
 import DiaryPage from '@/pages/settings/DiaryPage'
+import SelfCardPage from '@/pages/settings/SelfCardPage'
 import SemanticPage from '@/pages/settings/SemanticPage'
 import SttPage from '@/pages/settings/SttPage'
 import NotFound from '@/pages/NotFound'
@@ -57,6 +58,7 @@ export const router = createHashRouter([
       { path: 'settings/people', element: <PeoplePage /> },
       { path: 'settings/album', element: <AlbumPage /> },
       { path: 'settings/diary', element: <DiaryPage /> },
+      { path: 'settings/self-card', element: <SelfCardPage /> },
       { path: 'settings/semantic', element: <SemanticPage /> },
       { path: 'settings/stt', element: <SttPage /> },
       { path: 'settings/appearance', element: <AppearancePage /> },

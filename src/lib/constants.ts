@@ -42,6 +42,7 @@ export const STORAGE_KEYS = {
   charLib: `${NS}:char-lib`,
   pet: `${NS}:pet`,
   music: `${NS}:music`,
+  selfCard: `${NS}:self-card`,
   semantic: `${NS}:semantic-recall`,
   semanticBackoff: `${NS}:semantic-backoff`,
 } as const

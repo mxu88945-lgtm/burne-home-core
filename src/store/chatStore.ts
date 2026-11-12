@@ -21,6 +21,8 @@ export interface ChatMsg {
   images?: string[]
   /** 他在这条回复里点的歌（[点歌:歌名] 标记已从正文去掉，这里留歌名给「🎵 他点了《X》」小条） */
   songPick?: string
+  /** 他在这条回复里改了「他自己写的卡」的哪一栏（[自我卡:栏目|…] 已从正文去掉，这里留栏目 key 给「✎ 他改了自己的「X」」小条） */
+  selfCardEdit?: string
   /** 回复中途失败（留着给她看原因，不发给模型） */
   failed?: boolean
   /** 这条 AI 回复消耗的总 token（有就显示） */
