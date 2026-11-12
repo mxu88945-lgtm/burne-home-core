@@ -113,7 +113,6 @@ const ARCHIVE_THEMES = new Set<ThemeId>(['academy', 'vinyl', 'mobile', 'letter',
 
 /** 布丁狗图在 public/ 下，跟随 base 路径（/burne-home-core/）以便离线与子路径部署都能取到 */
 const PUDDING_DOG = `${import.meta.env.BASE_URL}pudding-dog.svg`
-const PUDDING_BONE = `${import.meta.env.BASE_URL}pudding-bone.svg`
 
 function ArchiveHeading({ theme, me, name, avatarImg, avatarEmoji }: {
   theme: ThemeId
@@ -136,7 +135,6 @@ function ArchiveHeading({ theme, me, name, avatarImg, avatarEmoji }: {
         <strong className="pudding-name">{name}</strong>
       </div>
       <div className="pudding-letter-top" aria-hidden="true">
-        <img className="pudding-bone" src={PUDDING_BONE} alt="" />
         <span>♡ POMPOM LETTER · {me ? 'FROM ME' : 'FOR YOU'}</span>
       </div>
     </>
@@ -2760,7 +2758,7 @@ export default function Chat() {
           {/* 上面输入、下面 ＋ 和模型 pill、右侧发送 */}
           <div className="bw-chat-composer glass-strong flex flex-col gap-1.5 rounded-3xl px-3 py-2">
             <div className="bw-composer-row flex min-w-0 items-center gap-2">
-            {theme === 'pudding' && <img className="pudding-input-icon" src={PUDDING_BONE} alt="" aria-hidden="true" />}
+            {theme === 'pudding' && <img className="pudding-input-icon" src={PUDDING_DOG} alt="" aria-hidden="true" />}
             <textarea
               ref={inputRef}
               value={draft}

@@ -37,11 +37,12 @@ describe('顾祁砚主聊天主题移植', () => {
     expect(archives).toContain('.archive-pudding .pudding-letter-top')
     expect(archives).toContain('POMPOMPURIN · SWEET LITTLE MESSAGE ♡')
     expect(chat).toContain('pudding-dog.svg')
-    expect(chat).toContain('pudding-bone.svg')
+    expect(chat).not.toContain('pudding-bone')
     expect(chat).toContain('import.meta.env.BASE_URL')
     expect(chat).not.toContain('ﻌ')
     expect(existsSync(new URL('public/pudding-dog.svg', rootUrl))).toBe(true)
-    expect(existsSync(new URL('public/pudding-bone.svg', rootUrl))).toBe(true)
+    expect(existsSync(new URL('public/pudding-bone.svg', rootUrl))).toBe(false)
+    expect(archives).toContain('-webkit-line-clamp: 2')
   })
 
   it('adds 暖茶笺 as a selectable theme without touching the default', () => {

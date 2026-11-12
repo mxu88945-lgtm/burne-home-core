@@ -37,7 +37,7 @@
 .bw-chat-messages .archive-pudding .pudding-avatar > span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: #f7e8bf; }
 .bw-chat-messages .archive-pudding .pudding-name { position: absolute; top: 0; left: 116px; z-index: 2; display: block; max-width: calc(100% - 200px); overflow: hidden; color: #fff; font-size: 26px; font-weight: 800; line-height: 36px; white-space: nowrap; text-overflow: ellipsis; text-shadow: 0 1px 0 #c9b28f, 0 2px 4px rgba(91,67,48,.35); -webkit-text-stroke: .5px #d8c3a0; }
 .bw-chat-messages .archive-pudding .pudding-sign { flex: 1; min-width: 0; }
-.bw-chat-messages .archive-pudding .pudding-sign span { display: block; overflow: hidden; color: #6b5240; font-size: 15px; line-height: 1.5; white-space: nowrap; text-overflow: ellipsis; }
+.bw-chat-messages .archive-pudding .pudding-sign span { display: -webkit-box; overflow: hidden; color: #6b5240; font-size: 14px; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .bw-chat-messages .archive-pudding .pudding-sign i { position: relative; display: block; height: 1px; margin-top: 8px; background: #eadcbf; }
 .bw-chat-messages .archive-pudding .pudding-sign i::before { content: ''; position: absolute; top: -.5px; left: 0; width: 44px; height: 2px; border-radius: 2px; background: #c99a4a; }
 .bw-chat-messages .archive-pudding .pudding-dog { position: absolute; top: 50%; right: 14px; width: 64px; height: 64px; transform: translateY(-50%); pointer-events: none; }
@@ -47,10 +47,9 @@
 .bw-chat-messages .archive-pudding.user .pudding-sign i::before { left: auto; right: 0; }
 .bw-chat-messages .archive-pudding.user .pudding-dog { right: auto; left: 14px; }
 /* 信纸卡抬头 */
-.bw-chat-messages .archive-pudding .pudding-letter-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 14px; padding: 16px 0 6px; border-bottom: 1.5px solid #d9b77a; }
+.bw-chat-messages .archive-pudding .pudding-letter-top { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin: 0 0 14px; padding: 16px 0 6px; border-bottom: 1.5px solid #d9b77a; }
 .bw-chat-messages .archive-pudding .pudding-letter-top span { min-width: 0; color: #a9783f; font-size: 13px; font-weight: 700; line-height: 1.4; letter-spacing: .14em; }
-.bw-chat-messages .archive-pudding .pudding-bone { flex: 0 0 auto; width: 56px; height: 56px; margin: -6px 0 -4px; }
-.bw-chat-messages .archive-pudding:not(.user) .pudding-letter-top { flex-direction: row-reverse; }
+.bw-chat-messages .archive-pudding:not(.user) .pudding-letter-top { justify-content: flex-start; }
 /* 正文（颜色沿用原样） */
 .bw-chat-messages .archive-pudding .archive-body { padding: 0 2px; color: #5b4330; line-height: 2; text-align: left; }
 .bw-chat-messages .archive-pudding .archive-body .bw-rich-line { display: block; text-align: left; }
@@ -68,7 +67,7 @@
   .bw-chat-messages .archive-pudding.user .pudding-name { left: auto; right: 104px; }
   .bw-chat-messages .archive-pudding .pudding-dog { width: 56px; height: 56px; right: 10px; }
   .bw-chat-messages .archive-pudding.user .pudding-dog { right: auto; left: 10px; }
-  .bw-chat-messages .archive-pudding .pudding-sign span { font-size: 14px; }
+  .bw-chat-messages .archive-pudding .pudding-sign span { font-size: 13.5px; }
 }
 .archive-academy { margin: 76px auto 30px !important; padding: 0 18px 18px; color: #272a29; background: #fffff6; border: 1px solid #efeee1; border-radius: 2px; box-shadow: 0 12px 28px #33362f28; }
 .archive-academy::before { content: '♫'; position: absolute; height: 24px; left: 12%; right: 12%; top: -62px; display: grid; place-items: center; color: #9b8670; font: 18px/24px Georgia, serif; background: linear-gradient(#b5a18b80, #b5a18b80) left center / calc(50% - 22px) 1px no-repeat, linear-gradient(#b5a18b80, #b5a18b80) right center / calc(50% - 22px) 1px no-repeat; pointer-events: none; }
