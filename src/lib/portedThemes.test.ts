@@ -8,7 +8,7 @@ describe('顾祁砚主聊天主题移植', () => {
     const store = readFileSync(new URL('src/store/themeStore.ts', rootUrl), 'utf8')
     for (const id of [
       'claude', 'white', 'liquidglass', 'paper',
-      'scrapbook', 'academy', 'mobile', 'letter', 'mistnote', 'nightglow', 'vinyl',
+      'scrapbook', 'academy', 'mobile', 'letter', 'mistnote', 'nightglow', 'vinyl', 'pudding',
     ]) {
       expect(store).toContain(`id: '${id}'`)
     }
@@ -16,6 +16,7 @@ describe('顾祁砚主聊天主题移植', () => {
 
   it('scopes manuscript layouts to semantic main-chat classes', () => {
     const css = readFileSync(new URL('src/index.css', rootUrl), 'utf8')
+    const archives = readFileSync(new URL('src/themeArchives.css', rootUrl), 'utf8')
     const chat = readFileSync(new URL('src/pages/Chat.tsx', rootUrl), 'utf8')
 
     expect(chat).toContain('bw-chat-messages')
@@ -30,6 +31,8 @@ describe('顾祁砚主聊天主题移植', () => {
     expect(css).toContain("[data-theme='letter'] .bw-shell-letter")
     expect(css).toContain("[data-theme='vinyl'] .bw-shell-vinyl")
     expect(css).toContain('.bw-chat-quote')
+    expect(archives).toContain('.archive-row.archive-pudding')
+    expect(archives).toContain('.archive-pudding.user .archive-heading')
   })
 
   it('adds 暖茶笺 as a selectable theme without touching the default', () => {
@@ -38,6 +41,7 @@ describe('顾祁砚主聊天主题移植', () => {
     expect(store).toContain("id: 'warmtea', name: '暖茶笺'")
     expect(store).toContain("warmtea: '#FBF4EA'")
     expect(store).toContain("const DEFAULT_THEME: ThemeId = 'claude'")
+    expect(store).toContain("id: 'pudding'")
     expect(css).toContain("[data-theme='warmtea'] {")
     expect(css).toContain("[data-theme='warmtea'] .bw-chat-messages .bw-chat-quote.bw-chat-quote--corner")
     expect(css).toContain("[data-theme='warmtea'] .bw-message-avatar")

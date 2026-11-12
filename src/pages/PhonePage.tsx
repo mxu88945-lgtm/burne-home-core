@@ -28,6 +28,8 @@ import { LatestRequestGate } from '@/lib/latestRequestGate'
 import { idbSet } from '@/lib/idb'
 import Avatar from '@/components/ui/Avatar'
 import { CameraIcon, ImageIcon, StickerIcon } from '@/components/ui/icons'
+import { useThemeStore } from '@/store/themeStore'
+import { renderRichText } from '@/lib/richText'
 
 function newId() {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `pm-${Date.now()}-${Math.random()}`
@@ -114,6 +116,7 @@ function memoryNote(query: string): string {
 }
 
 export default function PhonePage() {
+  const theme = useThemeStore((s) => s.theme)
   const { profile } = useProfileStore()
   const activeChannel = useApiStore((s) => s.getActive())
   const channels = useApiStore((s) => s.channels)
@@ -701,7 +704,7 @@ export default function PhonePage() {
   }
 
   return (
-    <div className="relative flex h-full flex-col pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+    <div className={`bw-phone-page relative flex h-full flex-col pb-[max(0.5rem,env(safe-area-inset-bottom))]${theme === 'pudding' ? ' bw-phone-pudding' : ''}`}>
       {/* 小手机背景：自定义图优先（铺满+柔白让消息清楚）；否则在主题背景上盖柔白，像一块手机屏 */}
       {bgImgSrc ? (
         <>
@@ -1001,7 +1004,7 @@ export default function PhonePage() {
             const failed = !me && (m.failed || m.text.trim().startsWith('（没发出去：'))
             const canSpeak = !failed && !me && ttsEnabled && m.text.trim()
             return (
-              <div key={m.id} className={`flex items-start gap-2 ${me ? 'flex-row-reverse' : ''}`}>
+              <div key={m.id} className={`bw-phone-message flex items-start gap-2 ${me ? 'bw-phone-message-me flex-row-reverse' : 'bw-phone-message-ta'}`}>
                 {firstOfRun ? (
                   <Avatar
                     img={me ? profile.avatarAImg : persona.avatarImg}
@@ -1036,7 +1039,7 @@ export default function PhonePage() {
                     <div
                       onClick={canSpeak ? () => play(m.id, m.text) : undefined}
                       className={[
-                        'max-w-full whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed shadow-sm [overflow-wrap:anywhere]',
+                        'bw-phone-bubble max-w-full whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed shadow-sm [overflow-wrap:anywhere]',
                         me ? `rounded-br-md ${meText}` : 'rounded-bl-md text-ink',
                         canSpeak ? 'cursor-pointer' : '',
                       ].join(' ')}
@@ -1049,7 +1052,7 @@ export default function PhonePage() {
                       {!me && (loadingId === m.id || playingId === m.id) && (
                         <span className="mr-1 text-[12px]">{loadingId === m.id ? '⏳' : '🔊'}</span>
                       )}
-                      {m.text}
+                      {theme === 'pudding' ? renderRichText(m.text) : m.text}
                       {failed && (
                         <button
                           type="button"

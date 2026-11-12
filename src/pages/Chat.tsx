@@ -105,11 +105,11 @@ const STREAM_FIRST_BYTE_MS = 90_000
 const STREAM_IDLE_MS = 60_000
 
 const SHELL_THEMES = new Set<ThemeId>([
-  'paper', 'scrapbook', 'academy', 'mobile', 'letter', 'mistnote', 'nightglow', 'vinyl',
+  'paper', 'scrapbook', 'academy', 'mobile', 'letter', 'mistnote', 'nightglow', 'vinyl', 'pudding',
 ])
 
 /** 这 6 套主题与顾祁砚主聊天用同一套「档案」DOM 与样式（src/themeArchives.css 原样移植） */
-const ARCHIVE_THEMES = new Set<ThemeId>(['academy', 'vinyl', 'mobile', 'letter', 'mistnote', 'nightglow'])
+const ARCHIVE_THEMES = new Set<ThemeId>(['academy', 'vinyl', 'mobile', 'letter', 'mistnote', 'nightglow', 'pudding'])
 
 function ArchiveHeading({ theme, me, name, avatarImg, avatarEmoji }: {
   theme: ThemeId
@@ -121,6 +121,9 @@ function ArchiveHeading({ theme, me, name, avatarImg, avatarEmoji }: {
   const src = useImgSrc(avatarImg)
   const portrait = src ? <img src={src} alt="" /> : <span>{avatarEmoji || String(name || '角').slice(-1)}</span>
   const cover = <div className="archive-portrait"><div className="archive-cover">{portrait}</div></div>
+  if (theme === 'pudding') return (
+    <div className="archive-heading"><div className="pudding-kicker" aria-hidden="true"><span>♡ POMPOM LETTER · {me ? 'FROM ME' : 'FOR YOU'}</span><i>૮ ・ﻌ・ა</i></div>{cover}<div className="archive-heading-copy"><strong className="archive-name">{name}</strong><small>{me ? '把迟到的回信，悄悄放进你的甜里。' : '把今天的心情，烤成一块软乎乎的布丁。'}</small></div><div className="pudding-caption" aria-hidden="true">POMPOMPURIN · SWEET LITTLE MESSAGE ♡</div></div>
+  )
   if (theme === 'mobile') return (
     <div className="archive-heading"><div className="mobile-status" aria-hidden="true"><span>MESSAGE</span><span>⌁ ▰</span></div>{cover}<div className="archive-heading-copy"><strong className="archive-name">{name}</strong><small>{me ? '我的消息' : '他的来信'}</small></div></div>
   )
