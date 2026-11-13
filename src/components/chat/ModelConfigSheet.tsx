@@ -4,6 +4,7 @@ import { useApiStore } from '@/store/apiStore'
 import { usePersonaStore } from '@/store/personaStore'
 import { useSyncStore } from '@/store/syncStore'
 import { listModels } from '@/api/llm'
+import { useKeyboardAwareSheet } from '@/lib/keyboardSheet'
 
 /** 每条渠道拉过的模型列表缓存在内存里，反复打开面板不重复请求。 */
 const modelCache: Record<string, string[]> = {}
@@ -30,6 +31,8 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
 
   // reloadTick 变了就跳过缓存重新拉（「刷新」按钮）
   const [reloadTick, setReloadTick] = useState(0)
+  // 聚焦「显示名称」等输入框时把它滚到面板可视区中间（键盘适配）
+  const sheetRef = useKeyboardAwareSheet<HTMLDivElement>()
 
   useEffect(() => {
     if (!channel) return
@@ -78,14 +81,22 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
   const selectCls =
     'max-w-[60vw] appearance-none truncate bg-transparent pr-5 text-right text-[15px] text-ink outline-none'
 
-  // 挂到 App 外壳上：外壳带 transform 且高度随键盘收缩，面板就始终贴在键盘上沿；
-  // 留在输入框里会被它的层叠/模糊上下文困住。
+  // 挂到 App 外壳上（留在输入框里会被它的层叠/模糊上下文困住）。外壳没有 transform，
+  // fixed inset-0 会按整块布局视口铺、键盘弹出也不动 → 面板被键盘盖住。所以外层自己
+  // 跟 App 外壳用同一套 --app-offset/--app-height（main.tsx 按 visualViewport 算的可见区），
+  // 键盘弹出时整块收到键盘上沿；面板本身限高、内部可滚。
   const host = document.getElementById('bw-app-shell') || document.body
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col justify-end" role="dialog" aria-label="配置">
+    <div
+      className="bw-kb-sheet fixed inset-x-0 z-50 flex flex-col justify-end"
+      style={{ top: 'var(--app-offset, 0px)', height: 'var(--app-height, 100dvh)' }}
+      role="dialog"
+      aria-label="配置"
+    >
       <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div
-        className="relative mx-2 mb-[max(0.5rem,env(safe-area-inset-bottom))] rounded-[28px] px-4 pb-4 pt-2 shadow-2xl"
+        ref={sheetRef}
+        className="bw-kb-sheet-panel relative mx-2 mb-[max(0.5rem,env(safe-area-inset-bottom))] max-h-[calc(100%-max(0.75rem,env(safe-area-inset-top))-0.5rem)] overflow-y-auto overscroll-contain rounded-[28px] px-4 pb-4 pt-2 shadow-2xl"
         style={{
           background: 'linear-gradient(var(--card-strong), var(--card-strong)), var(--bg-to)',
           border: '1px solid var(--card-border)',
@@ -134,7 +145,7 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
               </span>
               {showInput ? (
                 <input
-                  className="min-w-0 flex-1 bg-transparent text-right text-[15px] text-ink outline-none placeholder:text-muted"
+                  className="min-w-0 flex-1 bg-transparent text-right text-[16px] text-ink outline-none placeholder:text-muted"
                   value={channel.model}
                   placeholder={loadErr ? '列表获取失败，手动填写' : '填写模型名'}
                   onChange={(e) => updateChannel(channel.id, { model: e.target.value.trim() })}
@@ -188,7 +199,7 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
             <label className={rowCls}>
               <span className="shrink-0 text-[15px] text-ink">显示名称</span>
               <input
-                className="min-w-0 flex-1 bg-transparent text-right text-[15px] text-ink outline-none placeholder:text-muted"
+                className="min-w-0 flex-1 bg-transparent text-right text-[16px] text-ink outline-none placeholder:text-muted"
                 value={channel.displayName || ''}
                 placeholder={channel.model || '模型名'}
                 onChange={(e) => updateChannel(channel.id, { displayName: e.target.value })}

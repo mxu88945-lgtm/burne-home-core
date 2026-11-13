@@ -26,6 +26,15 @@
 
 ---
 
+## 🆕 2026-11-13 · 模型「配置」底部面板键盘适配（iOS）
+
+- 惟惟反馈：聊天输入框模型胶囊点开的「配置」面板，点「显示名称」改名，键盘弹出但面板不动，输入框被键盘+工具条整个挡住。
+- 根因：面板 portal 到 `#bw-app-shell`，旧注释以为外壳有 transform 会当 fixed 的包含块——其实外壳没 transform，`fixed inset-0` 按整块布局视口铺；main.tsx 键盘打开时又把页面滚回 0（不让 iOS 自己平移），于是面板贴在屏幕底、键盘盖在上面。
+- 修：`ModelConfigSheet` 外层改 `fixed inset-x-0` + `top: var(--app-offset)` / `height: var(--app-height)`（复用 main.tsx 按 visualViewport 算的可见区，和 App 外壳/主聊输入栏同一套），键盘弹出整块收到键盘上沿；面板限高 + 内部 `overflow-y-auto`；新 `src/lib/keyboardSheet.ts` 的 `useKeyboardAwareSheet()`：聚焦文本框后 120/320/600ms 把它滚到面板中间、visualViewport resize 时重算（只滚面板自己）；`html[data-keyboard] .bw-kb-sheet-panel` 键盘开时底部不留 Home 安全区。两个输入框 15→16px 防放大。键盘收起时 --app-height 自动恢复，无需手动还原。
+- 其它底部面板没有共用这个组件、也没有文本框，没动。以后新面板有输入框就套 `bw-kb-sheet` 外层写法 + 这个 hook。
+
+---
+
 ## 🆕 2026-11-13 · 布丁来信胶囊头像/名字对齐惟境 v227
 
 - 惟惟反馈：伯恩布丁胶囊上的圆头像太大、名字字太大，要跟惟境一样。只改 `src/themeArchives.css` 的 pudding 段。

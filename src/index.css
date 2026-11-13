@@ -350,6 +350,8 @@ html[data-standalone='true'][data-keyboard] .bw-composer-dock {
   /* 高度已在 main.tsx 收到键盘上沿，这里只留一点呼吸空间，不再加键盘高度。 */
   padding-bottom: .5rem;
 }
+/* 底部面板（模型「配置」等）键盘打开时外层已收到键盘上沿，底部不再留 Home Indicator 安全区 */
+html[data-keyboard] .bw-kb-sheet-panel { margin-bottom: .5rem; }
 .bw-rich-line { display: block; margin-bottom: .86em; }
 .bw-rich-line:last-child { margin-bottom: 0; }
 .bw-rich-spacer { display: block; height: .62em; }
