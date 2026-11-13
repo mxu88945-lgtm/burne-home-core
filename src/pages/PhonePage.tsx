@@ -30,6 +30,7 @@ import Avatar from '@/components/ui/Avatar'
 import { CameraIcon, ImageIcon, StickerIcon } from '@/components/ui/icons'
 import { useThemeStore } from '@/store/themeStore'
 import { renderRichText } from '@/lib/richText'
+import { groupChannelsByHost } from '@/lib/channelGroups'
 
 function newId() {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `pm-${Date.now()}-${Math.random()}`
@@ -799,7 +800,15 @@ export default function PhonePage() {
                 >
                   跟随主聊天{!persona.apiChannelId ? ' ✓' : ''}
                 </button>
-                {channels.map((c) => (
+                {groupChannelsByHost(channels).flatMap((g) => [
+                  ...(g.items.length > 1
+                    ? [
+                        <div key={`g:${g.key}`} className="truncate px-3 pt-1.5 text-[10px] text-muted">
+                          {g.key}
+                        </div>,
+                      ]
+                    : []),
+                  ...g.items.map((c) => (
                   <button
                     key={c.id}
                     type="button"
@@ -812,7 +821,8 @@ export default function PhonePage() {
                     {c.name || c.model}
                     {persona.apiChannelId === c.id ? ' ✓' : ''}
                   </button>
-                ))}
+                  )),
+                ])}
                 {channels.length === 0 && (
                   <div className="px-3 py-1.5 text-[11px] text-muted">还没渠道，去「设置 → API / 模型」加</div>
                 )}

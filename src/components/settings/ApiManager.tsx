@@ -3,6 +3,7 @@ import { useApiStore, type ApiProvider, type ApiChannel } from '@/store/apiStore
 import { useSyncStore } from '@/store/syncStore'
 import { listModels } from '@/api/llm'
 import PasswordInput from '@/components/ui/PasswordInput'
+import { sortChannelsByHost } from '@/lib/channelGroups'
 
 const inputCls =
   'w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none placeholder:text-muted focus:border-accent'
@@ -172,7 +173,7 @@ export default function ApiManager() {
 
           {listOpen && (
             <div className="space-y-2 p-2 pt-0">
-              {channels.map((c) => {
+              {sortChannelsByHost(channels).map((c) => {
                 const active = c.id === activeId
                 return (
                   <div

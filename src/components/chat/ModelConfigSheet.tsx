@@ -5,6 +5,7 @@ import { usePersonaStore } from '@/store/personaStore'
 import { useSyncStore } from '@/store/syncStore'
 import { listModels } from '@/api/llm'
 import { useKeyboardAwareSheet } from '@/lib/keyboardSheet'
+import { groupChannelsByHost } from '@/lib/channelGroups'
 
 /** 每条渠道拉过的模型列表缓存在内存里，反复打开面板不重复请求。 */
 const modelCache: Record<string, string[]> = {}
@@ -119,11 +120,20 @@ export default function ModelConfigSheet({ onClose }: { onClose: () => void }) {
                 <span className="shrink-0 text-[15px] text-ink">渠道</span>
                 <span className="relative flex min-w-0 items-center">
                   <select className={selectCls} value={channel.id} onChange={(e) => setActive(e.target.value)}>
-                    {channels.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name || c.provider}
-                      </option>
-                    ))}
+                    {groupChannelsByHost(channels).map((g) => {
+                      const opts = g.items.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name || c.provider}
+                        </option>
+                      ))
+                      return g.items.length > 1 ? (
+                        <optgroup key={`g:${g.key}`} label={g.key}>
+                          {opts}
+                        </optgroup>
+                      ) : (
+                        opts
+                      )
+                    })}
                   </select>
                   <Chevron />
                 </span>

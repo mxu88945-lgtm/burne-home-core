@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useApiStore } from '@/store/apiStore'
 import { DEFAULT_EMBED_MODEL, useSemanticStore } from '@/store/semanticStore'
+import { groupChannelsByHost } from '@/lib/channelGroups'
 import {
   rebuildSemanticIndex,
   refreshSemanticCounts,
@@ -87,12 +88,21 @@ export default function SemanticRecallManager() {
           onChange={(e) => update({ channelId: e.target.value })}
         >
           <option value="">选择渠道…</option>
-          {channels.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name || c.baseUrl}
-              {c.provider === 'anthropic' ? '（Anthropic 不支持向量）' : ''}
-            </option>
-          ))}
+          {groupChannelsByHost(channels).map((g) => {
+            const opts = g.items.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name || c.baseUrl}
+                {c.provider === 'anthropic' ? '（Anthropic 不支持向量）' : ''}
+              </option>
+            ))
+            return g.items.length > 1 ? (
+              <optgroup key={`g:${g.key}`} label={g.key}>
+                {opts}
+              </optgroup>
+            ) : (
+              opts
+            )
+          })}
         </select>
         {!channels.length && (
           <div className="text-[11px] text-muted">还没有渠道。先去 设置 → API · 模型 新增一个，比如硅基流动 https://api.siliconflow.cn/v1</div>

@@ -1,6 +1,7 @@
 import SubPage from '@/components/settings/SubPage'
 import { useReadingStore } from '@/store/readingStore'
 import { useApiStore } from '@/store/apiStore'
+import { groupChannelsByHost } from '@/lib/channelGroups'
 
 export default function ReadingPage() {
   const apiChannelId = useReadingStore((s) => s.apiChannelId)
@@ -26,11 +27,20 @@ export default function ReadingPage() {
           className="w-full rounded-xl border border-line bg-white/40 px-3 py-2 text-sm text-ink outline-none focus:border-accent"
         >
           <option value="">跟随主聊天</option>
-          {channels.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name || c.model || '未命名渠道'}
-            </option>
-          ))}
+          {groupChannelsByHost(channels).map((g) => {
+            const opts = g.items.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name || c.model || '未命名渠道'}
+              </option>
+            ))
+            return g.items.length > 1 ? (
+              <optgroup key={`g:${g.key}`} label={g.key}>
+                {opts}
+              </optgroup>
+            ) : (
+              opts
+            )
+          })}
         </select>
       </div>
 
