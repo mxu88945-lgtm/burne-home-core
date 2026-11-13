@@ -31,19 +31,20 @@
 .bw-chat-messages .archive-pudding > .bw-message-body::after { content: 'POMPOMPURIN · SWEET LITTLE MESSAGE ♡'; position: relative; z-index: 1; display: block; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #e3cfa3; color: #b99a72; font: 600 10px/1.4 -apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif; letter-spacing: .16em; text-align: center; }
 /* 名字胶囊 */
 .bw-chat-messages .archive-pudding .pudding-capsule { position: relative; flex: 0 0 auto; height: 124px; margin: 0 -22px 14px; }
-.bw-chat-messages .archive-pudding .pudding-pill { position: absolute; inset: 36px 0 0; display: flex; align-items: center; padding: 0 88px 0 116px; border: 1px solid #f0e9cf; border-radius: 44px; background: linear-gradient(135deg,#fefefa,#fbf6e1); box-shadow: 0 10px 24px rgba(151,104,49,.14); }
-.bw-chat-messages .archive-pudding .pudding-avatar { position: absolute; top: 4px; left: 8px; z-index: 2; display: grid; place-items: center; width: 96px; height: 96px; padding: 3px; overflow: hidden; border: 3px solid #5b4330; border-radius: 50%; color: #92643c; background: #fff; box-shadow: 0 6px 16px rgba(91,67,48,.22); font-size: 30px; font-weight: 800; }
+.bw-chat-messages .archive-pudding .pudding-pill { position: absolute; inset: 36px 0 0; display: flex; align-items: center; padding: 0 88px 0 112px; border: 1px solid #f0e9cf; border-radius: 44px; background: linear-gradient(135deg,#fefefa,#fbf6e1); box-shadow: 0 10px 24px rgba(151,104,49,.14); }
+/* 头像/名字对齐惟境 v227 布丁胶囊：头像 84px（3px 内衬 + 3px 深棕边）、比胶囊顶高出 24px；名字压在胶囊顶边上，800 字重系统字体 + 白字描边。 */
+.bw-chat-messages .archive-pudding .pudding-avatar { position: absolute; top: 12px; left: 10px; z-index: 2; display: grid; place-items: center; width: 84px; height: 84px; padding: 3px; overflow: hidden; border: 3px solid #5b4330; border-radius: 50%; color: #92643c; background: #fff; box-shadow: 0 6px 16px rgba(91,67,48,.18); font-size: 26px; font-weight: 800; }
 .bw-chat-messages .archive-pudding .pudding-avatar img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
 .bw-chat-messages .archive-pudding .pudding-avatar > span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; background: #f7f2dc; }
-.bw-chat-messages .archive-pudding .pudding-name { position: absolute; top: 0; left: 116px; z-index: 2; display: block; max-width: calc(100% - 200px); overflow: hidden; color: #fff; font-size: 26px; font-weight: 800; line-height: 36px; white-space: nowrap; text-overflow: ellipsis; text-shadow: 0 1px 0 #c9b28f, 0 2px 4px rgba(91,67,48,.35); -webkit-text-stroke: .5px #d8c3a0; }
+.bw-chat-messages .archive-pudding .pudding-name { position: absolute; top: 5px; left: 104px; z-index: 2; display: block; max-width: calc(100% - 190px); overflow: hidden; color: #fff; font: 800 23px/1.2 -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; letter-spacing: .02em; white-space: nowrap; text-overflow: ellipsis; text-shadow: 0 1px 0 #c9b28f, 0 2px 4px rgba(91,67,48,.35); -webkit-text-stroke: .5px #d8c3a0; word-break: keep-all; }
 .bw-chat-messages .archive-pudding .pudding-sign { flex: 1; min-width: 0; }
 .bw-chat-messages .archive-pudding .pudding-sign span { display: -webkit-box; overflow: hidden; color: #6b5240; font-size: 14px; line-height: 1.45; white-space: normal; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .bw-chat-messages .archive-pudding .pudding-sign i { position: relative; display: block; height: 1px; margin-top: 8px; background: #f0ebdb; }
 .bw-chat-messages .archive-pudding .pudding-sign i::before { content: ''; position: absolute; top: -.5px; left: 0; width: 44px; height: 2px; border-radius: 2px; background: #c99a4a; }
 .bw-chat-messages .archive-pudding .pudding-dog { position: absolute; top: 50%; right: 14px; width: 64px; height: 64px; transform: translateY(-50%); pointer-events: none; }
-.bw-chat-messages .archive-pudding.user .pudding-pill { padding: 0 116px 0 88px; }
-.bw-chat-messages .archive-pudding.user .pudding-avatar { left: auto; right: 8px; }
-.bw-chat-messages .archive-pudding.user .pudding-name { left: auto; right: 116px; }
+.bw-chat-messages .archive-pudding.user .pudding-pill { padding: 0 112px 0 88px; }
+.bw-chat-messages .archive-pudding.user .pudding-avatar { left: auto; right: 10px; }
+.bw-chat-messages .archive-pudding.user .pudding-name { left: auto; right: 104px; text-align: right; }
 .bw-chat-messages .archive-pudding.user .pudding-sign i::before { left: auto; right: 0; }
 .bw-chat-messages .archive-pudding.user .pudding-dog { right: auto; left: 14px; }
 /* 信纸卡抬头 */
@@ -64,8 +65,7 @@
   .bw-chat-messages .archive-pudding .pudding-capsule { margin: 0 -18px 14px; }
   .bw-chat-messages .archive-pudding .pudding-pill { padding: 0 74px 0 106px; }
   .bw-chat-messages .archive-pudding.user .pudding-pill { padding: 0 106px 0 74px; }
-  .bw-chat-messages .archive-pudding .pudding-avatar { width: 88px; height: 88px; top: 8px; }
-  .bw-chat-messages .archive-pudding .pudding-name { left: 104px; font-size: 24px; max-width: calc(100% - 180px); }
+  .bw-chat-messages .archive-pudding .pudding-name { max-width: calc(100% - 180px); }
   .bw-chat-messages .archive-pudding.user .pudding-name { left: auto; right: 104px; }
   .bw-chat-messages .archive-pudding .pudding-dog { width: 56px; height: 56px; right: 10px; }
   .bw-chat-messages .archive-pudding.user .pudding-dog { right: auto; left: 10px; }

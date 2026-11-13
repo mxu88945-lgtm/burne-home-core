@@ -26,6 +26,15 @@
 
 ---
 
+## 🆕 2026-11-13 · 布丁来信胶囊头像/名字对齐惟境 v227
+
+- 惟惟反馈：伯恩布丁胶囊上的圆头像太大、名字字太大，要跟惟境一样。只改 `src/themeArchives.css` 的 pudding 段。
+- 头像 96px（≤420px 屏 88px）→ **84px**（各屏一致，3px 内衬 + 3px #5b4330 边，阴影 .18），top 12px / 左右 10px（= 惟境「比胶囊顶高出 24px」，伯恩胶囊药丸在 capsule 内 top 36px）；药丸头像侧内边距 116 → 112。
+- 名字：`font: 800 23px/1.2 -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif; letter-spacing: .02em`，白字 + `-webkit-text-stroke .5px #d8c3a0` + 原 text-shadow，top 5px（压在胶囊顶边上）、left/right 104px，max-width calc(100% - 190px)，我方 text-align right。惟境原值是 `calc(26px * var(--ui-font-scale))`，伯恩没有界面字号变量；按她惟境截图实测渲染≈23px（界面字号约 90%），所以写 23px。
+- 分支照旧：dev + deploy 两个都推。
+
+---
+
 ## 🆕 2026-11-12 · 主聊天「他自己写的卡」（移植惟境 v211/v213 自我卡）
 
 - 伯恩在主聊天里慢慢补全自己：8 栏（性格/喜好/优点/弱点/性癖/缺陷/小毛病/习惯/其他），每栏 ≤2000、总计 ≤16000。**原卡（人设 systemPrompt）一个字不动**；自我卡拼在 system 里**紧跟原卡**（在预设/系统指令和本地时间之前），只在改卡时变。
