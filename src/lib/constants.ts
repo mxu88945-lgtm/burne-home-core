@@ -35,6 +35,7 @@ export const STORAGE_KEYS = {
   diary: `${NS}:diary`,
   reading: `${NS}:reading`,
   period: `${NS}:period`,
+  guard: `${NS}:guard`,
   readingApi: `${NS}:reading-api`,
   tasks: `${NS}:tasks`,
   phone: `${NS}:phone`,

@@ -80,6 +80,8 @@ import IdbImg from '@/components/ui/IdbImg'
 import { saveImgRef, resolveImgRef } from '@/lib/imgRef'
 import { useImgSrc } from '@/lib/useImgSrc'
 import { usePeriodStore } from '@/store/periodStore'
+import { localBreachReport, useGuardStore } from '@/store/guardStore'
+import { buildGuardPrompt, extractGuardTags, stripGuardTags } from '@/lib/guard'
 import { periodChatNote } from '@/lib/period'
 import { parseTasks } from '@/store/taskStore'
 import { useThemeStore, type ThemeId } from '@/store/themeStore'
@@ -297,11 +299,13 @@ function now() {
 }
 
 /** 只给应用看的回复标记（[点歌:] / [自我卡:]）：显示、历史、记忆、导出一律去掉 */
-const stripReplyTags = (text: string) => stripSelfCardTags(stripSongTags(text || ''))
+const stripReplyTags = (text: string) => stripGuardTags(stripSelfCardTags(stripSongTags(text || '')))
 
 /** 回复收尾：先取 [自我卡:栏目|…]，再取 [点歌:]；cleanReply 清掉漏出来的机器标签 */
 function takeReplyTags(raw: string): { clean: string; title: string; selfEdit: SelfCardEdit | null } {
-  const self = extractSelfCardTag(cleanReply(raw))
+  const guard = extractGuardTags(cleanReply(raw))
+  useGuardStore.getState().apply(guard.commands)
+  const self = extractSelfCardTag(guard.clean)
   const song = extractSongTag(self.clean)
   return { clean: song.clean, title: song.title, selfEdit: self.edit }
 }
@@ -1508,6 +1512,14 @@ export default function Chat() {
         `\n\n【较早对话·连续性档案】\n${rollingSummary.text.trim()}\n` +
         '这是后台连续性资料；当前用户明确说法、最近原文和当前人设优先。不要提及摘要、压缩或上下文窗口。'
     }
+    // 他管着你：锁屏/宵禁/限次说明 + 今天的情况 + 告状
+    const guardState = useGuardStore.getState()
+    if (guardState.enabled) {
+      const report = (await guardState.fetchReport()) ?? localBreachReport(useGuardStore.getState())
+      const g = useGuardStore.getState()
+      system += `\n\n${buildGuardPrompt({ name, user: profile.nameA && profile.nameA !== '我' ? profile.nameA : '惟惟', gateOn: g.gateOn, curfew: g.curfew, limit: g.limit, lock: g.lock, report, toldUntil: g.toldUntil })}`
+      g.markTold()
+    }
     usePeriodStore.getState().refresh()
     const periodState = usePeriodStore.getState()
     if (periodState.inject) {
@@ -1805,7 +1817,7 @@ export default function Chat() {
                     collapseThink() // 思考结束→出正文：记用时、自动收起思考框
                   }
                   streamRaw += d
-                  const shown = hideMemoryTagsWhileStreaming(streamRaw)
+                  const shown = stripGuardTags(hideMemoryTagsWhileStreaming(streamRaw))
                   patch((m) => ({ ...m, text: shown }))
                 },
               },
