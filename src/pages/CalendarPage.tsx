@@ -18,6 +18,9 @@ export default function CalendarPage() {
   const markFrom = usePeriodStore((s) => s.markFrom)
   const setPeriodLen = usePeriodStore((s) => s.setPeriodLen)
   const toggleInject = usePeriodStore((s) => s.toggleInject)
+  const openStart = usePeriodStore((s) => s.openStart)
+  const startToday = usePeriodStore((s) => s.startToday)
+  const endToday = usePeriodStore((s) => s.endToday)
 
   const now = new Date()
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() }) // m: 0-11
@@ -53,15 +56,30 @@ export default function CalendarPage() {
       <div className="px-1">
         <h2 className="headline text-2xl text-ink">生理期日历</h2>
         <p className="mt-1 text-xs text-muted">
-          点你实际来例假的每一天来记录；再点一下取消（纯手动，不会自动替你标）
+          来了点「今天来了」，之后每天自动往后记，结束点「今天结束了」；日历上单点某天可以补记或取消
         </p>
+      </div>
+
+      {/* 开始 / 结束 */}
+      <div className="glass flex items-center justify-between gap-3 rounded-2xl p-4">
+        <span className="text-sm text-ink">
+          {openStart ? `经期中 · 第 ${stat.todayDay ?? 1} 天` : '今天来例假了吗'}
+          <span className="block text-[11px] text-muted">
+            {openStart
+              ? `${openStart.slice(5).replace('-', '/')} 开始，每天自动记上；超过 14 天没点结束就按 ${periodLen} 天算`
+              : '点一下就开始记，不用每天点'}
+          </span>
+        </span>
+        <button onClick={openStart ? endToday : startToday} className="btn-primary shrink-0 rounded-full px-4 py-2 text-sm">
+          {openStart ? '今天结束了' : '今天来了'}
+        </button>
       </div>
 
       {/* 经期天数设置 */}
       <div className="glass flex items-center justify-between rounded-2xl p-4">
         <span className="text-sm text-ink">
           我的经期一般
-          <span className="block text-[11px] text-muted">仅用于预测下次经期（不会自动标记）</span>
+          <span className="block text-[11px] text-muted">预测下次经期；忘点结束时按它收尾</span>
         </span>
         <div className="flex items-center gap-3">
           <button
@@ -101,7 +119,7 @@ export default function CalendarPage() {
             <div>预计排卵 {stat.ovulation?.slice(5)}</div>
           </div>
         ) : (
-          <p className="text-muted">还没有记录～点下面日历里你来例假的那几天就行。</p>
+          <p className="text-muted">还没有记录～来了点「今天来了」，以前的可以在日历里点那几天补上。</p>
         )}
       </div>
 

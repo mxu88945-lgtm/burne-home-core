@@ -107,11 +107,11 @@ const STREAM_FIRST_BYTE_MS = 90_000
 const STREAM_IDLE_MS = 60_000
 
 const SHELL_THEMES = new Set<ThemeId>([
-  'paper', 'scrapbook', 'academy', 'mobile', 'letter', 'mistnote', 'nightglow', 'vinyl', 'pudding',
+  'paper', 'scrapbook', 'academy', 'mobile', 'letter', 'mistnote', 'nightglow', 'vinyl', 'pudding', 'greynote',
 ])
 
 /** 这 6 套主题与顾祁砚主聊天用同一套「档案」DOM 与样式（src/themeArchives.css 原样移植） */
-const ARCHIVE_THEMES = new Set<ThemeId>(['academy', 'vinyl', 'mobile', 'letter', 'mistnote', 'nightglow', 'pudding'])
+const ARCHIVE_THEMES = new Set<ThemeId>(['academy', 'vinyl', 'mobile', 'letter', 'mistnote', 'nightglow', 'pudding', 'greynote'])
 
 /** 布丁狗图在 public/ 下，跟随 base 路径（/burne-home-core/）以便离线与子路径部署都能取到 */
 const PUDDING_DOG = `${import.meta.env.BASE_URL}pudding-dog.svg`
@@ -146,6 +146,9 @@ function ArchiveHeading({ theme, me, name, avatarImg, avatarEmoji }: {
   )
   if (theme === 'letter') return (
     <div className="archive-heading"><div className="letter-cover" aria-hidden="true"><span>LETTERS · AFTERGLOW</span><i>✦</i></div>{cover}<div className="archive-heading-copy"><strong className="archive-name">{name}</strong><small>{me ? '@answer_before_dawn' : '@letters_at_midnight'}</small><p>{me ? '循着纸页的微光而来，把回信交给你。' : '把未寄出的黄昏折进信里，等你醒来。'}</p><div className="letter-stats" aria-hidden="true"><span><b>1314</b> Following</span><span><b>5.20k</b> Letters</span></div></div></div>
+  )
+  if (theme === 'greynote') return (
+    <div className="archive-heading">{cover}<div className="archive-heading-copy"><strong className="archive-name">{name}</strong><small>{me ? 'à toi' : 'pour toi'}</small></div></div>
   )
   if (theme === 'nightglow') return (
     <div className="archive-heading">{cover}<div className="archive-heading-copy"><strong className="archive-name">{name}</strong></div></div>
@@ -1505,6 +1508,7 @@ export default function Chat() {
         `\n\n【较早对话·连续性档案】\n${rollingSummary.text.trim()}\n` +
         '这是后台连续性资料；当前用户明确说法、最近原文和当前人设优先。不要提及摘要、压缩或上下文窗口。'
     }
+    usePeriodStore.getState().refresh()
     const periodState = usePeriodStore.getState()
     if (periodState.inject) {
       const note = periodChatNote(periodState.days, profile.nameA || '她', periodState.periodLen)

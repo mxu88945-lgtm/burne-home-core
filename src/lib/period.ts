@@ -134,3 +134,26 @@ export function periodChatNote(days: string[], name: string, periodLen?: number)
     return `（${name}的生理期预计还有 ${st.daysUntilNext} 天到，可以提前温柔关心、提醒她注意休息和保暖。)`
   return ''
 }
+
+/** 开着的这次经期最多自动数这么多天；过了还没点「结束」多半是忘了，按经期天数收尾。 */
+export const OPEN_PERIOD_LIMIT = 14
+
+/**
+ * 点了「今天来了」还没点「结束」的那一段，今天算到哪几天。
+ * 超过 OPEN_PERIOD_LIMIT 天就当忘了点结束，按 periodLen 收尾（closed=true）。
+ */
+export function openPeriodDays(openStart: string | null, today: string, periodLen = 5): { days: string[]; closed: boolean } {
+  if (!openStart) return { days: [], closed: false }
+  const span = diffDays(today, openStart)
+  if (span < 0) return { days: [openStart], closed: false }
+  const closed = span >= OPEN_PERIOD_LIMIT
+  const count = closed ? Math.max(1, periodLen) : span + 1
+  return { days: Array.from({ length: count }, (_, i) => addDays(openStart, i)), closed }
+}
+
+/** 从 a 到 b（含两头）的每一天。 */
+export function dayRange(a: string, b: string): string[] {
+  const n = diffDays(b, a)
+  if (n < 0) return [a]
+  return Array.from({ length: n + 1 }, (_, i) => addDays(a, i))
+}
