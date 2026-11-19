@@ -152,7 +152,8 @@ export const useGuardStore = create<GuardState>((set, get) => {
         if (!r.ok) return null
         const report = (await r.json()) as GateReport
         // 服务器上的锁（比如另一台设备）跟本地对齐
-        const lock = report.lock && report.lock.until > Date.now() ? report.lock : null
+        // 别人（顾祁砚、惟境）借这扇门上的锁不算他的，不进他的锁屏盖层
+        const lock = report.lock && !report.lock.by && report.lock.until > Date.now() ? report.lock : null
         set({ report })
         if ((lock?.until || 0) !== (get().lock?.until || 0)) save({ lock })
         return report

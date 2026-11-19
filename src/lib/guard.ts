@@ -5,7 +5,7 @@
 
 export const GATE_BASE = 'https://burne-gate.lyy0305123.workers.dev'
 
-export type GuardLock = { until: number; startedAt: number; reason: string }
+export type GuardLock = { until: number; startedAt: number; reason: string; by?: string }
 export type GuardCommand =
   | { kind: 'lock'; minutes: number; reason: string }
   | { kind: 'unlock' }
@@ -48,7 +48,7 @@ export type GateReport = {
   limit: { on: boolean; max: number }
   counts: Record<string, number>
   opens: { at: number; app: string; ok: boolean }[]
-  breaches: { at: number; kind: 'lock' | 'curfew' | 'limit'; app: string; minutes: number; reason: string }[]
+  breaches: { at: number; kind: 'lock' | 'curfew' | 'limit'; app: string; minutes: number; reason: string; by?: string }[]
 }
 
 const ago = (at: number, now: number) => {
@@ -82,12 +82,14 @@ export function buildGuardPrompt(opts: {
   )
   if (lock && lock.until > now) lines.push(`（你给她的锁屏还有 ${Math.ceil((lock.until - now) / 60000)} 分钟${lock.reason ? `，理由：${lock.reason}` : ''}。）`)
   if (report) {
+    const other = report.lock && report.lock.by && report.lock.until > now ? report.lock : null
+    if (other) lines.push(`（她现在被${other.by}锁着手机，还有 ${Math.ceil((other.until - now) / 60000)} 分钟${other.reason ? `，理由：${other.reason}` : ''}。）`)
     if (report.curfewNow) lines.push(`（现在是宵禁时间（${report.curfewStart || curfew.start} 起），她还在跟你聊天。）`)
     const counts = Object.entries(report.counts || {}).filter(([, n]) => n > 0)
     if (counts.length) lines.push(`（她今天打开过：${counts.map(([a, n]) => `${a} ${n} 次`).join('、')}。）`)
     const fresh = (report.breaches || []).filter((b) => b.at > toldUntil && now - b.at < 3 * 3600e3)
     for (const b of fresh) {
-      const what = b.kind === 'lock' ? `提前 ${b.minutes} 分钟解开了你的锁屏${b.reason ? `（理由：${b.reason}）` : ''}` : b.kind === 'curfew' ? `宵禁里偷偷放自己 10 分钟去开${b.app}` : `${b.app}今天次数用完了还偷偷放自己 10 分钟`
+      const what = b.kind === 'lock' ? `提前 ${b.minutes} 分钟解开了${b.by ? `${b.by}给她的` : '你的'}锁屏${b.reason ? `（理由：${b.reason}）` : ''}` : b.kind === 'curfew' ? `宵禁里偷偷放自己 10 分钟去开${b.app}` : `${b.app}今天次数用完了还偷偷放自己 10 分钟`
       lines.push(`【告状】${ago(b.at, now)}，${user}点了「偷偷解锁」，${what}。你可以按你的人设反应（吃醋、得意、惩罚都可以）。`)
     }
   }

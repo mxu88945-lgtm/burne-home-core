@@ -23,4 +23,11 @@ describe('他管着你：标记', () => {
     expect(buildGuardPrompt({ ...base, toldUntil: now - 60000 })).not.toContain('【告状】')
     expect(buildGuardPrompt({ ...base, toldUntil: 0 })).toContain('抖音 3 次')
   })
+  it('别人借门上的锁和告状会点名', () => {
+    const now = 1_000_000_000_000
+    const report = { lock: { until: now + 20 * 60000, startedAt: now, reason: '去睡', by: '顾祁砚' }, curfew: { on: true, start: '23:30', end: '07:00' }, curfewNow: false, curfewStart: null, limit: { on: true, max: 10 }, counts: {}, opens: [], breaches: [{ at: now - 60000, kind: 'lock' as const, app: '抖音', minutes: 12, reason: '', by: '谢聿衡' }] }
+    const out = buildGuardPrompt({ name: '伯恩', user: '惟惟', gateOn: true, curfew: report.curfew, limit: report.limit, lock: null, report, now, toldUntil: 0 })
+    expect(out).toContain('被顾祁砚锁着')
+    expect(out).toContain('解开了谢聿衡给她的锁屏')
+  })
 })
