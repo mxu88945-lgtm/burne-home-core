@@ -3,7 +3,7 @@
  * 标记从显示、历史、记忆里都去掉（stripGuardTags），只在回复收尾时生效一次（extractGuardTags）。
  */
 
-export const GATE_BASE = 'https://burne-gate.lyy0305123.workers.dev'
+export const GATE_BASE = 'https://gate.zhouweiweihome.top'
 
 export type GuardLock = { until: number; startedAt: number; reason: string; by?: string }
 export type GuardCommand =
