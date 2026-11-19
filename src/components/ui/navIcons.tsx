@@ -242,3 +242,14 @@ export function NotebookIcon({ className }: P) {
     </svg>
   )
 }
+
+/** 斗地主 · 两张扑克 */
+export function CardsIcon({ className }: P) {
+  return (
+    <svg {...base} className={className} aria-hidden>
+      <rect x="3.5" y="5" width="10" height="14" rx="1.8" transform="rotate(-10 8.5 12)" />
+      <rect x="10" y="4" width="10" height="14" rx="1.8" transform="rotate(8 15 11)" />
+      <path d="M15 9.2l1.4 1.8-1.4 1.8-1.4-1.8z" />
+    </svg>
+  )
+}
