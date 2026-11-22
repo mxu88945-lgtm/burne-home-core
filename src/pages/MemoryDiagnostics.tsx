@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom'
 import { useMemoryStore } from '@/store/memoryStore'
 import { memoryLayerLabel } from '@/lib/memoryRecall'
+import { checkConnectivity, type ConnectivityResult } from '@/lib/connectivityCheck'
 import BackBar from '@/components/layout/BackBar'
+import { useState } from 'react'
 
 function formatAt(value: string): string {
   const date = new Date(value)
@@ -12,6 +14,8 @@ export default function MemoryDiagnostics() {
   const diagnostics = useMemoryStore((s) => s.diagnostics)
   const clear = useMemoryStore((s) => s.clearDiagnostics)
   const latest = diagnostics[0]
+  const [checking, setChecking] = useState(false)
+  const [connectivity, setConnectivity] = useState<ConnectivityResult[]>([])
 
   return (
     <div className="space-y-4">
@@ -35,6 +39,10 @@ export default function MemoryDiagnostics() {
           角色核心优先；长期记忆和近期状态按当前消息相关性召回；过期、被取代、范围不符的条目不会注入。
         </p>
       </div>
+      <section className="glass rounded-2xl p-4 text-sm text-ink" aria-label="连通检查">
+        <div className="flex items-center justify-between gap-3"><div><span className="label">连通检查</span><p className="mt-1 text-xs text-muted">只发送只读 GET 请求，不修改任何状态。</p></div><button className="text-xs text-accent disabled:opacity-40" disabled={checking} onClick={() => { setChecking(true); void checkConnectivity().then(setConnectivity).finally(() => setChecking(false)) }}>{checking ? '检查中…' : '一键检查'}</button></div>
+        {connectivity.length > 0 && <div className="mt-3 space-y-2">{connectivity.map((item) => <div key={item.key} className="flex items-start justify-between gap-3 rounded-xl border border-line px-3 py-2 text-xs"><span>{item.label}</span><span className={item.ok ? 'text-emerald-700' : 'text-rose-700'}>{item.ok ? `成功 · ${item.latencyMs} ms` : `失败${item.latencyMs === null ? '' : ` · ${item.latencyMs} ms`} · 可能需要开 VPN`}</span></div>)}</div>}
+      </section>
 
       {!diagnostics.length ? (
         <div className="glass rounded-2xl p-8 text-center text-sm text-muted">还没有诊断记录。发一条消息后，这里会显示本轮召回。</div>
