@@ -12,6 +12,8 @@ import {
   usePushStore,
   type PushProactivePerDay,
 } from '@/store/pushStore'
+import { isPaused } from '@/lib/pauseState'
+import { usePauseStateStore } from '@/store/pauseStateStore'
 
 export type PushInboxMessage = { id?: string; text?: string; body?: string; ts?: number; conv?: string }
 
@@ -105,6 +107,8 @@ function recentText() {
 
 export async function syncPushContext() {
   if (!pushIsReady()) return false
+  const pause = usePauseStateStore.getState()
+  if (pause.enabled && isPaused({ pausedUntil: pause.pausedUntil })) return false
   const persona = usePersonaStore.getState().persona
   const profile = useProfileStore.getState().profile
   const { activeId } = useChatStore.getState()
@@ -153,6 +157,8 @@ export function appendPushMessage(item: PushInboxMessage) {
 
 let inboxBusy = false
 export async function pullPushInbox() {
+  const pause = usePauseStateStore.getState()
+  if (pause.enabled && isPaused({ pausedUntil: pause.pausedUntil })) return 0
   if (!pushIsReady() || inboxBusy) return 0
   inboxBusy = true
   try {

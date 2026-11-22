@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { appendRoleWakeMessage, pullRoleWakeInbox, syncRoleWakeAfterChat } from './roleWakeService'
 import { useChatStore, type ChatSession } from '@/store/chatStore'
+import { usePauseStateStore } from '@/store/pauseStateStore'
 
 const values = new Map<string, string>()
 const testSession: ChatSession = {
@@ -25,6 +26,7 @@ beforeEach(() => {
   })
   useChatStore.getState().replaceSessions([testSession])
   useChatStore.getState().switchSession(testSession.id)
+  usePauseStateStore.getState().setEnabled(false)
 })
 
 describe('role-wake client', () => {
@@ -71,5 +73,18 @@ describe('role-wake client', () => {
     expect(appendRoleWakeMessage({ id: 'wake-1', text: '我来找你了。' })).toBe(false)
     expect(calls).toBe(1)
     expect(useChatStore.getState().sessions[0].messages.at(-1)?.proactiveId).toBe('role-wake:wake-1')
+  })
+
+  it('skips sync and inbox while paused', async () => {
+    values.set('burne-role-wake-enabled', '1')
+    values.set('burne-role-wake-url', 'https://wake.example.test')
+    values.set('burne-role-wake-key', 'wake-key')
+    usePauseStateStore.getState().setEnabled(true)
+    usePauseStateStore.getState().pauseFor(30, Date.now())
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    expect(await syncRoleWakeAfterChat()).toBe(false)
+    expect(await pullRoleWakeInbox()).toBe(0)
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })

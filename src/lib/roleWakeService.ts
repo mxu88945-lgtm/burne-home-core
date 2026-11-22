@@ -4,6 +4,8 @@ import { latestSessionId, useChatStore, type ChatMsg } from '@/store/chatStore'
 import { currentPushUrl, existingPushDevice } from '@/lib/pushService'
 import { pushIsReady } from '@/store/pushStore'
 import { roleWakeConfig, roleWakeReady } from '@/store/roleWakeStore'
+import { isPaused } from '@/lib/pauseState'
+import { usePauseStateStore } from '@/store/pauseStateStore'
 
 const ROLE_ID = 'burne-main'
 
@@ -34,6 +36,8 @@ function recentSummary() {
 }
 
 export async function syncRoleWakeAfterChat() {
+  const pause = usePauseStateStore.getState()
+  if (pause.enabled && isPaused({ pausedUntil: pause.pausedUntil })) return false
   if (!roleWakeReady()) return false
   const config = roleWakeConfig()
   const body: Record<string, unknown> = {
@@ -85,6 +89,8 @@ export function appendRoleWakeMessage(item: { id?: string; wakeId?: string; text
 
 let inboxBusy = false
 export async function pullRoleWakeInbox() {
+  const pause = usePauseStateStore.getState()
+  if (pause.enabled && isPaused({ pausedUntil: pause.pausedUntil })) return 0
   if (!roleWakeReady() || inboxBusy) return 0
   inboxBusy = true
   try {
