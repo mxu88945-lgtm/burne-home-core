@@ -29,6 +29,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
       { to: '/theme', Icon: PaletteIcon, title: '主题', sub: '外观配色' },
       { to: '/persona', Icon: PersonIcon, title: '角色人设 · 系统提示词', sub: '灵魂设定、系统指令、预设与参数' },
       { to: '/settings/self-card', Icon: HeartIcon, title: '他自己写的卡', sub: '他在相处中慢慢补全自己 · 原卡不动' },
+      { to: '/settings/sense', Icon: HeartIcon, title: '感知互动', sub: '吹气 · 摇晃 · 转动 · 长按' },
       { to: '/settings/guard', Icon: LockIcon, title: '他管着你', sub: '锁屏 · 宵禁 · 管到别的 App' },
     ],
   },

@@ -4,6 +4,7 @@ import App from './App'
 import './index.css'
 import { applyChatFont, applyTheme, readStoredChatFont, readStoredTheme } from '@/store/themeStore'
 import { resolveStandaloneFrame } from '@/lib/viewportGeometry'
+import { startSavedSense } from '@/lib/senseRuntime'
 
 // 渲染前先应用已保存的主题，避免首屏闪烁
 applyTheme(readStoredTheme())
@@ -144,6 +145,7 @@ async function purgeRemovedDrama() {
 }
 
 async function startApp() {
+  void startSavedSense()
   // 戏剧板块已删除（2026-11-07 她决定：剧情交给惟境/顾祁砚剧场）。一次性清掉戏剧与角色卡库的本地数据，失败不挡启动。
   void purgeRemovedDrama()
   // 语义召回：启动约 60 秒后后台补一次索引（开关关着时什么也不做）

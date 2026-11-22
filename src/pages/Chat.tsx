@@ -85,6 +85,7 @@ import { buildGuardPrompt, extractGuardTags, stripGuardTags } from '@/lib/guard'
 import { periodChatNote } from '@/lib/period'
 import { parseTasks } from '@/store/taskStore'
 import { useThemeStore, type ThemeId } from '@/store/themeStore'
+import { acceptSensorBundle, labelForEvent, sensorEventPrompt, type SensorEventBundle } from '@/lib/senseInteraction'
 import {
   AUTO_COMPACT_KEEP,
   SUMMARY_VERSION,
@@ -483,6 +484,7 @@ export default function Chat() {
   const [modelOpen, setModelOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const senseReactionRef = useRef({ lastReactionAt: 0, replyBusy: false })
   const [plusOpen, setPlusOpen] = useState(false)
   const [pendingImages, setPendingImages] = useState<string[]>([])
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null)
@@ -561,6 +563,33 @@ export default function Chat() {
   // 输入栏悬浮在消息上面（半透明，消息从底下透出来）：量它的高度给消息列表留底，最后一条不被盖住
   const dockRef = useRef<HTMLDivElement>(null)
   const [dockH, setDockH] = useState(96)
+  useEffect(() => {
+    senseReactionRef.current.replyBusy = sending
+  }, [sending])
+  useEffect(() => {
+    const onSense = (event: Event) => {
+      const bundle = (event as CustomEvent<SensorEventBundle>).detail
+      if (!acceptSensorBundle(bundle, senseReactionRef.current)) return
+      const labels = bundle.events.map((item) => labelForEvent(item)).join('、')
+      const prompt = sensorEventPrompt(bundle)
+      const current = useChatStore.getState()
+      const session = current.sessions.find((item) => item.id === current.activeId)
+      const history = [...(session?.messages ?? []), {
+        id: newId(),
+        role: 'me' as const,
+        text: labels,
+        at: now(),
+        sensorEvent: true,
+        sensorPrompt: prompt,
+      }]
+      useChatStore.getState().setMessages(history)
+      void respond(history)
+    }
+    window.addEventListener('bw:sense-bundle', onSense)
+    return () => window.removeEventListener('bw:sense-bundle', onSense)
+    // respond is a stable function declaration; this listener intentionally follows the current Chat mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   useEffect(() => {
     const el = dockRef.current
     if (!el || typeof ResizeObserver === 'undefined') return
@@ -1415,7 +1444,7 @@ export default function Chat() {
     const latestFileMsgId = [...apiHistory].reverse().find((m) => m.file?.text)?.id
     const lateReportIds = lateTaskReports(apiHistory)
     const apiMsgs: ChatApiMessage[] = apiHistory
-      .filter((m) => !m.failed && (m.text.trim() || m.image || m.file || m.task))
+      .filter((m) => !m.failed && (m.text.trim() || m.sensorPrompt || m.image || m.file || m.task))
       .map((m) => {
         const role = m.role === 'me' ? ('user' as const) : ('assistant' as const)
         // 任务消息 → 以「我向 TA 汇报」的用户口吻表达，让模型自然接话
@@ -1425,7 +1454,7 @@ export default function Chat() {
           return { role: 'user' as const, content: note }
         }
         // 文本（含文件信息：文本文件带内容，二进制只附说明）
-        let textPart = stripReplyTags(m.text).trim()
+        let textPart = (m.sensorPrompt || stripReplyTags(m.text)).trim()
         if (m.file) {
           // 对齐顾祁砚：文件是只读参考资料，包起来放在前面，她的话放后面，防止伯恩把剧本/角色卡当成新人设
           textPart = m.file.text
@@ -2305,6 +2334,14 @@ export default function Chat() {
                     {startStr} 起 · 限时 {mmss(totalSec)}
                   </div>
                 </div>
+              </div>
+            )
+          }
+
+          if (m.sensorEvent) {
+            return (
+              <div key={m.id} className="py-0.5 text-center text-[11px] text-muted">
+                {m.text}
               </div>
             )
           }

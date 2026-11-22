@@ -178,6 +178,7 @@ export default function DataPage() {
       </div>
 
       <div className="glass space-y-2 rounded-2xl p-4">
+        <p className="text-[11px] leading-relaxed text-accent">这次更新：现在可以在设置里打开感知互动，让他知道你在吹气、摇晃、转动或长按手机。</p>
         <p className="text-[11px] leading-relaxed text-muted">
           没更新到最新功能时点这个：清缓存、拉最新代码（不动你的聊天和设置）。
         </p>

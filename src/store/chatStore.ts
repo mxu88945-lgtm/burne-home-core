@@ -31,6 +31,9 @@ export interface ChatMsg {
   reasoning?: string
   /** 思考耗时（ms）：流式思考结束→出正文时记录，收起后显示「深度思考 (x.xs)」 */
   thinkMs?: number
+  /** 感知互动：正文只显示一行灰字，真实事件提示单独隐藏发给模型。 */
+  sensorEvent?: boolean
+  sensorPrompt?: string
   /** 文件附件（只存本地） */
   file?: {
     name: string
