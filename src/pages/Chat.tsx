@@ -86,6 +86,7 @@ import { periodChatNote } from '@/lib/period'
 import { parseTasks } from '@/store/taskStore'
 import { useThemeStore, type ThemeId } from '@/store/themeStore'
 import { acceptSensorBundle, labelForEvent, sensorEventPrompt, type SensorEventBundle } from '@/lib/senseInteraction'
+import { syncRoleWakeAfterChat } from '@/lib/roleWakeService'
 import {
   AUTO_COMPACT_KEEP,
   SUMMARY_VERSION,
@@ -2177,6 +2178,7 @@ export default function Chat() {
     } finally {
       if (abortRef.current === abortCtl) abortRef.current = null
       setSending(false)
+      if (!stopped() && history.some((message) => message.role === 'me')) void syncRoleWakeAfterChat()
       // 每次回复后：后台增量补语义索引（关着时什么也不做）
       scheduleSemanticIndex(3000)
     }

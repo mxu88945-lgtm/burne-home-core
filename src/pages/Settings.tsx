@@ -31,6 +31,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
       { to: '/settings/self-card', Icon: HeartIcon, title: '他自己写的卡', sub: '他在相处中慢慢补全自己 · 原卡不动' },
       { to: '/settings/sense', Icon: HeartIcon, title: '感知互动', sub: '吹气 · 摇晃 · 转动 · 长按' },
       { to: '/settings/push', Icon: HeartIcon, title: '推送提醒 · 主动消息', sub: '关掉 App 也能收到 · 他会主动来找你' },
+      { to: '/settings/role-wake', Icon: HeartIcon, title: '他的小心思', sub: '角色偶尔主动来找你' },
       { to: '/settings/guard', Icon: LockIcon, title: '他管着你', sub: '锁屏 · 宵禁 · 管到别的 App' },
     ],
   },
