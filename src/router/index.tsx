@@ -29,6 +29,7 @@ import AlbumPage from '@/pages/settings/AlbumPage'
 import DiaryPage from '@/pages/settings/DiaryPage'
 import SelfCardPage from '@/pages/settings/SelfCardPage'
 import SensePage from '@/pages/settings/SensePage'
+import BodyStatePage from '@/pages/settings/BodyStatePage'
 import PushPage from '@/pages/settings/PushPage'
 import RoleWakePage from '@/pages/settings/RoleWakePage'
 import GuardPage from '@/pages/settings/GuardPage'
@@ -66,6 +67,7 @@ export const router = createHashRouter([
       { path: 'settings/diary', element: <DiaryPage /> },
       { path: 'settings/self-card', element: <SelfCardPage /> },
       { path: 'settings/sense', element: <SensePage /> },
+      { path: 'settings/body-state', element: <BodyStatePage /> },
       { path: 'settings/push', element: <PushPage /> },
       { path: 'settings/role-wake', element: <RoleWakePage /> },
       { path: 'settings/guard', element: <GuardPage /> },

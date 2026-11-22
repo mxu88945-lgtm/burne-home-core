@@ -1,7 +1,7 @@
 /** 全局常量与 localStorage key 命名空间 */
 
 export const APP_NAME = '伯恩主屋 · 长期记忆'
-export const APP_VERSION = '0.4.0'
+export const APP_VERSION = '0.5.0'
 
 /** localStorage key 统一前缀，避免与其他应用冲突 */
 const NS = 'burne-home-core'
@@ -47,6 +47,7 @@ export const STORAGE_KEYS = {
   semantic: `${NS}:semantic-recall`,
   semanticBackoff: `${NS}:semantic-backoff`,
   sense: `${NS}:sense`,
+  bodyState: `${NS}:body-state`,
 } as const
 
 /** 本设备 ID（多端同步用）—— 生成一次后持久化在本地 */

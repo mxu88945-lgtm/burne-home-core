@@ -87,6 +87,8 @@ import { parseTasks } from '@/store/taskStore'
 import { useThemeStore, type ThemeId } from '@/store/themeStore'
 import { acceptSensorBundle, labelForEvent, sensorEventPrompt, type SensorEventBundle } from '@/lib/senseInteraction'
 import { syncRoleWakeAfterChat } from '@/lib/roleWakeService'
+import { buildBodyPrompt, bodyTurnLine, currentBody, parseBodyTag, stripBodyTags, type BodyTag } from '@/lib/bodyState'
+import { useBodyStateStore } from '@/store/bodyStateStore'
 import {
   AUTO_COMPACT_KEEP,
   SUMMARY_VERSION,
@@ -301,15 +303,16 @@ function now() {
 }
 
 /** 只给应用看的回复标记（[点歌:] / [自我卡:]）：显示、历史、记忆、导出一律去掉 */
-const stripReplyTags = (text: string) => stripGuardTags(stripSelfCardTags(stripSongTags(text || '')))
+const stripReplyTags = (text: string) => stripBodyTags(stripGuardTags(stripSelfCardTags(stripSongTags(text || ''))))
 
 /** 回复收尾：先取 [自我卡:栏目|…]，再取 [点歌:]；cleanReply 清掉漏出来的机器标签 */
-function takeReplyTags(raw: string): { clean: string; title: string; selfEdit: SelfCardEdit | null } {
+function takeReplyTags(raw: string): { clean: string; title: string; selfEdit: SelfCardEdit | null; body: BodyTag | null } {
   const guard = extractGuardTags(cleanReply(raw))
   useGuardStore.getState().apply(guard.commands)
   const self = extractSelfCardTag(guard.clean)
   const song = extractSongTag(self.clean)
-  return { clean: song.clean, title: song.title, selfEdit: self.edit }
+  const body = parseBodyTag(song.clean)
+  return { clean: stripBodyTags(song.clean), title: song.title, selfEdit: self.edit, body }
 }
 
 export default function Chat() {
@@ -319,9 +322,20 @@ export default function Chat() {
   const activeChannel = useApiStore((s) => s.getActive())
   const addUsage = useUsageStore((s) => s.add)
   const ttsEnabled = useTtsStore((s) => s.config.enabled)
+  const bodyEnabled = useBodyStateStore((s) => s.enabled)
+  const body = useBodyStateStore((s) => s.body)
+  const refreshBody = useBodyStateStore((s) => s.refresh)
+  const applyBodyTag = useBodyStateStore((s) => s.applyTag)
+  const afterBodyReply = useBodyStateStore((s) => s.afterReply)
   const imgChannels = useImageGenStore((s) => s.channels)
   const imgActiveId = useImageGenStore((s) => s.activeId)
   const imageGenCfg = imgChannels.find((c) => c.id === imgActiveId) ?? imgChannels[0]
+  useEffect(() => {
+    if (!bodyEnabled) return
+    refreshBody()
+    const timer = window.setInterval(() => refreshBody(), 60_000)
+    return () => window.clearInterval(timer)
+  }, [bodyEnabled, refreshBody])
   const visionCfg = useVisionStore((s) => s.config)
   const webSearch = useChatPrefsStore((s) => s.webSearch)
   const autoMemory = useChatPrefsStore((s) => s.autoMemory)
@@ -1537,6 +1551,9 @@ export default function Chat() {
       return buildSelfCardPrompt(sc.card, useChatPrefsStore.getState().selfCardEdit, profile.nameA && profile.nameA !== '我' ? profile.nameA : '惟惟')
     })()
     let system = `${base}${selfCardText ? `\n\n${selfCardText}` : ''}${extras ? `\n\n${extras}` : ''}\n\n（当前用户本地时间：${localTime}，回应时可自然参考，不必刻意复述。）`
+    if (useBodyStateStore.getState().enabled) {
+      system += `\n\n${buildBodyPrompt(currentBody(useBodyStateStore.getState().body))}`
+    }
     if (rollingSummary?.text.trim()) {
       system +=
         `\n\n【较早对话·连续性档案】\n${rollingSummary.text.trim()}\n` +
@@ -1909,6 +1926,8 @@ export default function Chat() {
             if (taskMsgs.length) setMessages((prev) => [...prev, ...taskMsgs])
             if (song.title) autoPlaySongPick(replyId, song.title)
             applySelfCardEdit(replyId, song.selfEdit)
+            if (song.body) applyBodyTag(song.body)
+            else afterBodyReply()
             break // 成功
           } catch (err) {
             const msg = (err as Error).message || ''
@@ -1999,6 +2018,8 @@ export default function Chat() {
                 if (taskMsgs.length) setMessages((prev) => [...prev, ...taskMsgs])
                 if (song.title) autoPlaySongPick(replyId, song.title)
                 applySelfCardEdit(replyId, song.selfEdit)
+                if (song.body) applyBodyTag(song.body)
+                else afterBodyReply()
                 break
               } catch {
                 // 回退也失败，落到下面统一报错
@@ -2167,6 +2188,8 @@ export default function Chat() {
       ])
       if (reply && song.title) autoPlaySongPick(replyId, song.title)
       if (reply) applySelfCardEdit(replyId, song.selfEdit)
+      if (reply && song.body) applyBodyTag(song.body)
+      else if (reply) afterBodyReply()
       // 自动沉淀记忆：开了开关每轮判断；或用户明确说「记一下」时必存
       const lastUser = [...history].reverse().find((m) => m.role === 'me')
       const force = !!lastUser && /记住|记一下|记下来|记下|记录|存一下|帮我记|记到/.test(lastUser.text)
@@ -2185,6 +2208,7 @@ export default function Chat() {
   }
 
   const modelLabel = activeChannel?.displayName?.trim() || activeChannel?.model || config.chatModel || (connected ? '默认' : '未连接')
+  const liveBody = currentBody(body)
 
   return (
     <div className="bw-chat-shell relative isolate flex h-full flex-col overflow-hidden">
@@ -2264,7 +2288,7 @@ export default function Chat() {
           </button>
         </div>
       ) : (
-        <div className="bw-chat-header glass-bar sticky top-0 z-20 flex items-center gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <div className="bw-chat-header glass-bar sticky top-0 z-20 flex flex-wrap items-center gap-2 rounded-b-2xl px-4 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <button
               type="button"
@@ -2281,6 +2305,18 @@ export default function Chat() {
           </div>
           {/* 模型与语音都在底部输入栏，这里只留占位让名字居中 */}
           <div className="min-w-0 flex-1" />
+          {bodyEnabled && (
+            <Link to="/settings/body-state" className="order-4 flex w-full items-center gap-2 rounded-xl bg-white/25 px-2.5 py-1.5 text-left" aria-label="打开他的小天地">
+              <div className="min-w-0 flex-1">
+                <div className="flex gap-1.5">
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/10"><div className="h-full rounded-full bg-accent" style={{ width: `${liveBody.energy}%` }} /></div>
+                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/10"><div className="h-full rounded-full bg-indigo-400" style={{ width: `${liveBody.drowsiness}%` }} /></div>
+                </div>
+                <div className="mt-1 truncate text-[10px] text-muted">{bodyTurnLine(liveBody)}</div>
+              </div>
+              <span className="text-[11px] text-muted">🌙</span>
+            </Link>
+          )}
         </div>
       )}
 

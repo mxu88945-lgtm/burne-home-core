@@ -1,5 +1,5 @@
 // 伯恩主屋 Service Worker：网络优先，断网时回退缓存；只处理本站资源和推送通知。
-const CACHE = 'burne-home-cache-v040'
+const CACHE = 'burne-home-cache-v050'
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) => {
