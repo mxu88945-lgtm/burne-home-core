@@ -142,13 +142,37 @@ export default function GuardPage() {
             </ol>
             <CopyRow label="① 问他放不放行" value={gateUrl} />
             <CopyRow label="② 锁屏页" value={lockUrl} />
-            <div className="pt-2 text-sm font-medium">晚上替你开勿扰</div>
+            <div className="pt-2 text-sm font-medium">门：打开 App 时先问门</div>
             <ol className="list-decimal space-y-1 pl-5">
-              <li>再建一个自动化 →「特定时间」{g.curfew.start}（他常改早的话再建一个 22:00 的），每天，立即运行。</li>
-              <li>「获取 URL 的内容」填下面这个链接 →「如果」包含 <b>dnd</b> → 里面加「设定专注模式：勿扰模式 打开」「设定亮度 20%」。</li>
-              <li>早上 {g.curfew.end} 再建一个，只放「设定专注模式：勿扰模式 关闭」。</li>
+              <li>打开「快捷指令」→「自动化」。</li>
+              <li>点「创建个人自动化」→「App」。</li>
+              <li>选择要拦的 App，勾选「打开时」→「下一步」。</li>
+              <li>添加操作「获取 URL 的内容」，填入下面的门地址。</li>
+              <li>添加操作「如果」，条件设为「URL 的内容」包含 <b>lock</b>。</li>
+              <li>在「如果」里面添加「打开 URL」，填入下面的锁屏地址。</li>
+              <li>关闭「运行前询问」→「完成」。</li>
             </ol>
-            <CopyRow label="③ 晚上问他" value={nightUrl} />
+            <CopyRow label="门地址" value={gateUrl} />
+            <CopyRow label="锁屏地址" value={lockUrl} />
+
+            <div className="pt-2 text-sm font-medium">夜：到点开启勿扰</div>
+            <ol className="list-decimal space-y-1 pl-5">
+              <li>打开「快捷指令」→「自动化」→「创建个人自动化」。</li>
+              <li>选择「时间」→设为每天 {g.curfew.start}→「下一步」。</li>
+              <li>添加操作「获取 URL 的内容」，填入下面的夜地址。</li>
+              <li>添加操作「如果」，条件设为「URL 的内容」包含 <b>dnd</b>。</li>
+              <li>在「如果」里面添加「设定专注模式」为「勿扰模式」和「设定亮度」为 20%。</li>
+              <li>关闭「运行前询问」→「完成」。</li>
+            </ol>
+            <CopyRow label="夜地址" value={nightUrl} />
+
+            <div className="pt-2 text-sm font-medium">早：到点关闭勿扰</div>
+            <ol className="list-decimal space-y-1 pl-5">
+              <li>再创建一个「时间」自动化。</li>
+              <li>设为每天 {g.curfew.end}→「下一步」。</li>
+              <li>添加操作「设定专注模式」为「勿扰模式」关闭。</li>
+              <li>关闭「运行前询问」→「完成」。</li>
+            </ol>
             <p className="text-[11px] text-muted">链接里带着你的专属钥匙，别发给别人。锁屏页上「偷偷解锁」放你 10 分钟，他会知道。</p>
           </div>
         </>
