@@ -180,7 +180,7 @@ export default function DataPage() {
       </div>
 
       <div className="glass space-y-2 rounded-2xl p-4">
-        <p className="text-[11px] leading-relaxed text-accent">这次更新：伯恩累了可以说歇一会儿，暂停时主动消息和小心思会安静下来。</p>
+        <p className="text-[11px] leading-relaxed text-accent">这次更新：伯恩有了只属于自己的隐私室，申请查看要等他同意才会打开。</p>
         <p className="text-[11px] leading-relaxed text-muted">
           没更新到最新功能时点这个：清缓存、拉最新代码（不动你的聊天和设置）。
         </p>

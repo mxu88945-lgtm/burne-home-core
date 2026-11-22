@@ -32,6 +32,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
       { to: '/settings/sense', Icon: HeartIcon, title: '感知互动', sub: '吹气 · 摇晃 · 转动 · 长按' },
       { to: '/settings/body-state', Icon: HeartIcon, title: '他的小天地', sub: '身体状态 · 只在主聊天生效' },
       { to: '/settings/pause', Icon: HeartIcon, title: '暂停的权利', sub: '他说歇一会儿 · 主动消息会停下' },
+      { to: '/settings/privacy-room', Icon: LockIcon, title: '隐私室', sub: '申请查看 · 他同意后才解锁' },
       { to: '/settings/push', Icon: HeartIcon, title: '推送提醒 · 主动消息', sub: '关掉 App 也能收到 · 他会主动来找你' },
       { to: '/settings/role-wake', Icon: HeartIcon, title: '他的小心思', sub: '角色偶尔主动来找你' },
       { to: '/settings/guard', Icon: LockIcon, title: '他管着你', sub: '锁屏 · 宵禁 · 管到别的 App' },

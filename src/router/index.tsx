@@ -31,6 +31,7 @@ import SelfCardPage from '@/pages/settings/SelfCardPage'
 import SensePage from '@/pages/settings/SensePage'
 import BodyStatePage from '@/pages/settings/BodyStatePage'
 import PausePage from '@/pages/settings/PausePage'
+import PrivacyRoomPage from '@/pages/settings/PrivacyRoomPage'
 import PushPage from '@/pages/settings/PushPage'
 import RoleWakePage from '@/pages/settings/RoleWakePage'
 import GuardPage from '@/pages/settings/GuardPage'
@@ -70,6 +71,7 @@ export const router = createHashRouter([
       { path: 'settings/sense', element: <SensePage /> },
       { path: 'settings/body-state', element: <BodyStatePage /> },
       { path: 'settings/pause', element: <PausePage /> },
+      { path: 'settings/privacy-room', element: <PrivacyRoomPage /> },
       { path: 'settings/push', element: <PushPage /> },
       { path: 'settings/role-wake', element: <RoleWakePage /> },
       { path: 'settings/guard', element: <GuardPage /> },
