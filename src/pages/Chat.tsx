@@ -2335,16 +2335,16 @@ export default function Chat() {
           </div>
           {/* 模型与语音都在底部输入栏，这里只留占位让名字居中 */}
           <div className="min-w-0 flex-1" />
-          {bodyEnabled && (
+          {(bodyEnabled || pauseEnabled) && (
             <Link to="/settings/body-state" className="order-4 flex w-full items-center gap-2 rounded-xl bg-white/25 px-2.5 py-1.5 text-left" aria-label="打开他的小天地">
               <div className="min-w-0 flex-1">
-                {paused ? <div className="text-[11px] text-ink">{pauseLabel({ pausedUntil })}</div> : <>
+                {paused ? <div className="text-[11px] text-ink">{pauseLabel({ pausedUntil })}</div> : bodyEnabled ? <>
                   <div className="flex gap-1.5">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/10"><div className="h-full rounded-full bg-accent" style={{ width: `${liveBody.energy}%` }} /></div>
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/10"><div className="h-full rounded-full bg-indigo-400" style={{ width: `${liveBody.drowsiness}%` }} /></div>
                   </div>
                   <div className="mt-1 truncate text-[10px] text-muted">{bodyTurnLine(liveBody)}</div>
-                </>}
+                </> : <div className="text-[11px] text-muted">🌙 他的小天地已开启</div>}
               </div>
               <span className="text-[11px] text-muted">🌙</span>
             </Link>
