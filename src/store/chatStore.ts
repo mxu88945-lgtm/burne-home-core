@@ -34,6 +34,9 @@ export interface ChatMsg {
   /** 感知互动：正文只显示一行灰字，真实事件提示单独隐藏发给模型。 */
   sensorEvent?: boolean
   sensorPrompt?: string
+  /** 后台主动消息来源及服务端唯一 ID；只用于本地去重，不触发自动回复。 */
+  proactiveSource?: 'push' | 'role-wake'
+  proactiveId?: string
   /** 文件附件（只存本地） */
   file?: {
     name: string
@@ -123,6 +126,7 @@ interface ChatState {
   sessions: ChatSession[]
   activeId: string
   setMessages: (m: ChatMsg[] | ((prev: ChatMsg[]) => ChatMsg[])) => void
+  appendToSession: (sessionId: string, message: ChatMsg) => void
   setContextSummary: (summary: ChatContextSummary | undefined) => void
   setSessionContextSummary: (sessionId: string, summary: ChatContextSummary | undefined) => void
   /** 进入空白新对话（不落库，发第一条消息时才真正创建会话） */
@@ -179,6 +183,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
     })
     persist(next, curId)
     set({ sessions: next, activeId: curId })
+  },
+
+  appendToSession: (sessionId, message) => {
+    const { sessions, activeId } = get()
+    let changed = false
+    const next = sessions.map((s) => {
+      if (s.id !== sessionId) return s
+      if (message.proactiveId && s.messages.some((item) => item.proactiveId === message.proactiveId)) return s
+      changed = true
+      return {
+        ...s,
+        messages: [...s.messages, { ...message, ts: message.ts ?? Date.now() }],
+        updatedAt: new Date().toISOString(),
+      }
+    })
+    if (!changed) return
+    persist(next, activeId)
+    set({ sessions: next })
   },
 
   setContextSummary: (summary) => {

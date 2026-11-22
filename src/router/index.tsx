@@ -29,6 +29,7 @@ import AlbumPage from '@/pages/settings/AlbumPage'
 import DiaryPage from '@/pages/settings/DiaryPage'
 import SelfCardPage from '@/pages/settings/SelfCardPage'
 import SensePage from '@/pages/settings/SensePage'
+import PushPage from '@/pages/settings/PushPage'
 import GuardPage from '@/pages/settings/GuardPage'
 import SemanticPage from '@/pages/settings/SemanticPage'
 import SttPage from '@/pages/settings/SttPage'
@@ -64,6 +65,7 @@ export const router = createHashRouter([
       { path: 'settings/diary', element: <DiaryPage /> },
       { path: 'settings/self-card', element: <SelfCardPage /> },
       { path: 'settings/sense', element: <SensePage /> },
+      { path: 'settings/push', element: <PushPage /> },
       { path: 'settings/guard', element: <GuardPage /> },
       { path: 'settings/semantic', element: <SemanticPage /> },
       { path: 'settings/stt', element: <SttPage /> },

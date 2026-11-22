@@ -8,6 +8,7 @@ import {
 } from '@/api/backup'
 
 const NS = 'burne-home-core:'
+const PRIVATE_PUSH_KEYS = new Set(['burne-push-on', 'burne-push-device', 'burne-push-proactive'])
 
 /** 各存储 key 的中文名 + 太大时该怎么办 */
 const KEY_INFO: Record<string, { label: string; hint?: string }> = {
@@ -57,6 +58,7 @@ function scanStorage(): { rows: SizeRow[]; totalKb: number } {
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i)
     if (!k) continue
+    if (PRIVATE_PUSH_KEYS.has(k)) continue
     const v = localStorage.getItem(k) || ''
     const kb = ((k.length + v.length) * 2) / 1024
     totalKb += kb
@@ -178,7 +180,7 @@ export default function DataPage() {
       </div>
 
       <div className="glass space-y-2 rounded-2xl p-4">
-        <p className="text-[11px] leading-relaxed text-accent">这次更新：现在可以在设置里打开感知互动，让他知道你在吹气、摇晃、转动或长按手机。</p>
+        <p className="text-[11px] leading-relaxed text-accent">这次更新：现在可以在设置里打开感知互动，也可以让伯恩在你关掉 App 时发通知、偶尔主动来找你。</p>
         <p className="text-[11px] leading-relaxed text-muted">
           没更新到最新功能时点这个：清缓存、拉最新代码（不动你的聊天和设置）。
         </p>
