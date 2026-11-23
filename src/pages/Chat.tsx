@@ -301,7 +301,7 @@ function newId() {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `msg-${Date.now()}`
 }
 /** 0.7.5：旧的唤醒消息存的是 ISO 时间，显示时换成本地 HH:MM。 */
-function shownAt(at?: string) {
+function shownAt(at: string): string {
   if (!at || !/^\d{4}-\d{2}-\d{2}T/.test(at)) return at
   const date = new Date(at)
   return Number.isNaN(date.getTime()) ? at : date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
