@@ -35,6 +35,7 @@ const GROUPS: { label: string; items: Item[] }[] = [
       { to: '/settings/privacy-room', Icon: LockIcon, title: '隐私室', sub: '申请查看 · 他同意后才解锁' },
       { to: '/settings/push', Icon: HeartIcon, title: '推送提醒 · 主动消息', sub: '关掉 App 也能收到 · 他会主动来找你' },
       { to: '/settings/role-wake', Icon: HeartIcon, title: '他的小心思', sub: '角色偶尔主动来找你' },
+      { to: '/settings/relay', Icon: HeartIcon, title: '锁屏也不断', sub: '主聊天云端接力 · 失败自动直连' },
       { to: '/settings/guard', Icon: LockIcon, title: '他管着你', sub: '锁屏 · 宵禁 · 管到别的 App' },
     ],
   },

@@ -34,6 +34,7 @@ import PausePage from '@/pages/settings/PausePage'
 import PrivacyRoomPage from '@/pages/settings/PrivacyRoomPage'
 import PushPage from '@/pages/settings/PushPage'
 import RoleWakePage from '@/pages/settings/RoleWakePage'
+import RelayPage from '@/pages/settings/RelayPage'
 import GuardPage from '@/pages/settings/GuardPage'
 import SemanticPage from '@/pages/settings/SemanticPage'
 import SttPage from '@/pages/settings/SttPage'
@@ -74,6 +75,7 @@ export const router = createHashRouter([
       { path: 'settings/privacy-room', element: <PrivacyRoomPage /> },
       { path: 'settings/push', element: <PushPage /> },
       { path: 'settings/role-wake', element: <RoleWakePage /> },
+      { path: 'settings/relay', element: <RelayPage /> },
       { path: 'settings/guard', element: <GuardPage /> },
       { path: 'settings/semantic', element: <SemanticPage /> },
       { path: 'settings/stt', element: <SttPage /> },

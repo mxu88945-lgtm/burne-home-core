@@ -87,6 +87,7 @@ import { parseTasks } from '@/store/taskStore'
 import { useThemeStore, type ThemeId } from '@/store/themeStore'
 import { acceptSensorBundle, labelForEvent, sensorEventPrompt, type SensorEventBundle } from '@/lib/senseInteraction'
 import { syncRoleWakeAfterChat } from '@/lib/roleWakeService'
+import { canUseRelay, clearRelayPending, recoverPendingRelay, startRelay } from '@/lib/relayService'
 import { buildBodyPrompt, bodyTurnLine, currentBody, parseBodyTag, stripBodyTags, type BodyTag } from '@/lib/bodyState'
 import { useBodyStateStore } from '@/store/bodyStateStore'
 import { buildPausePrompt, isPaused, parsePauseTag, pauseLabel, pauseRemainingMs, stripPauseTags } from '@/lib/pauseState'
@@ -834,6 +835,53 @@ export default function Chat() {
     if (latest?.length && connected) void respond(latest)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sending])
+
+  // iPhone 回到前台后，把锁屏期间由中继完成的主聊天回复接回本地。
+  useEffect(() => {
+    let busy = false
+    const recover = async () => {
+      if (busy || document.hidden) return
+      busy = true
+      try {
+        const items = await recoverPendingRelay()
+        for (const item of items) {
+          if (item.sessionId !== activeId || item.result.status !== 'done' || !item.result.text?.trim()) continue
+          const song = takeReplyTags(item.result.text)
+          let reply = saveMemoryTags(song.clean)
+          const taskMsgs: Msg[] = []
+          if (allowTasks && reply) {
+            const parsed = parseTasks(reply)
+            reply = parsed.clean
+            for (const t of parsed.tasks) {
+              const mins = Math.max(1, Math.min(180, Math.round(t.minutes) || 5))
+              const startedAt = Date.now()
+              taskMsgs.push({ id: newId(), role: 'companion', text: '', at: now(), task: { text: t.text, minutes: mins, startedAt, deadline: startedAt + mins * 60000, status: 'active' } })
+            }
+          }
+          const replyId = newId()
+          setMessages((prev) => [...prev, ...(reply ? [{ id: replyId, role: 'companion' as const, text: reply, at: now(), ...(song.title ? { songPick: song.title } : {}) }] : []), ...taskMsgs])
+          if (reply && song.title) autoPlaySongPick(replyId, song.title)
+          if (reply) applySelfCardEdit(replyId, song.selfEdit)
+          if (reply && song.body) applyBodyTag(song.body)
+          else if (reply) afterBodyReply()
+          if (reply && song.pauseMinutes) pauseFor(song.pauseMinutes)
+          if (reply && song.privateEntry) addPrivateEntry(song.privateEntry)
+          if (reply && song.privacyDecision) decidePrivacy(song.privacyDecision)
+          const lastUser = [...messages].reverse().find((m) => m.role === 'me')
+          const force = !!lastUser && /记住|记一下|记下来|记下|记录|存一下|帮我记|记到/.test(lastUser.text)
+          if (reply && (autoMemory || force)) {
+            void extractMemories([...messages, { id: 'relay-recovered', role: 'companion', text: reply, at: '' }], force)
+          }
+          showMemToast('🌙 锁屏期间的回复已经接着写完了')
+        }
+      } finally { busy = false }
+    }
+    void recover()
+    const onActive = () => { if (!document.hidden) void recover() }
+    document.addEventListener('visibilitychange', onActive)
+    window.addEventListener('focus', onActive)
+    return () => { document.removeEventListener('visibilitychange', onActive); window.removeEventListener('focus', onActive) }
+  }, [activeId, allowTasks, setMessages])
   function completeTask(id: string) {
     const updated = messages.map((m) =>
       m.id === id && m.task
@@ -1803,7 +1851,7 @@ export default function Chat() {
     }
 
     // 开了思考过程且渠道可流式（OpenAI 兼容直连）→ 走流式：思考链实时流动、思考完自动收起出正文
-    const useStream = !!channel && canStream(channel) && persona.reasoning
+    const useStream = !!channel && canStream(channel) && persona.reasoning && !canUseRelay(channel)
     if (stopped()) {
       setSending(false)
       return
@@ -2103,29 +2151,53 @@ export default function Chat() {
         document.addEventListener('visibilitychange', markHidden)
         try {
           if (channel) {
-            const r = await chatComplete(channel, apiMsgs, system, {
-              workerUrl,
-              syncKey: config.syncKey,
-              temperature: persona.temperature,
-              maxTokens: persona.maxTokens,
-              reasoning: persona.reasoning,
+            if (canUseRelay(channel)) {
+              const relayId = newId()
+              try {
+                reply = await startRelay({
+                  id: relayId,
+                  sessionId: activeId,
+                  channel,
+                  messages: apiMsgs,
+                  system,
+                  temperature: persona.temperature,
+                  maxTokens: persona.maxTokens,
+                  reasoning: persona.reasoning,
+                  reasoningEffort: persona.reasoningEffort,
+                  ...(usePublicWebSearch ? { webSearch: true } : {}),
+                })
+              } catch {
+                // 中继不可用时无感回到原来的直连，不让聊天变坏。
+                // 直连接管本轮后，这个中继 id 不应再在前台重复补回。
+                const r = await chatComplete(channel, apiMsgs, system, {
+                  workerUrl,
+                  syncKey: config.syncKey,
+                  temperature: persona.temperature,
+                  maxTokens: persona.maxTokens,
+                  reasoning: persona.reasoning,
+                  reasoningEffort: persona.reasoningEffort,
+                  ...(usePublicWebSearch ? { webSearch: true } : {}),
+                  signal: abortCtl.signal,
+                })
+                clearRelayPending(relayId)
+                reply = r.text
+                reasoning = r.reasoning
+                if (r.usage) tokens = r.usage.totalTokens
+              }
+            } else {
+              const r = await chatComplete(channel, apiMsgs, system, {
+                workerUrl,
+                syncKey: config.syncKey,
+                temperature: persona.temperature,
+                maxTokens: persona.maxTokens,
+                reasoning: persona.reasoning,
                 reasoningEffort: persona.reasoningEffort,
-              webSearch: usePublicWebSearch,
+                webSearch: usePublicWebSearch,
                 signal: abortCtl.signal,
-            })
-            reply = r.text
-            reasoning = r.reasoning
-            if (r.usage) {
-              tokens = r.usage.totalTokens
-              addUsage({
-                at: new Date().toISOString(),
-                provider: channel.provider,
-                model: r.usage.model,
-                promptTokens: r.usage.promptTokens,
-                completionTokens: r.usage.completionTokens,
-                totalTokens: r.usage.totalTokens,
-                cost: r.usage.cost,
               })
+              reply = r.text
+              reasoning = r.reasoning
+              if (r.usage) tokens = r.usage.totalTokens
             }
           } else {
             reply = await sendChat({
