@@ -300,6 +300,12 @@ function ensureWithResolvers() {
 function newId() {
   return 'randomUUID' in crypto ? crypto.randomUUID() : `msg-${Date.now()}`
 }
+/** 0.7.5：旧的唤醒消息存的是 ISO 时间，显示时换成本地 HH:MM。 */
+function shownAt(at?: string) {
+  if (!at || !/^\d{4}-\d{2}-\d{2}T/.test(at)) return at
+  const date = new Date(at)
+  return Number.isNaN(date.getTime()) ? at : date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
 function now() {
   return new Date().toLocaleTimeString('zh-CN', {
     hour: '2-digit',
@@ -2531,7 +2537,7 @@ export default function Chat() {
                 {gqFlat && (
                   <FlatGqHead
                     name={me ? profile.nameA || '我' : name}
-                    time={m.at}
+                    time={shownAt(m.at)}
                     avatarImg={me ? profile.avatarAImg : profile.avatarBImg}
                     avatarEmoji={me ? profile.avatarA : profile.avatarB}
                   />
@@ -2681,7 +2687,7 @@ export default function Chat() {
                 )}
                 {!selectMode && editingId !== m.id && !streamingIds.has(m.id) && (
                   <div className="bw-message-actions mt-2 flex flex-wrap items-center gap-3.5 px-1 text-muted">
-                    <span className="text-[10px]">{m.at}</span>
+                    <span className="text-[10px]">{shownAt(m.at)}</span>
                     {!me && ttsEnabled && m.text.trim() && (
                       <button
                         type="button"

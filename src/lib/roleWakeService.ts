@@ -76,7 +76,7 @@ export function appendRoleWakeMessage(item: { id?: string; wakeId?: string; text
     id: `role-wake-msg-${id}`,
     role: 'companion',
     text,
-    at: new Date(item.ts || Date.now()).toISOString(),
+    at: new Date(item.ts || Date.now()).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
     ts: item.ts || Date.now(),
     proactiveSource: 'role-wake',
     proactiveId,
