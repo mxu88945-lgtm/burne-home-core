@@ -1,7 +1,7 @@
 /** 全局常量与 localStorage key 命名空间 */
 
 export const APP_NAME = '伯恩主屋 · 长期记忆'
-export const APP_VERSION = '0.7.1'
+export const APP_VERSION = '0.7.2'
 
 /** localStorage key 统一前缀，避免与其他应用冲突 */
 const NS = 'burne-home-core'
